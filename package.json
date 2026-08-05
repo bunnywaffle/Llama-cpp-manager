@@ -1,0 +1,33 @@
+{
+  "name": "llama-manager",
+  "version": "1.0.0",
+  "description": "Simple Electron app to manage and run llama.cpp server",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build-portable": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "axios": "^1.7.9"
+  },
+  "devDependencies": {
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.llamamanager.app",
+    "productName": "Llama.cpp Manager",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": "false",
+      "allowToChangeInstallationDirectory": "true"
+    }
+  }
+}

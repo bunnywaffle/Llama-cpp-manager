@@ -1,0 +1,5 @@
+node_modules/
+# Build output is large and generated locally
+dist/
+*.log
+.DS_Store

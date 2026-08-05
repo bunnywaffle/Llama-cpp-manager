@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Llama.cpp Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root[data-theme="dark"] {
+            --bg-base: #0a0a0c;
+            --bg-surface: #101014;
+            --bg-card: #16161c;
+            --border: #22222b;
+            --text-main: #f4f4f5;
+            --text-muted: #888893;
+            --accent: #10b981;
+            --accent-hover: #059669;
+            --glow-color: rgba(16, 185, 129, 0.08);
+        }
+
+        :root[data-theme="midnight"] {
+            --bg-base: #090a0f;
+            --bg-surface: #111420;
+            --bg-card: #181d2e;
+            --border: #252d42;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --glow-color: rgba(59, 130, 246, 0.08);
+        }
+
+        :root[data-theme="glass"] {
+            --bg-base: #07111f;
+            --bg-surface: rgba(15, 28, 48, 0.58);
+            --bg-card: rgba(255, 255, 255, 0.09);
+            --border: rgba(255, 255, 255, 0.18);
+            --text-main: #f4f8ff;
+            --text-muted: #a9bad1;
+            --accent: #67e8f9;
+            --accent-hover: #22d3ee;
+            --glow-color: rgba(103, 232, 249, 0.14);
+        }
+
+        :root[data-theme="light"] {
+            --bg-base: #f8fafc;
+            --bg-surface: #ffffff;
+            --bg-card: #f1f5f9;
+            --border: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent: #0f172a;
+            --accent-hover: #334155;
+            --glow-color: rgba(15, 23, 42, 0.04);
+        }
+
+        * { box-sizing: border-box; }
+
+        /* Glass theme: translucent surfaces, soft borders, and backdrop blur. */
+        :root[data-theme="glass"] body {
+            background:
+                radial-gradient(circle at 15% 10%, rgba(34, 211, 238, 0.18), transparent 32%),
+                radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.2), transparent 35%),
+                var(--bg-base);
+        }
+
+        :root[data-theme="glass"] .sidebar,
+        :root[data-theme="glass"] .card,
+        :root[data-theme="glass"] .metric-card,
+        :root[data-theme="glass"] .modal,
+        :root[data-theme="glass"] input,
+        :root[data-theme="glass"] select,
+        :root[data-theme="glass"] .btn {
+            background-color: var(--bg-surface);
+            border-color: var(--border);
+            backdrop-filter: blur(18px) saturate(140%);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        :root[data-theme="glass"] .metric-card,
+        :root[data-theme="glass"] .btn:hover {
+            background-color: rgba(255, 255, 255, 0.13);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background-color: var(--bg-surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            justify-content: space-between;
+            transition: margin-left 0.3s ease, width 0.3s ease;
+            z-index: 10;
+        }
+
+        .sidebar.collapsed {
+            margin-left: -240px;
+        }
+
+        /* Keep a compact control available when the sidebar is collapsed. */
+        #sidebar-reopen {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1100;
+            display: none;
+        }
+
+        .sidebar.collapsed ~ .workspace #sidebar-reopen {
+            display: inline-flex;
+        }
+
+        #webui-exit-fullscreen {
+            display: none;
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 1200;
+        }
+
+        .brand-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 30px;
+            padding-left: 8px;
+        }
+
+        .brand-avatar {
+            width: 36px;
+            height: 36px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .brand-title {
+            font-size: 15px;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .brand-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            background: transparent;
+            border: none;
+            width: 100%;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            color: var(--text-main);
+            background-color: rgba(128, 128, 128, 0.05);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--glow-color) 0%, transparent 100%);
+            color: var(--text-main);
+            border-left: 3px solid var(--accent);
+        }
+
+        .sidebar-bottom {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .version-area {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            padding-left: 8px;
+        }
+
+        .version-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent);
+        }
+
+        /* Workspace */
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-base);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .view-pane {
+            display: none;
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .view-pane.active {
+            display: flex;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        h2 {
+            margin: 0 0 4px 0;
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        p.subtitle {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Main Card */
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, var(--glow-color) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .status-banner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-icon-box {
+            width: 64px;
+            height: 64px;
+            background: var(--glow-color);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            color: var(--accent);
+            box-shadow: 0 0 15px var(--glow-color);
+        }
+
+        .status-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .status-heading {
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .status-subtext {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-subtext::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 6px var(--accent);
+        }
+
+        .metrics-grid-4 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .metric-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .metric-card i {
+            font-size: 20px;
+            color: var(--text-muted);
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .metric-val {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        /* Buttons */
+        .btn {
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 18px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { background-color: var(--border); }
+        .btn.primary { background-color: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 0 12px var(--glow-color); }
+        .btn.primary:hover { opacity: 0.9; }
+        .btn.danger { background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
+
+        /* Form elements */
+        label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        input, select {
+            width: 100%;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+        }
+        input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 8px var(--glow-color); }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 700px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        .console {
+            background-color: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--accent);
+            flex: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            min-height: 350px;
+            max-height: 450px;
+        }
+
+        #webui-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 10px;
+            background: #fff;
+            flex: 1;
+        }
+
+        .list-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div>
+            <div class="brand-area">
+                <div class="brand-avatar">🦙</div>
+                <div>
+                    <div class="brand-title">Llama.cpp</div>
+                    <div class="brand-subtitle">Manager</div>
+                </div>
+            </div>
+            <div class="nav-menu">
+                <button class="nav-item active" data-target="view-dashboard">
+                    <i class="fa-solid fa-house" style="width: 16px;"></i> Dashboard
+                </button>
+                <button class="nav-item" data-target="view-models">
+                    <i class="fa-solid fa-cube" style="width: 16px;"></i> Models
+                </button>
+                <button class="nav-item" data-target="view-server">
+                    <i class="fa-solid fa-play" style="width: 16px;"></i> Server
+                </button>
+                <button class="nav-item" data-target="view-backends">
+                    <i class="fa-solid fa-microchip" style="width: 16px;"></i> Backends
+                </button>
+                <button class="nav-item" data-target="view-webui" id="nav-webui-tab">
+                    <i class="fa-solid fa-globe" style="width: 16px;"></i> Web UI
+                </button>
+            </div>
+        </div>
+        <div class="sidebar-bottom">
+            <button class="nav-item" data-target="view-settings">
+                <i class="fa-solid fa-gear" style="width: 16px;"></i> Settings
+            </button>
+            <div class="version-area">
+                <div class="version-dot"></div>
+                <span>v0.2.0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workspace -->
+    <div class="workspace">
+        <button class="btn secondary" id="sidebar-reopen" title="Show sidebar"><i class="fa-solid fa-bars"></i> Show Sidebar</button>
+        <button class="btn danger" id="webui-exit-fullscreen"><i class="fa-solid fa-compress"></i> Exit Fullscreen</button>
+
+        <!-- DASHBOARD VIEW -->
+        <div id="view-dashboard" class="view-pane active">
+            <div class="header-row">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn secondary" id="btn-toggle-sidebar" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    <div>
+                        <h2>Dashboard</h2>
+                        <p class="subtitle">Active llama.cpp server</p>
+                    </div>
+                </div>
+                <div id="dashboard-action-btn-container" style="display: flex; gap: 12px; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="dash-ctx" style="margin: 0; white-space: nowrap; font-size: 12px;">Context</label>
+                        <input type="number" id="dash-ctx" value="4096" min="1" step="1" title="Context size passed to llama-server (-c)" style="width: 92px; padding: 10px 8px;">
+                    </div>
+                    <div style="width: 220px;">
+                        <select id="dash-model-select" style="padding: 10px 14px; font-size: 13px;"></select>
+                    </div>
+                    <button class="btn primary" id="btn-quick-run"><i class="fa-solid fa-play"></i> Run Server</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="status-banner">
+                    <div class="status-left">
+                        <div class="status-icon-box">
+                            <i class="fa-solid fa-server"></i>
+                        </div>
+                        <div>
+                            <div class="status-label">Server Status</div>
+                            <div class="status-heading" id="dash-status-text" style="color: #ef4444; text-shadow: 0 0 20px rgba(239, 68, 68, 0.3);">Offline</div>
+                            <div class="status-subtext" id="dash-subtext">Server is offline</div>
+                        </div>
+                    </div>
+                    <div id="dash-stop-container" style="display: none;">
+                        <button class="btn danger" id="btn-quick-stop"><i class="fa-solid fa-square"></i> Stop Server</button>
+                    </div>
+                </div>
+
+                <div class="metrics-grid-4">
+                    <div class="metric-card">
+                        <i class="fa-solid fa-desktop"></i>
+                        <div>
+                            <div class="metric-label">Address</div>
+                            <div class="metric-val" id="metric-addr">127.0.0.1:8080</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <i class="fa-solid fa-link"></i>
+                        <div>
+                            <div class="metric-label">API Endpoints</div>
+                            <div class="metric-val">/v1</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <i class="fa-solid fa-cube"></i>
+                        <div>
+                            <div class="metric-label">Model Loaded</div>
+                            <div class="metric-val" id="metric-model">None</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <div>
+                            <div class="metric-label">Context Size</div>
+                            <div class="metric-val" id="metric-ctx">4096</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <i class="fa-solid fa-wave-square"></i>
+                        <div>
+                            <div class="metric-label">Threads</div>
+                            <div class="metric-val">16</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <i class="fa-solid fa-microchip"></i>
+                        <div>
+                            <div class="metric-label">Backend</div>
+                            <div class="metric-val">CPU / GPU</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <i class="fa-solid fa-clock"></i>
+                        <div>
+                            <div class="metric-label">Uptime</div>
+                            <div class="metric-val" id="metric-uptime">00:00:00</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <i class="fa-solid fa-gauge-high"></i>
+                        <div>
+                            <div class="metric-label">Tokens / sec</div>
+                            <div class="metric-val">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn secondary" id="btn-open-logs-modal" style="justify-content: space-between; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-file-lines"></i>
+                        <span>View Logs</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right" style="color: var(--text-muted);"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODELS VIEW -->
+        <div id="view-models" class="view-pane">
+            <div class="header-row">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    <div>
+                        <h2>Models</h2>
+                        <p class="subtitle">Manage local GGUF model files and folders</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn secondary" id="btn-link-models-folder"><i class="fa-solid fa-folder-tree"></i> Link Folder</button>
+                    <button class="btn primary" id="btn-add-model"><i class="fa-solid fa-plus"></i> Import Model</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Installed GGUF Models</div>
+                <div id="models-list-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+        </div>
+
+        <!-- SERVER VIEW -->
+        <div id="view-server" class="view-pane">
+            <div class="header-row">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    <div>
+                        <h2>Server Configuration</h2>
+                        <p class="subtitle">Configure parameters for llama-server inference</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <label>Select Model</label>
+                        <select id="server-model-select"></select>
+                    </div>
+                    <div>
+                        <label>Port</label>
+                        <input type="number" id="inp-port" value="8080">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <label>Context Size (-c)</label>
+                        <input type="number" id="inp-ctx" value="4096" min="1" step="1">
+                    </div>
+                    <div>
+                        <label>GPU Layers (-ngl)</label>
+                        <input type="number" id="inp-ngl" value="99">
+                    </div>
+                </div>
+                <div>
+                    <label>Extra CLI Arguments</label>
+                    <input type="text" id="inp-extra" placeholder="e.g. --flash-attn on --threads 8">
+                </div>
+            </div>
+        </div>
+
+        <!-- BACKENDS VIEW -->
+        <div id="view-backends" class="view-pane">
+            <div class="header-row">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    <div>
+                        <h2>Backends & Updates</h2>
+                        <p class="subtitle">Download release binaries or link existing installation folder</p>
+                    </div>
+                </div>
+                <button class="btn secondary" id="btn-link-folder"><i class="fa-solid fa-folder-open"></i> Link Existing Folder</button>
+            </div>
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div class="card-title">Installation Status</div>
+                        <p id="backend-status-text" style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 14px;">Checking...</p>
+                    </div>
+                    <button class="btn primary" id="btn-fetch-releases"><i class="fa-solid fa-cloud-arrow-down"></i> Check GitHub Releases</button>
+                </div>
+            </div>
+            <div class="card" id="releases-card" style="display: none;">
+                <div class="card-title">Available Releases</div>
+                <div id="releases-container"></div>
+            </div>
+        </div>
+
+        <!-- WEBUI VIEW -->
+        <div id="view-webui" class="view-pane">
+            <div class="header-row">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    <div>
+                        <h2>Web UI</h2>
+                        <p class="subtitle">Direct chat interface with the running llama.cpp server</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn primary" id="btn-fullscreen-toggle"><i class="fa-solid fa-expand"></i> Fullscreen Mode</button>
+                    <button class="btn secondary" id="btn-refresh-webui"><i class="fa-solid fa-rotate"></i> Reload</button>
+                </div>
+            </div>
+            <div class="card" id="webui-card-container" style="flex: 1; padding: 10px; overflow: hidden; display: flex;">
+                <div id="webui-offline-msg" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); gap: 10px;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 32px; color: #ef4444;"></i>
+                    <p>Server is offline. Start the server from the Dashboard first.</p>
+                </div>
+                <iframe id="webui-frame" style="display: none;"></iframe>
+            </div>
+        </div>
+
+        <!-- SETTINGS VIEW -->
+        <div id="view-settings" class="view-pane">
+            <div class="header-row">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    <div>
+                        <h2>Settings</h2>
+                        <p class="subtitle">App preferences and appearance</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Appearance Theme</div>
+                <div>
+                    <label>Select Theme</label>
+                    <select id="theme-select" style="max-width: 300px;">
+                        <option value="dark">Dark Emerald (Default)</option>
+                        <option value="midnight">Midnight Blue</option>
+                        <option value="light">Light Clean</option>
+                        <option value="glass">Glass Aurora</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Logs Modal -->
+    <div class="modal-overlay" id="logs-modal">
+        <div class="modal">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="card-title"><i class="fa-solid fa-terminal"></i> Server Live Output Logs</div>
+                <button class="btn secondary" id="btn-close-logs" style="padding: 4px 10px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <pre class="console" id="log-console">No logs yet.</pre>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        const navItems = document.querySelectorAll('.nav-item');
+        const viewPanes = document.querySelectorAll('.view-pane');
+        const sidebar = document.getElementById('sidebar');
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                navItems.forEach(n => n.classList.remove('active'));
+                viewPanes.forEach(p => p.classList.remove('active'));
+                item.classList.add('active');
+                document.getElementById(item.dataset.target).classList.add('active');
+
+                // Load the server UI when its tab is opened. The server may have
+                // finished starting after the navigation, so always use the
+                // current port and localhost's IPv4 address.
+                if (item.dataset.target === 'view-webui' && isServerOnline) {
+                    loadWebui();
+                }
+            });
+        });
+
+        // Theme Switcher
+        const themeSelect = document.getElementById('theme-select');
+        const savedTheme = localStorage.getItem('llama-manager-theme');
+        if (savedTheme) {
+            themeSelect.value = savedTheme;
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+        themeSelect.addEventListener('change', (e) => {
+            document.documentElement.setAttribute('data-theme', e.target.value);
+            localStorage.setItem('llama-manager-theme', e.target.value);
+        });
+
+        // Sidebar Toggle
+        const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+        btnToggleSidebar.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+
+        const dashStatusText = document.getElementById('dash-status-text');
+        const dashSubtext = document.getElementById('dash-subtext');
+        const dashboardActionBtnContainer = document.getElementById('dashboard-action-btn-container');
+        const dashStopContainer = document.getElementById('dash-stop-container');
+        const dashModelSelect = document.getElementById('dash-model-select');
+        const dashCtxInput = document.getElementById('dash-ctx');
+        const serverCtxInput = document.getElementById('inp-ctx');
+        const metricModel = document.getElementById('metric-model');
+        const metricAddr = document.getElementById('metric-addr');
+        const metricCtx = document.getElementById('metric-ctx');
+        const metricUptime = document.getElementById('metric-uptime');
+
+        const serverModelSelect = document.getElementById('server-model-select');
+        const modelsListContainer = document.getElementById('models-list-container');
+        const btnAddModel = document.getElementById('btn-add-model');
+        const btnLinkModelsFolder = document.getElementById('btn-link-models-folder');
+
+        const backendStatusText = document.getElementById('backend-status-text');
+        const btnFetchReleases = document.getElementById('btn-fetch-releases');
+        const btnLinkFolder = document.getElementById('btn-link-folder');
+        const releasesCard = document.getElementById('releases-card');
+        const releasesContainer = document.getElementById('releases-container');
+
+        const logConsole = document.getElementById('log-console');
+        const logsModal = document.getElementById('logs-modal');
+        const btnOpenLogsModal = document.getElementById('btn-open-logs-modal');
+        const btnCloseLogs = document.getElementById('btn-close-logs');
+
+        const webuiFrame = document.getElementById('webui-frame');
+        const webuiOfflineMsg = document.getElementById('webui-offline-msg');
+        const btnRefreshWebui = document.getElementById('btn-refresh-webui');
+        const btnFullscreenToggle = document.getElementById('btn-fullscreen-toggle');
+        const webuiCardContainer = document.getElementById('webui-card-container');
+
+        let isServerOnline = false;
+        let isFullscreenMode = false;
+        let startTime = null;
+        let uptimeInterval = null;
+        let webuiLoadTimer = null;
+        const webuiPort = () => parseInt(document.getElementById('inp-port').value, 10) || 8080;
+
+        function loadWebui() {
+            if (!isServerOnline) return;
+            if (webuiLoadTimer) clearTimeout(webuiLoadTimer);
+            webuiOfflineMsg.style.display = 'none';
+            webuiFrame.style.display = 'block';
+            // 127.0.0.1 avoids localhost resolving to ::1 while llama-server
+            // is listening on IPv4 only.
+            webuiFrame.src = `http://127.0.0.1:${webuiPort()}/`;
+        }
+
+        webuiFrame.addEventListener('error', () => {
+            if (!isServerOnline) return;
+            webuiLoadTimer = setTimeout(loadWebui, 1000);
+        });
+
+        function setSidebarCollapsed(collapsed) {
+            sidebar.classList.toggle('collapsed', collapsed);
+        }
+
+        document.getElementById('sidebar-reopen').addEventListener('click', () => {
+            setSidebarCollapsed(false);
+        });
+
+        function setWebuiFullscreen(enabled) {
+            isFullscreenMode = enabled;
+            if (enabled) {
+                setSidebarCollapsed(true);
+                webuiCardContainer.style.position = 'fixed';
+                webuiCardContainer.style.top = '0';
+                webuiCardContainer.style.left = '0';
+                webuiCardContainer.style.width = '100vw';
+                webuiCardContainer.style.height = '100vh';
+                webuiCardContainer.style.zIndex = '999';
+                webuiCardContainer.style.borderRadius = '0';
+                document.getElementById('webui-exit-fullscreen').style.display = 'inline-flex';
+                btnFullscreenToggle.innerHTML = '<i class="fa-solid fa-compress"></i> Revert Fullscreen';
+                btnFullscreenToggle.className = 'btn danger';
+            } else {
+                setSidebarCollapsed(false);
+                webuiCardContainer.style.position = 'static';
+                webuiCardContainer.style.width = 'auto';
+                webuiCardContainer.style.height = 'auto';
+                webuiCardContainer.style.zIndex = 'auto';
+                webuiCardContainer.style.borderRadius = '16px';
+                document.getElementById('webui-exit-fullscreen').style.display = 'none';
+                btnFullscreenToggle.innerHTML = '<i class="fa-solid fa-expand"></i> Fullscreen Mode';
+                btnFullscreenToggle.className = 'btn primary';
+            }
+        }
+
+        btnOpenLogsModal.addEventListener('click', () => { logsModal.style.display = 'flex'; });
+        btnCloseLogs.addEventListener('click', () => { logsModal.style.display = 'none'; });
+
+        btnFullscreenToggle.addEventListener('click', () => {
+            setWebuiFullscreen(!isFullscreenMode);
+        });
+
+        document.getElementById('webui-exit-fullscreen').addEventListener('click', () => {
+            setWebuiFullscreen(false);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && isFullscreenMode) {
+                setWebuiFullscreen(false);
+            }
+        });
+
+        async function init() {
+            await checkBackend();
+            await loadModels();
+        }
+
+        async function checkBackend() {
+            const installed = await ipcRenderer.invoke('check-installed');
+            if (installed) {
+                backendStatusText.innerHTML = '<span style="color: var(--accent);"><i class="fa-solid fa-check-circle"></i> Installed & Ready</span>';
+            } else {
+                backendStatusText.innerHTML = '<span style="color: #ef4444;">Not installed</span>';
+            }
+        }
+
+        async function loadModels() {
+            const models = await ipcRenderer.invoke('list-models');
+            serverModelSelect.innerHTML = '';
+            dashModelSelect.innerHTML = '';
+            modelsListContainer.innerHTML = '';
+
+            if (models.length === 0) {
+                serverModelSelect.innerHTML = '<option value="">No models found</option>';
+                dashModelSelect.innerHTML = '<option value="">No models found</option>';
+                modelsListContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">No GGUF models imported yet.</p>';
+            } else {
+                models.forEach(m => {
+                    const opt1 = document.createElement('option');
+                    opt1.value = m;
+                    opt1.textContent = m;
+                    serverModelSelect.appendChild(opt1);
+
+                    const opt2 = document.createElement('option');
+                    opt2.value = m;
+                    opt2.textContent = m;
+                    dashModelSelect.appendChild(opt2);
+
+                    const row = document.createElement('div');
+                    row.className = 'list-row';
+                    row.innerHTML = `<span style="font-size: 13px;"><i class="fa-solid fa-file-lines" style="color: var(--accent); margin-right: 8px;"></i> ${m}</span>`;
+                    modelsListContainer.appendChild(row);
+                });
+            }
+        }
+
+        dashModelSelect.addEventListener('change', () => {
+            serverModelSelect.value = dashModelSelect.value;
+        });
+        serverModelSelect.addEventListener('change', () => {
+            dashModelSelect.value = serverModelSelect.value;
+        });
+
+        // Keep the context-size controls in the Dashboard and Server panels synchronized.
+        dashCtxInput.addEventListener('input', () => {
+            serverCtxInput.value = dashCtxInput.value;
+        });
+        serverCtxInput.addEventListener('input', () => {
+            dashCtxInput.value = serverCtxInput.value;
+        });
+
+        btnAddModel.addEventListener('click', async () => {
+            const added = await ipcRenderer.invoke('select-model-dialog');
+            if (added) loadModels();
+        });
+
+        btnLinkModelsFolder.addEventListener('click', async () => {
+            try {
+                const count = await ipcRenderer.invoke('link-models-folder-dialog');
+                alert(`Linked folder successfully! Detected ${count} new model(s).`);
+                loadModels();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        });
+
+        btnLinkFolder.addEventListener('click', async () => {
+            try {
+                const linked = await ipcRenderer.invoke('link-folder-dialog');
+                if (linked) {
+                    alert('Successfully linked existing llama.cpp folder!');
+                    checkBackend();
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        });
+
+        btnFetchReleases.addEventListener('click', async () => {
+            btnFetchReleases.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Fetching...';
+            try {
+                const releases = await ipcRenderer.invoke('get-releases');
+                releasesCard.style.display = 'block';
+                releasesContainer.innerHTML = '';
+
+                releases.forEach(rel => {
+                    let platformKey = 'win';
+                    if (process.platform === 'darwin') platformKey = 'macos';
+                    else if (process.platform === 'linux') platformKey = 'linux';
+
+                    const asset = rel.assets.find(a => a.name.toLowerCase().includes(platformKey) && a.name.endsWith('.zip'));
+                    if (asset) {
+                        const div = document.createElement('div');
+                        div.className = 'list-row';
+                        div.innerHTML = `
+                            <span style="font-size: 13px;"><strong>${rel.tag_name}</strong> - ${rel.name}</span>
+                            <button class="btn primary" style="padding: 6px 12px; font-size: 12px;">Install</button>
+                        `;
+                        const installBtn = div.querySelector('button');
+                        installBtn.addEventListener('click', async () => {
+                            installBtn.innerHTML = 'Installing...';
+                            installBtn.disabled = true;
+                            try {
+                                await ipcRenderer.invoke('download-release', asset.browser_download_url, asset.name);
+                                alert('Installed successfully!');
+                                checkBackend();
+                            } catch (e) {
+                                alert('Failed: ' + e.message);
+                            }
+                            installBtn.innerHTML = 'Install';
+                            installBtn.disabled = false;
+                        });
+                        releasesContainer.appendChild(div);
+                    }
+                });
+            } catch (e) {
+                alert('Failed to fetch releases: ' + e.message);
+            }
+            btnFetchReleases.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Check GitHub Releases';
+        });
+
+        async function startServerFunc() {
+            const modelName = dashModelSelect.value;
+            if (!modelName || modelName.includes('No models')) {
+                alert('Please select a valid model.');
+                return;
+            }
+            logConsole.textContent = 'Starting server...\n';
+            try {
+                const port = parseInt(document.getElementById('inp-port').value);
+                const ctx = parseInt(dashCtxInput.value, 10);
+                if (!Number.isInteger(ctx) || ctx < 1) {
+                    alert('Context size must be a positive whole number.');
+                    return;
+                }
+                serverCtxInput.value = ctx;
+                await ipcRenderer.invoke('start-server', {
+                    modelName,
+                    port: port,
+                    ctxSize: ctx,
+                    gpuLayers: parseInt(document.getElementById('inp-ngl').value),
+                    extraArgs: document.getElementById('inp-extra').value
+                });
+
+                dashStatusText.textContent = 'Running';
+                dashStatusText.style.color = 'var(--accent)';
+                dashSubtext.textContent = 'Server is healthy and accepting requests';
+                dashboardActionBtnContainer.style.display = 'none';
+                dashStopContainer.style.display = 'block';
+
+                metricModel.textContent = modelName;
+                metricCtx.textContent = ctx;
+                metricAddr.textContent = `127.0.0.1:${port}`;
+
+                startTime = Date.now();
+                if (uptimeInterval) clearInterval(uptimeInterval);
+                uptimeInterval = setInterval(() => {
+                    const diff = Math.floor((Date.now() - startTime) / 1000);
+                    const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+                    const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+                    const s = String(diff % 60).padStart(2, '0');
+                    metricUptime.textContent = `${h}:${m}:${s}`;
+                }, 1000);
+
+                isServerOnline = true;
+                // Give llama-server a moment to bind its HTTP socket, then load
+                // the embedded UI. loadWebui also retries if startup is slow.
+                webuiLoadTimer = setTimeout(loadWebui, 500);
+            } catch (e) {
+                alert('Error starting server: ' + e.message);
+            }
+        }
+
+        document.getElementById('btn-quick-run').addEventListener('click', startServerFunc);
+
+        document.getElementById('btn-quick-stop').addEventListener('click', async () => {
+            await ipcRenderer.invoke('stop-server');
+        });
+
+        btnRefreshWebui.addEventListener('click', () => {
+            if (isServerOnline) loadWebui();
+        });
+
+        ipcRenderer.on('server-log', (event, data) => {
+            logConsole.textContent += data;
+            logConsole.scrollTop = logConsole.scrollHeight;
+        });
+
+        ipcRenderer.on('server-stopped', () => {
+            dashStatusText.textContent = 'Offline';
+            dashStatusText.style.color = '#ef4444';
+            dashSubtext.textContent = 'Server is offline';
+            dashboardActionBtnContainer.style.display = 'flex';
+            dashStopContainer.style.display = 'none';
+            if (uptimeInterval) clearInterval(uptimeInterval);
+            metricUptime.textContent = '00:00:00';
+            isServerOnline = false;
+            if (webuiLoadTimer) clearTimeout(webuiLoadTimer);
+            webuiFrame.style.display = 'none';
+            webuiOfflineMsg.style.display = 'flex';
+        });
+
+        init();
+    </script>
+</body>
+</html>
