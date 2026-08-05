@@ -2,6 +2,7 @@
   "name": "llama-manager",
   "version": "1.0.0",
   "description": "Simple Electron app to manage and run llama.cpp server",
+  "license": "MIT",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
