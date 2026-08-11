@@ -506,6 +506,7 @@
             display: flex;
             flex-direction: column;
             max-width: 100%;
+            position: relative;
         }
 
         .chat-msg.user {
@@ -549,7 +550,95 @@
             padding: 0 6px;
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            width: 100%;
             gap: 6px;
+        }
+
+        .chat-meta-role {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chat-meta-actions {
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .chat-msg:hover .chat-meta-actions { opacity: 1; }
+
+        .chat-action-btn {
+            background: none;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            border-radius: 6px;
+            padding: 3px 9px;
+            font-size: 11px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s;
+        }
+        .chat-action-btn:hover {
+            color: var(--accent);
+            border-color: var(--border);
+            background: var(--bg-card);
+        }
+
+        .retry-pop {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 5px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 210px;
+        }
+        .retry-pop button {
+            background: none;
+            border: none;
+            color: var(--text-main);
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            white-space: nowrap;
+        }
+        .retry-pop button:hover { background: var(--bg-surface); color: var(--accent); }
+
+        .chat-edit-area {
+            width: 100%;
+            background: var(--bg-base);
+            border: 1px solid var(--accent);
+            border-radius: 10px;
+            padding: 10px 12px;
+            color: var(--text-main);
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+            min-height: 80px;
+            outline: none;
+            font-family: inherit;
+        }
+        .chat-edit-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 8px;
         }
 
         .chat-composer {
@@ -1609,34 +1698,83 @@
             });
         }
 
-        function appendMessage(role, html, opts = {}) {
+        function showWelcomeHint() {
+            chatScroll.innerHTML = '';
+            const hint = document.createElement('div');
+            hint.className = 'chat-welcome';
+            hint.style.cssText = 'text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;';
+            hint.innerHTML = `<i class="fa-solid fa-comments" style="font-size: 28px; display: block; margin-bottom: 10px; opacity: 0.6;"></i>
+                Start a conversation with your model.<br>Select a persona above, then type below.`;
+            chatScroll.appendChild(hint);
+        }
+
+        let msgSeq = 0;
+        const newMsgId = () => 'msg_' + (++msgSeq);
+
+        function createMessageEl(msg) {
             const wrapper = document.createElement('div');
-            wrapper.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant');
+            wrapper.className = 'chat-msg ' + (msg.role === 'user' ? 'user' : 'assistant');
+            wrapper.dataset.msgId = msg.id;
 
             const bubble = document.createElement('div');
-            bubble.className = 'chat-bubble' + (opts.error ? ' error' : '') + ' md-body';
-            bubble.innerHTML = html;
+            bubble.className = 'chat-bubble md-body';
+            bubble.innerHTML = msg.role === 'user'
+                ? `<p>${escapeHtml(msg.content).replace(/\n/g, '<br>')}</p>`
+                : (renderMarkdown(msg.content) || '<p></p>');
 
             const meta = document.createElement('div');
             meta.className = 'chat-meta';
-            if (opts.streaming) {
-                meta.innerHTML = `<span class="typing-dots"><span></span><span></span><span></span></span> Generating...`;
-            } else if (role === 'assistant') {
-                meta.innerHTML = '<i class="fa-solid fa-robot"></i> Assistant';
-            } else {
-                meta.innerHTML = '<i class="fa-solid fa-user"></i> You';
+
+            const metaLeft = document.createElement('span');
+            metaLeft.className = 'chat-meta-role';
+            metaLeft.innerHTML = msg.role === 'assistant'
+                ? '<i class="fa-solid fa-robot"></i> Assistant'
+                : '<i class="fa-solid fa-user"></i> You';
+
+            const metaActions = document.createElement('span');
+            metaActions.className = 'chat-meta-actions';
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'chat-action-btn';
+            editBtn.dataset.act = 'edit';
+            editBtn.title = 'Edit this message';
+            editBtn.innerHTML = '<i class="fa-solid fa-pen"></i> Edit';
+            metaActions.appendChild(editBtn);
+
+            if (msg.role === 'assistant') {
+                const retryBtn = document.createElement('button');
+                retryBtn.className = 'chat-action-btn';
+                retryBtn.dataset.act = 'retry';
+                retryBtn.title = 'Retry or branch this response';
+                retryBtn.innerHTML = '<i class="fa-solid fa-rotate"></i> Retry';
+                metaActions.appendChild(retryBtn);
             }
 
+            meta.appendChild(metaLeft);
+            meta.appendChild(metaActions);
             wrapper.appendChild(bubble);
             wrapper.appendChild(meta);
-            chatScroll.appendChild(wrapper);
-            scrollChatToBottom();
             return wrapper;
         }
 
-        function removeWelcomeHint() {
-            const placeholder = chatScroll.querySelector('i.fa-comments');
-            if (placeholder && placeholder.closest('div')) placeholder.closest('div').remove();
+        function renderChat() {
+            chatScroll.innerHTML = '';
+            if (chatHistory.length === 0) {
+                showWelcomeHint();
+                return;
+            }
+            chatHistory.forEach(msg => chatScroll.appendChild(createMessageEl(msg)));
+            scrollChatToBottom();
+        }
+
+        function buildChatMessages() {
+            const persona = getActivePersona();
+            const messages = [];
+            if (persona && persona.systemPrompt) {
+                messages.push({ role: 'system', content: persona.systemPrompt });
+            }
+            messages.push(...chatHistory.slice(-20));
+            return messages;
         }
 
         function updateChatComposerState() {
@@ -1658,49 +1796,36 @@
             };
         }
 
-        async function sendChatMessage() {
-            if (chatStreaming) {
-                ipcRenderer.send('chat-stop');
-                return;
-            }
-            const text = chatInput.value.trim();
-            if (!text) return;
+        async function generateReply() {
+            if (chatStreaming) return;
             if (!isServerOnline) {
                 alert('The server is offline. Start it from the Dashboard first.');
                 return;
             }
-            chatInput.value = '';
-            removeWelcomeHint();
-
-            appendMessage('user', `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`);
-            chatHistory.push({ role: 'user', content: text });
-
-            const persona = getActivePersona();
-            const messages = [];
-            if (persona && persona.systemPrompt) {
-                messages.push({ role: 'system', content: persona.systemPrompt });
-            }
-            messages.push(...chatHistory.slice(-20));
-
             chatStreaming = true;
             updateChatComposerState();
 
             let acc = '';
-            const assistantMsg = appendMessage('assistant', '<p></p>', { streaming: true });
+            const assistantMsg = createMessageEl({ id: 'streaming', role: 'assistant', content: '' });
             const bubble = assistantMsg.querySelector('.chat-bubble');
+            bubble.innerHTML = '<p></p>';
+            const metaRole = assistantMsg.querySelector('.chat-meta-role');
+            metaRole.innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span> Generating...';
+            chatScroll.appendChild(assistantMsg);
+            scrollChatToBottom();
 
             const renderStream = () => {
                 bubble.innerHTML = renderMarkdown(acc) || '<p></p>';
                 scrollChatToBottom();
             };
-
             const chunkHandler = (event, { delta }) => {
                 acc += delta;
                 renderStream();
             };
             const doneHandler = (event, data) => {
                 cleanup();
-                chatHistory.push({ role: 'assistant', content: acc });
+                chatHistory.push({ id: newMsgId(), role: 'assistant', content: acc });
+                renderChat();
             };
             const errorHandler = (event, { message }) => {
                 cleanup();
@@ -1714,8 +1839,6 @@
                 ipcRenderer.removeListener('chat-error', errorHandler);
                 chatStreaming = false;
                 updateChatComposerState();
-                const meta = assistantMsg.querySelector('.chat-meta');
-                if (meta) meta.innerHTML = '<i class="fa-solid fa-robot"></i> Assistant';
             };
 
             ipcRenderer.on('chat-chunk', chunkHandler);
@@ -1725,12 +1848,90 @@
             try {
                 ipcRenderer.send('chat-start', {
                     port: webuiPort(),
-                    messages,
+                    messages: buildChatMessages(),
                     params: currentChatParams()
                 });
             } catch (e) {
                 cleanup();
             }
+        }
+
+        async function sendChatMessage() {
+            if (chatStreaming) {
+                ipcRenderer.send('chat-stop');
+                return;
+            }
+            const text = chatInput.value.trim();
+            if (!text) return;
+            chatInput.value = '';
+            chatHistory.push({ id: newMsgId(), role: 'user', content: text });
+            renderChat();
+            await generateReply();
+        }
+
+        function startEdit(msgId) {
+            const idx = chatHistory.findIndex(m => m.id === msgId);
+            if (idx < 0 || chatStreaming) return;
+            const wrapper = chatScroll.querySelector(`.chat-msg[data-msg-id="${msgId}"]`);
+            if (!wrapper) return;
+            const bubble = wrapper.querySelector('.chat-bubble');
+            const original = chatHistory[idx].content;
+            bubble.innerHTML = `
+                <textarea class="chat-edit-area" placeholder="Edit message...">${escapeHtml(original)}</textarea>
+                <div class="chat-edit-actions">
+                    <button class="btn secondary btn-edit-cancel" style="padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-xmark"></i> Cancel</button>
+                    <button class="btn primary btn-edit-save" style="padding: 6px 12px; font-size: 12px;"><i class="fa-solid fa-check"></i> Save</button>
+                </div>`;
+            const area = bubble.querySelector('textarea');
+            area.focus();
+            area.setSelectionRange(area.value.length, area.value.length);
+        }
+
+        function saveEdit(msgId) {
+            const idx = chatHistory.findIndex(m => m.id === msgId);
+            if (idx < 0) return;
+            const wrapper = chatScroll.querySelector(`.chat-msg[data-msg-id="${msgId}"]`);
+            if (!wrapper) return;
+            const area = wrapper.querySelector('.chat-edit-area');
+            if (!area) return;
+            const newContent = area.value;
+            // Truncate everything after the edited message (branch point).
+            chatHistory = chatHistory.slice(0, idx + 1);
+            chatHistory[idx].content = newContent;
+            renderChat();
+        }
+
+        function retryMessage(msgId, mode) {
+            if (chatStreaming) return;
+            const idx = chatHistory.findIndex(m => m.id === msgId);
+            if (idx < 0 || chatHistory[idx].role !== 'assistant') return;
+
+            if (mode === 'branch') {
+                // Keep this reply, discard everything after, then generate a new reply.
+                chatHistory = chatHistory.slice(0, idx + 1);
+            } else {
+                // Replace: remove this reply and everything after, regenerate from the prior user prompt.
+                chatHistory = chatHistory.slice(0, idx);
+            }
+            renderChat();
+            generateReply();
+        }
+
+        function toggleRetryMenu(msgId, anchor) {
+            const existing = chatScroll.querySelector('.retry-pop[data-msg-id="' + msgId + '"]');
+            if (existing) { existing.remove(); return; }
+            closeRetryMenus();
+            const pop = document.createElement('div');
+            pop.className = 'retry-pop';
+            pop.dataset.msgId = msgId;
+            pop.innerHTML = `
+                <button data-mode="replace" title="Discard this response and generate a new one"><i class="fa-solid fa-rotate"></i> Retry (replace)</button>
+                <button data-mode="branch" title="Keep this response and generate an alternative below it"><i class="fa-solid fa-code-branch"></i> Branch (keep this)</button>`;
+            anchor.appendChild(pop);
+        }
+
+        function closeRetryMenus() {
+            chatScroll.querySelectorAll('.retry-pop').forEach(p => p.remove());
         }
 
         btnChatSend.addEventListener('click', sendChatMessage);
@@ -1745,14 +1946,49 @@
         btnChatClear.addEventListener('click', () => {
             ipcRenderer.send('chat-stop');
             chatHistory = [];
-            chatScroll.innerHTML = '';
-            const hint = document.createElement('div');
-            hint.style.cssText = 'text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;';
-            hint.innerHTML = `<i class="fa-solid fa-comments" style="font-size: 28px; display: block; margin-bottom: 10px; opacity: 0.6;"></i>
-                Start a conversation with your model.<br>Select a persona above, then type below.`;
-            chatScroll.appendChild(hint);
             chatStreaming = false;
             updateChatComposerState();
+            showWelcomeHint();
+        });
+
+        // Message actions (edit / retry / branch) via event delegation
+        chatScroll.addEventListener('click', (event) => {
+            const retryModeBtn = event.target.closest('.retry-pop button[data-mode]');
+            if (retryModeBtn) {
+                const pop = retryModeBtn.closest('.retry-pop');
+                retryMessage(pop.dataset.msgId, retryModeBtn.dataset.mode);
+                return;
+            }
+            const saveBtn = event.target.closest('.btn-edit-save');
+            if (saveBtn) {
+                const wrapper = saveBtn.closest('.chat-msg');
+                if (wrapper && wrapper.dataset.msgId) saveEdit(wrapper.dataset.msgId);
+                return;
+            }
+            const cancelBtn = event.target.closest('.btn-edit-cancel');
+            if (cancelBtn) {
+                const wrapper = cancelBtn.closest('.chat-msg');
+                if (wrapper && wrapper.dataset.msgId) {
+                    renderChat();
+                }
+                return;
+            }
+            const actionBtn = event.target.closest('.chat-action-btn');
+            if (!actionBtn) return;
+            const wrapper = actionBtn.closest('.chat-msg');
+            if (!wrapper || !wrapper.dataset.msgId) return;
+            const msgId = wrapper.dataset.msgId;
+            if (actionBtn.dataset.act === 'edit') {
+                startEdit(msgId);
+            } else if (actionBtn.dataset.act === 'retry') {
+                toggleRetryMenu(msgId, actionBtn.parentElement);
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.chat-action-btn') && !event.target.closest('.retry-pop')) {
+                closeRetryMenus();
+            }
         });
 
         // Code block copy/download via event delegation
