@@ -1133,6 +1133,18 @@
                         <input type="number" id="inp-repeat" value="1.1" min="0" max="2" step="0.01">
                     </div>
                 </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                    <div>
+                        <label>Max Output Tokens</label>
+                        <input type="number" id="inp-maxtokens" value="2048" min="1" step="1" disabled>
+                    </div>
+                    <div style="display: flex; align-items: flex-end; padding-bottom: 4px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="inp-maxtokens-unlimited" checked style="width: auto; height: auto;">
+                            Unlimited output length
+                        </label>
+                    </div>
+                </div>
                 <div>
                     <label>Extra CLI Arguments</label>
                     <input type="text" id="inp-extra" placeholder="e.g. --flash-attn on --threads 8">
@@ -1447,7 +1459,9 @@
                 topK: parseInt(document.getElementById('inp-topk').value, 10),
                 topP: parseFloat(document.getElementById('inp-topp').value),
                 minP: parseFloat(document.getElementById('inp-minp').value),
-                repeatPenalty: parseFloat(document.getElementById('inp-repeat').value)
+                repeatPenalty: parseFloat(document.getElementById('inp-repeat').value),
+                maxTokens: parseInt(document.getElementById('inp-maxtokens').value, 10) || 2048,
+                maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked
             };
         }
 
@@ -1462,6 +1476,11 @@
             if (s.topP !== undefined) document.getElementById('inp-topp').value = s.topP;
             if (s.minP !== undefined) document.getElementById('inp-minp').value = s.minP;
             if (s.repeatPenalty !== undefined) document.getElementById('inp-repeat').value = s.repeatPenalty;
+            if (s.maxTokens !== undefined) document.getElementById('inp-maxtokens').value = s.maxTokens;
+            if (s.maxTokensUnlimited !== undefined) {
+                document.getElementById('inp-maxtokens-unlimited').checked = s.maxTokensUnlimited;
+                updateMaxTokensUI();
+            }
             if (s.theme) {
                 themeSelect.value = s.theme;
                 document.documentElement.setAttribute('data-theme', s.theme);
@@ -1476,6 +1495,11 @@
             showSettingsFeedback._t = setTimeout(() => { settingsFeedback.style.display = 'none'; }, 2500);
         }
 
+        function updateMaxTokensUI() {
+            const unlimited = document.getElementById('inp-maxtokens-unlimited').checked;
+            document.getElementById('inp-maxtokens').disabled = unlimited;
+        }
+
         btnSaveSettings.addEventListener('click', async () => {
             await ipcRenderer.invoke('save-settings', collectSettings());
             showSettingsFeedback('Settings saved successfully.');
@@ -1485,12 +1509,15 @@
             const defaults = {
                 port: 8080, ctxSize: 40000, gpuLayers: 99, extraArgs: '',
                 model: '', theme: 'dark',
-                temperature: 0.8, topK: 40, topP: 0.95, minP: 0.05, repeatPenalty: 1.1
+                temperature: 0.8, topK: 40, topP: 0.95, minP: 0.05, repeatPenalty: 1.1,
+                maxTokens: 2048, maxTokensUnlimited: true
             };
             applySettings(defaults);
             await ipcRenderer.invoke('save-settings', defaults);
             showSettingsFeedback('Settings reset to defaults.');
         });
+
+        document.getElementById('inp-maxtokens-unlimited').addEventListener('change', updateMaxTokensUI);
 
         // Sidebar Toggle
         const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
@@ -1865,7 +1892,8 @@
                 topK: parseInt(val('inp-topk'), 10) || 40,
                 minP: parseFloat(val('inp-minp')) || 0.05,
                 repeatPenalty: parseFloat(val('inp-repeat')) || 1.1,
-                maxTokens: 2048
+                maxTokens: parseInt(val('inp-maxtokens'), 10) || 2048,
+                maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked
             };
         }
 
@@ -2184,6 +2212,7 @@
         async function init() {
             const saved = await ipcRenderer.invoke('get-settings');
             applySettings(saved);
+            updateMaxTokensUI();
             await checkBackend();
             await loadModels();
             await loadPersonas();
@@ -2367,7 +2396,9 @@
                     topK: parseInt(document.getElementById('inp-topk').value, 10),
                     topP: parseFloat(document.getElementById('inp-topp').value),
                     minP: parseFloat(document.getElementById('inp-minp').value),
-                    repeatPenalty: parseFloat(document.getElementById('inp-repeat').value)
+                    repeatPenalty: parseFloat(document.getElementById('inp-repeat').value),
+                    maxTokens: parseInt(document.getElementById('inp-maxtokens').value, 10) || 2048,
+                    maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked
                 });
 
                 dashStatusText.textContent = 'Running';

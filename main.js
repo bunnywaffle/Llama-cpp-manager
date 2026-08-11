@@ -432,7 +432,9 @@ ipcMain.on('chat-start', (event, payload) => {
         top_k: (params && params.topK !== undefined) ? params.topK : 40,
         min_p: (params && params.minP !== undefined) ? params.minP : 0.05,
         repeat_penalty: (params && params.repeatPenalty !== undefined) ? params.repeatPenalty : 1.1,
-        max_tokens: (params && params.maxTokens !== undefined) ? params.maxTokens : 2048
+        max_tokens: (params && params.maxTokensUnlimited)
+            ? -1
+            : ((params && params.maxTokens !== undefined) ? params.maxTokens : 2048)
     };
 
     axios.post(url, body, {
@@ -515,7 +517,7 @@ ipcMain.handle('select-model-dialog', async () => {
     return null;
 });
 
-ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty }) => {
+ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited }) => {
     if (llamaProcess) {
         throw new Error('Server is already running. Please stop it first.');
     }
@@ -551,6 +553,11 @@ ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, ex
         { flag: '--min-p', value: minP },
         { flag: '--repeat-penalty', value: repeatPenalty }
     ];
+
+    // n_predict = -1 (unlimited) is llama.cpp's default; only pass it when a limit is set.
+    if (maxTokensUnlimited === false || maxTokensUnlimited === undefined) {
+        samplingArgs.push({ flag: '--n-predict', value: (maxTokens !== undefined && maxTokens !== null) ? maxTokens : -1 });
+    }
 
     for (const { flag, value } of samplingArgs) {
         if (value !== undefined && value !== null && value !== '' && !isNaN(parseFloat(value))) {
