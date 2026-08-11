@@ -1793,7 +1793,7 @@
         function renderAssistantBubble(content, reasoning) {
             let html = '';
             if (reasoning && reasoning.trim()) {
-                html += `<div class="chat-reasoning">
+                html += `<div class="chat-reasoning collapsed">
                     <button class="reasoning-toggle"><i class="fa-solid fa-brain reasoning-icon"></i> Reasoning <i class="fa-solid fa-chevron-down reasoning-chevron"></i></button>
                     <div class="reasoning-body">${escapeHtml(reasoning)}</div>
                 </div>`;
