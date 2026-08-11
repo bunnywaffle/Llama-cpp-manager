@@ -568,6 +568,7 @@
             transition: opacity 0.15s;
         }
         .chat-msg:hover .chat-meta-actions { opacity: 1; }
+        .chat-msg.menu-open .chat-meta-actions { opacity: 1; }
 
         .chat-action-btn {
             background: none;
@@ -619,6 +620,57 @@
             white-space: nowrap;
         }
         .retry-pop button:hover { background: var(--bg-surface); color: var(--accent); }
+
+        .ver-pop { min-width: 260px; }
+        .ver-pop button { white-space: normal; }
+        .ver-pop .ver-preview {
+            margin-left: auto;
+            max-width: 130px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 11px;
+            color: var(--text-muted);
+            flex: 0 0 auto;
+        }
+
+        .chat-reasoning {
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-surface);
+            overflow: hidden;
+        }
+        .reasoning-toggle {
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 12px;
+            padding: 7px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            text-align: left;
+            font-family: inherit;
+        }
+        .reasoning-toggle:hover { color: var(--accent); }
+        .reasoning-toggle .reasoning-icon { opacity: 0.8; }
+        .reasoning-toggle .reasoning-chevron { margin-left: auto; transition: transform 0.15s; font-size: 10px; }
+        .chat-reasoning.collapsed .reasoning-chevron { transform: rotate(-90deg); }
+        .reasoning-body {
+            padding: 0 12px 12px;
+            font-size: 12.5px;
+            color: var(--text-muted);
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+            margin: 0;
+        }
+        .chat-reasoning.collapsed .reasoning-body { display: none; }
 
         .chat-edit-area {
             width: 100%;
@@ -1711,6 +1763,18 @@
         let msgSeq = 0;
         const newMsgId = () => 'msg_' + (++msgSeq);
 
+        function renderAssistantBubble(content, reasoning) {
+            let html = '';
+            if (reasoning && reasoning.trim()) {
+                html += `<div class="chat-reasoning">
+                    <button class="reasoning-toggle"><i class="fa-solid fa-brain reasoning-icon"></i> Reasoning <i class="fa-solid fa-chevron-down reasoning-chevron"></i></button>
+                    <div class="reasoning-body">${escapeHtml(reasoning)}</div>
+                </div>`;
+            }
+            html += (renderMarkdown(content) || '<p></p>');
+            return html;
+        }
+
         function createMessageEl(msg) {
             const wrapper = document.createElement('div');
             wrapper.className = 'chat-msg ' + (msg.role === 'user' ? 'user' : 'assistant');
@@ -1720,7 +1784,7 @@
             bubble.className = 'chat-bubble md-body';
             bubble.innerHTML = msg.role === 'user'
                 ? `<p>${escapeHtml(msg.content).replace(/\n/g, '<br>')}</p>`
-                : (renderMarkdown(msg.content) || '<p></p>');
+                : renderAssistantBubble(msg.content, msg.reasoning);
 
             const meta = document.createElement('div');
             meta.className = 'chat-meta';
@@ -1748,6 +1812,15 @@
                 retryBtn.title = 'Retry or branch this response';
                 retryBtn.innerHTML = '<i class="fa-solid fa-rotate"></i> Retry';
                 metaActions.appendChild(retryBtn);
+
+                if (msg.versions && msg.versions.length > 0) {
+                    const verBtn = document.createElement('button');
+                    verBtn.className = 'chat-action-btn';
+                    verBtn.dataset.act = 'versions';
+                    verBtn.title = 'Switch response versions';
+                    verBtn.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> ${msg.versions.length + 1} versions`;
+                    metaActions.appendChild(verBtn);
+                }
             }
 
             meta.appendChild(metaLeft);
@@ -1796,7 +1869,7 @@
             };
         }
 
-        async function generateReply() {
+        async function generateReply(opts = {}) {
             if (chatStreaming) return;
             if (!isServerOnline) {
                 alert('The server is offline. Start it from the Dashboard first.');
@@ -1806,31 +1879,52 @@
             updateChatComposerState();
 
             let acc = '';
-            const assistantMsg = createMessageEl({ id: 'streaming', role: 'assistant', content: '' });
-            const bubble = assistantMsg.querySelector('.chat-bubble');
+            let accReasoning = '';
+            const targetId = opts.targetId || null;
+            let assistantMsg, bubble, metaRole;
+            if (targetId) {
+                assistantMsg = chatScroll.querySelector(`.chat-msg[data-msg-id="${targetId}"]`);
+                if (!assistantMsg) { cleanup(); return; }
+                bubble = assistantMsg.querySelector('.chat-bubble');
+                metaRole = assistantMsg.querySelector('.chat-meta-role');
+                bubble.classList.remove('error');
+            } else {
+                assistantMsg = createMessageEl({ id: 'streaming', role: 'assistant', content: '', reasoning: '' });
+                bubble = assistantMsg.querySelector('.chat-bubble');
+                metaRole = assistantMsg.querySelector('.chat-meta-role');
+                chatScroll.appendChild(assistantMsg);
+            }
             bubble.innerHTML = '<p></p>';
-            const metaRole = assistantMsg.querySelector('.chat-meta-role');
             metaRole.innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span> Generating...';
-            chatScroll.appendChild(assistantMsg);
             scrollChatToBottom();
 
             const renderStream = () => {
-                bubble.innerHTML = renderMarkdown(acc) || '<p></p>';
+                bubble.innerHTML = renderAssistantBubble(acc, accReasoning);
                 scrollChatToBottom();
             };
-            const chunkHandler = (event, { delta }) => {
-                acc += delta;
+            const chunkHandler = (event, { delta, reasoning }) => {
+                if (delta) acc += delta;
+                if (reasoning) accReasoning += reasoning;
                 renderStream();
             };
             const doneHandler = (event, data) => {
                 cleanup();
-                chatHistory.push({ id: newMsgId(), role: 'assistant', content: acc });
+                if (targetId) {
+                    const m = chatHistory.find(x => x.id === targetId);
+                    if (m) { m.content = acc; m.reasoning = accReasoning; }
+                } else {
+                    const msg = { id: newMsgId(), role: 'assistant', content: acc, reasoning: accReasoning, versions: [] };
+                    if (opts.retainVersions) msg.versions = opts.retainVersions;
+                    chatHistory.push(msg);
+                }
                 renderChat();
             };
             const errorHandler = (event, { message }) => {
                 cleanup();
-                bubble.classList.add('error');
-                bubble.innerHTML = `<p><i class="fa-solid fa-triangle-exclamation"></i> <strong>Error:</strong> ${escapeHtml(message)}</p>`;
+                if (!targetId) {
+                    bubble.classList.add('error');
+                    bubble.innerHTML = `<p><i class="fa-solid fa-triangle-exclamation"></i> <strong>Error:</strong> ${escapeHtml(message)}</p>`;
+                }
                 scrollChatToBottom();
             };
             const cleanup = () => {
@@ -1895,6 +1989,13 @@
             const area = wrapper.querySelector('.chat-edit-area');
             if (!area) return;
             const newContent = area.value;
+            const target = chatHistory[idx];
+            if (target.role === 'assistant') {
+                target.versions = target.versions || [];
+                if (target.content !== newContent) {
+                    target.versions.push({ content: target.content, reasoning: target.reasoning });
+                }
+            }
             // Truncate everything after the edited message (branch point).
             chatHistory = chatHistory.slice(0, idx + 1);
             chatHistory[idx].content = newContent;
@@ -1905,21 +2006,66 @@
             if (chatStreaming) return;
             const idx = chatHistory.findIndex(m => m.id === msgId);
             if (idx < 0 || chatHistory[idx].role !== 'assistant') return;
+            const msg = chatHistory[idx];
+            msg.versions = msg.versions || [];
 
-            if (mode === 'branch') {
-                // Keep this reply, discard everything after, then generate a new reply.
+            if (mode === 'replace') {
+                // Preserve this response as a version, then regenerate it in place.
+                msg.versions.push({ content: msg.content, reasoning: msg.reasoning });
                 chatHistory = chatHistory.slice(0, idx + 1);
+                renderChat();
+                generateReply({ targetId: msgId });
             } else {
-                // Replace: remove this reply and everything after, regenerate from the prior user prompt.
-                chatHistory = chatHistory.slice(0, idx);
+                // Branch: keep this response, discard everything after, generate a new reply below
+                // carrying the version history so either response can be revisited.
+                msg.versions.push({ content: msg.content, reasoning: msg.reasoning });
+                chatHistory = chatHistory.slice(0, idx + 1);
+                renderChat();
+                generateReply({ retainVersions: msg.versions.slice() });
             }
+        }
+
+        function toggleVersionsMenu(msgId, anchor) {
+            const existing = chatScroll.querySelector('.ver-pop[data-msg-id="' + msgId + '"]');
+            if (existing) { existing.remove(); return; }
+            closeRetryMenus();
+            const idx = chatHistory.findIndex(m => m.id === msgId);
+            if (idx < 0) return;
+            const msg = chatHistory[idx];
+            const all = (msg.versions || []).concat([{ content: msg.content, reasoning: msg.reasoning }]);
+            const pop = document.createElement('div');
+            pop.className = 'retry-pop ver-pop';
+            pop.dataset.msgId = msgId;
+            pop.innerHTML = all.map((v, i) => {
+                const preview = (v.content || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+                return `<button data-version="${i}" title="Switch to this version"><i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Version ${i + 1}</span>
+                    <span class="ver-preview">${escapeHtml(preview) || '(empty)'}</span>
+                </button>`;
+            }).join('');
+            anchor.appendChild(pop);
+            const wrapper = pop.closest('.chat-msg');
+            if (wrapper) wrapper.classList.add('menu-open');
+        }
+
+        function switchVersion(msgId, versionIndex) {
+            if (chatStreaming) return;
+            const idx = chatHistory.findIndex(m => m.id === msgId);
+            if (idx < 0) return;
+            const msg = chatHistory[idx];
+            const all = (msg.versions || []).concat([{ content: msg.content, reasoning: msg.reasoning }]);
+            if (versionIndex < 0 || versionIndex >= all.length) return;
+            const picked = all[versionIndex];
+            msg.content = picked.content;
+            msg.reasoning = picked.reasoning;
+            msg.versions = all.filter((_, i) => i !== versionIndex);
+            chatHistory = chatHistory.slice(0, idx + 1);
             renderChat();
-            generateReply();
         }
 
         function toggleRetryMenu(msgId, anchor) {
             const existing = chatScroll.querySelector('.retry-pop[data-msg-id="' + msgId + '"]');
-            if (existing) { existing.remove(); return; }
+            if (existing) { closeRetryMenus(); return; }
             closeRetryMenus();
             const pop = document.createElement('div');
             pop.className = 'retry-pop';
@@ -1928,10 +2074,13 @@
                 <button data-mode="replace" title="Discard this response and generate a new one"><i class="fa-solid fa-rotate"></i> Retry (replace)</button>
                 <button data-mode="branch" title="Keep this response and generate an alternative below it"><i class="fa-solid fa-code-branch"></i> Branch (keep this)</button>`;
             anchor.appendChild(pop);
+            const wrapper = pop.closest('.chat-msg');
+            if (wrapper) wrapper.classList.add('menu-open');
         }
 
         function closeRetryMenus() {
             chatScroll.querySelectorAll('.retry-pop').forEach(p => p.remove());
+            chatScroll.querySelectorAll('.chat-msg.menu-open').forEach(w => w.classList.remove('menu-open'));
         }
 
         btnChatSend.addEventListener('click', sendChatMessage);
@@ -1951,12 +2100,23 @@
             showWelcomeHint();
         });
 
-        // Message actions (edit / retry / branch) via event delegation
+        // Message actions (edit / retry / branch / versions) via event delegation
         chatScroll.addEventListener('click', (event) => {
             const retryModeBtn = event.target.closest('.retry-pop button[data-mode]');
             if (retryModeBtn) {
                 const pop = retryModeBtn.closest('.retry-pop');
                 retryMessage(pop.dataset.msgId, retryModeBtn.dataset.mode);
+                return;
+            }
+            const versionBtn = event.target.closest('.ver-pop button[data-version]');
+            if (versionBtn) {
+                const pop = versionBtn.closest('.ver-pop');
+                switchVersion(pop.dataset.msgId, parseInt(versionBtn.dataset.version, 10));
+                return;
+            }
+            const reasoningToggle = event.target.closest('.reasoning-toggle');
+            if (reasoningToggle) {
+                reasoningToggle.parentElement.classList.toggle('collapsed');
                 return;
             }
             const saveBtn = event.target.closest('.btn-edit-save');
@@ -1982,6 +2142,8 @@
                 startEdit(msgId);
             } else if (actionBtn.dataset.act === 'retry') {
                 toggleRetryMenu(msgId, actionBtn.parentElement);
+            } else if (actionBtn.dataset.act === 'versions') {
+                toggleVersionsMenu(msgId, actionBtn.parentElement);
             }
         });
 

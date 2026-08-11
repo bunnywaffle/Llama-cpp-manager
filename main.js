@@ -459,9 +459,12 @@ ipcMain.on('chat-start', (event, payload) => {
                 if (data === '[DONE]') continue;
                 try {
                     const json = JSON.parse(data);
-                    const delta = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content;
-                    if (delta && !event.sender.isDestroyed()) {
-                        event.sender.send('chat-chunk', { delta });
+                    const choice = json.choices && json.choices[0] && json.choices[0].delta;
+                    if (!choice || event.sender.isDestroyed()) continue;
+                    const delta = choice.content || '';
+                    const reasoning = choice.reasoning_content || '';
+                    if (delta || reasoning) {
+                        event.sender.send('chat-chunk', { delta, reasoning });
                     }
                 } catch (e) {}
             }
