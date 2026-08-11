@@ -425,6 +425,144 @@
         }
         input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 8px var(--glow-color); }
 
+        /* Themed native selects (closed state) */
+        select {
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239999a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 12px;
+            padding-right: 38px;
+            cursor: pointer;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        select option {
+            background-color: var(--bg-card);
+            color: var(--text-main);
+        }
+
+        /* Global themed scrollbars (matches every theme) */
+        ::-webkit-scrollbar {
+            width: 11px;
+            height: 11px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 8px;
+            border: 3px solid transparent;
+            background-clip: padding-box;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+            border: 3px solid transparent;
+            background-clip: padding-box;
+        }
+        ::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+
+        /* Custom dropdown (themed menu, no OS popup) */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+            min-width: 190px;
+            max-width: 240px;
+            justify-content: space-between;
+            white-space: nowrap;
+        }
+        .dropdown-trigger:hover {
+            border-color: var(--accent);
+            background: var(--bg-card);
+        }
+        .dropdown.open .dropdown-trigger {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--glow-color);
+        }
+        .dropdown-trigger .dt-icon { color: var(--accent); font-size: 13px; flex: 0 0 auto; }
+        .dropdown-trigger .dt-label {
+            flex: 1;
+            text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .dropdown-trigger .dt-chevron {
+            font-size: 10px;
+            color: var(--text-muted);
+            flex: 0 0 auto;
+            transition: transform 0.18s;
+        }
+        .dropdown.open .dt-chevron { transform: rotate(180deg); }
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            min-width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 6px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+            z-index: 90;
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+            max-height: 320px;
+            overflow-y: auto;
+            animation: dropDownIn 0.14s ease;
+        }
+        .dropdown.open .dropdown-menu { display: flex; }
+        @keyframes dropDownIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--text-main);
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.12s, color 0.12s;
+            white-space: nowrap;
+        }
+        .dropdown-item i { color: var(--text-muted); font-size: 12px; flex: 0 0 auto; }
+        .dropdown-item:hover { background: var(--bg-surface); color: var(--accent); }
+        .dropdown-item:hover i { color: var(--accent); }
+        .dropdown-item.active { background: var(--glow-color); color: var(--accent); }
+        .dropdown-item.active i { color: var(--accent); }
+        .dropdown-item .di-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+        .dropdown-item .di-check { margin-left: auto; opacity: 0; font-size: 11px; }
+        .dropdown-item.active .di-check { opacity: 1; }
+
         /* Modal Overlay */
         .modal-overlay {
             position: fixed;
@@ -511,7 +649,12 @@
             scrollbar-color: var(--border) transparent;
         }
         .chat-scroll::-webkit-scrollbar { width: 8px; }
-        .chat-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 8px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
         .chat-scroll::-webkit-scrollbar-track { background: transparent; }
 
         .chat-welcome {
@@ -1259,9 +1402,13 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px 6px 4px 14px;">
-                        <i class="fa-solid fa-user-astronaut" style="color: var(--accent); font-size: 13px;"></i>
-                        <select id="chat-persona-select" style="max-width: 200px; padding: 8px 8px; font-size: 13px; background: transparent; border: none; outline: none; color: var(--text-main); cursor: pointer;"></select>
+                    <div class="dropdown" id="persona-dropdown">
+                        <button type="button" class="dropdown-trigger" id="persona-dropdown-trigger" title="Select persona">
+                            <i class="fa-solid fa-user-astronaut dt-icon"></i>
+                            <span class="dt-label" id="persona-dropdown-label">Select persona</span>
+                            <i class="fa-solid fa-chevron-down dt-chevron"></i>
+                        </button>
+                        <div class="dropdown-menu" id="persona-dropdown-menu"></div>
                     </div>
                     <button class="btn secondary" id="btn-manage-personas" title="Create, edit, or delete personas"><i class="fa-solid fa-user-pen"></i> Personas</button>
                     <button class="btn secondary" id="btn-chat-clear" title="Clear the conversation"><i class="fa-solid fa-trash"></i> Clear</button>
@@ -1662,7 +1809,10 @@
         const chatInput = document.getElementById('chat-input');
         const btnChatSend = document.getElementById('btn-chat-send');
         const btnChatClear = document.getElementById('btn-chat-clear');
-        const chatPersonaSelect = document.getElementById('chat-persona-select');
+        const personaDropdown = document.getElementById('persona-dropdown');
+        const personaDropdownTrigger = document.getElementById('persona-dropdown-trigger');
+        const personaDropdownLabel = document.getElementById('persona-dropdown-label');
+        const personaDropdownMenu = document.getElementById('persona-dropdown-menu');
         const btnManagePersonas = document.getElementById('btn-manage-personas');
         const chatPersonaIndicator = document.getElementById('chat-persona-indicator');
         const personasModal = document.getElementById('personas-modal');
@@ -1756,25 +1906,40 @@
         });
 
         // ============ Personas ============
+        function renderPersonaDropdown() {
+            personaDropdownMenu.innerHTML = '';
+            if (personas.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'dropdown-item';
+                empty.innerHTML = '<i class="fa-solid fa-user-slash"></i><span class="di-name">No personas</span>';
+                personaDropdownMenu.appendChild(empty);
+                activePersonaId = null;
+            } else {
+                personas.forEach(p => {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'dropdown-item' + (p.id === activePersonaId ? ' active' : '');
+                    item.dataset.personaId = p.id;
+                    item.innerHTML = `<i class="fa-solid fa-user"></i><span class="di-name">${escapeHtml(p.name)}</span><i class="fa-solid fa-check di-check"></i>`;
+                    item.addEventListener('click', () => {
+                        activePersonaId = p.id;
+                        renderPersonaDropdown();
+                        updatePersonaIndicator();
+                        personaDropdown.classList.remove('open');
+                    });
+                    personaDropdownMenu.appendChild(item);
+                });
+                if (!personas.find(p => p.id === activePersonaId)) {
+                    activePersonaId = personas[0].id;
+                }
+            }
+            const active = getActivePersona();
+            personaDropdownLabel.textContent = active ? active.name : 'No persona';
+        }
+
         async function loadPersonas() {
             personas = await ipcRenderer.invoke('list-personas');
-            chatPersonaSelect.innerHTML = '';
-            personas.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.id;
-                opt.textContent = p.name;
-                chatPersonaSelect.appendChild(opt);
-            });
-            if (personas.length === 0) {
-                const opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = 'No personas';
-                chatPersonaSelect.appendChild(opt);
-                activePersonaId = null;
-            } else if (!personas.find(p => p.id === activePersonaId)) {
-                activePersonaId = personas[0].id;
-            }
-            chatPersonaSelect.value = activePersonaId || '';
+            renderPersonaDropdown();
             updatePersonaIndicator();
             renderPersonaList();
         }
@@ -1789,6 +1954,16 @@
                 ? `<i class="fa-solid fa-user"></i> ${escapeHtml(p.name)}`
                 : `<i class="fa-solid fa-user"></i> No persona`;
         }
+
+        personaDropdownTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            personaDropdown.classList.toggle('open');
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#persona-dropdown')) {
+                personaDropdown.classList.remove('open');
+            }
+        });
 
         function renderPersonaList() {
             personaList.innerHTML = '';
@@ -1862,11 +2037,6 @@
             } catch (e) {
                 alert('Error deleting persona: ' + e.message);
             }
-        });
-
-        chatPersonaSelect.addEventListener('change', () => {
-            activePersonaId = chatPersonaSelect.value || null;
-            updatePersonaIndicator();
         });
 
         // ============ Chat ============
