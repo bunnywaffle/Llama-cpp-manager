@@ -12,6 +12,7 @@ const baseUserDataDir = app.getPath('userData');
 const binDir = path.join(baseUserDataDir, 'bin');
 const modelsDir = path.join(baseUserDataDir, 'models');
 const settingsPath = path.join(baseUserDataDir, 'settings.json');
+const personasPath = path.join(baseUserDataDir, 'personas.json');
 
 if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
 if (!fs.existsSync(modelsDir)) fs.mkdirSync(modelsDir, { recursive: true });
@@ -43,6 +44,26 @@ function saveSettings(settings) {
     const merged = { ...getSettings(), ...(settings || {}) };
     fs.writeFileSync(settingsPath, JSON.stringify(merged, null, 2));
     return merged;
+}
+
+const DEFAULT_PERSONAS = [
+    { id: 'general', name: 'General Assistant', systemPrompt: 'You are a helpful, accurate, and concise assistant.' },
+    { id: 'coder', name: 'Coding Expert', systemPrompt: 'You are an expert software engineer. Provide clean, idiomatic code with short explanations. Use fenced code blocks with language tags.' },
+    { id: 'writer', name: 'Creative Writer', systemPrompt: 'You are a creative writer with a vivid, engaging style.' }
+];
+
+function readPersonas() {
+    try {
+        const raw = fs.readFileSync(personasPath, 'utf8');
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : DEFAULT_PERSONAS;
+    } catch (e) {
+        return DEFAULT_PERSONAS;
+    }
+}
+
+function writePersonas(list) {
+    fs.writeFileSync(personasPath, JSON.stringify(list, null, 2));
 }
 
 const GGUF_TYPES = {
@@ -360,6 +381,120 @@ ipcMain.handle('get-model-ctx', (event, modelName) => {
 ipcMain.handle('get-settings', () => getSettings());
 
 ipcMain.handle('save-settings', (event, settings) => saveSettings(settings || {}));
+
+ipcMain.handle('list-personas', () => readPersonas());
+
+ipcMain.handle('save-persona', (event, persona) => {
+    if (!persona || typeof persona !== 'object') throw new Error('Invalid persona.');
+    const list = readPersonas();
+    if (persona.id) {
+        const idx = list.findIndex(p => p.id === persona.id);
+        if (idx >= 0) list[idx] = persona;
+        else list.push(persona);
+    } else {
+        persona.id = 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        list.push(persona);
+    }
+    writePersonas(list);
+    return list;
+});
+
+ipcMain.handle('delete-persona', (event, id) => {
+    let list = readPersonas();
+    list = list.filter(p => p.id !== id);
+    writePersonas(list);
+    return list;
+});
+
+let chatStream = null;
+
+ipcMain.on('chat-start', (event, payload) => {
+    const { port = 8080, messages, params } = payload || {};
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        event.sender.send('chat-error', { message: 'No messages to send.' });
+        return;
+    }
+
+    // Abort any existing stream before starting a new one.
+    if (chatStream) {
+        try { chatStream.destroy(); } catch (e) {}
+        chatStream = null;
+    }
+
+    const url = `http://127.0.0.1:${port}/v1/chat/completions`;
+
+    const body = {
+        model: 'local-model',
+        messages,
+        stream: true,
+        temperature: (params && params.temperature !== undefined) ? params.temperature : 0.8,
+        top_p: (params && params.topP !== undefined) ? params.topP : 0.95,
+        top_k: (params && params.topK !== undefined) ? params.topK : 40,
+        min_p: (params && params.minP !== undefined) ? params.minP : 0.05,
+        repeat_penalty: (params && params.repeatPenalty !== undefined) ? params.repeatPenalty : 1.1,
+        max_tokens: (params && params.maxTokens !== undefined) ? params.maxTokens : 2048
+    };
+
+    axios.post(url, body, {
+        responseType: 'stream',
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        timeout: 0
+    }).then(response => {
+        chatStream = response.data;
+        let buffer = '';
+
+        const sendChatError = (message) => {
+            if (!event.sender.isDestroyed()) event.sender.send('chat-error', { message });
+        };
+
+        chatStream.on('data', (chunk) => {
+            buffer += chunk.toString('utf8');
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed.startsWith('data:')) continue;
+                const data = trimmed.slice(5).trim();
+                if (data === '[DONE]') continue;
+                try {
+                    const json = JSON.parse(data);
+                    const delta = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content;
+                    if (delta && !event.sender.isDestroyed()) {
+                        event.sender.send('chat-chunk', { delta });
+                    }
+                } catch (e) {}
+            }
+        });
+
+        chatStream.on('end', () => {
+            chatStream = null;
+            if (!event.sender.isDestroyed()) event.sender.send('chat-done', {});
+        });
+
+        chatStream.on('error', (err) => {
+            chatStream = null;
+            sendChatError(err.message || 'Stream error');
+        });
+
+        chatStream.on('close', () => {
+            chatStream = null;
+            if (!event.sender.isDestroyed()) event.sender.send('chat-done', {});
+        });
+    }).catch(err => {
+        const msg = err.response && err.response.data && err.response.data.error
+            ? (err.response.data.error.message || err.response.data.error)
+            : err.message;
+        if (!event.sender.isDestroyed()) event.sender.send('chat-error', { message: msg || 'Failed to connect to the server.' });
+    });
+});
+
+ipcMain.on('chat-stop', () => {
+    if (chatStream) {
+        try { chatStream.destroy(); } catch (e) {}
+        chatStream = null;
+    }
+});
 
 ipcMain.handle('select-model-dialog', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {

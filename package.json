@@ -11,7 +11,11 @@
   },
   "dependencies": {
     "adm-zip": "^0.5.16",
-    "axios": "^1.7.9"
+    "axios": "^1.7.9",
+    "dompurify": "^3.4.13",
+    "highlight.js": "^11.11.2",
+    "katex": "^0.18.4",
+    "marked": "^18.0.9"
   },
   "devDependencies": {
     "electron": "^43.3.0",

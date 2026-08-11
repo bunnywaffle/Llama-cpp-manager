@@ -482,6 +482,282 @@
             border-radius: 10px;
             margin-bottom: 8px;
         }
+
+        /* ============ Chat ============ */
+        .chat-layout {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+        }
+
+        .chat-scroll {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding: 4px 4px 12px 4px;
+            min-height: 0;
+        }
+
+        .chat-msg {
+            display: flex;
+            flex-direction: column;
+            max-width: 100%;
+        }
+
+        .chat-msg.user {
+            align-items: flex-end;
+        }
+
+        .chat-msg.assistant {
+            align-items: flex-start;
+        }
+
+        .chat-bubble {
+            max-width: 92%;
+            padding: 14px 18px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.65;
+            border: 1px solid var(--border);
+            word-wrap: break-word;
+        }
+
+        .chat-msg.user .chat-bubble {
+            background: var(--accent);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-msg.assistant .chat-bubble {
+            background: var(--bg-card);
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-msg.assistant .chat-bubble.error {
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .chat-msg .chat-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 5px;
+            padding: 0 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chat-composer {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-top: 1px solid var(--border);
+            padding-top: 16px;
+        }
+
+        .chat-composer textarea {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            color: var(--text-main);
+            font-size: 14px;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            min-height: 64px;
+            max-height: 180px;
+            font-family: inherit;
+        }
+        .chat-composer textarea:focus { border-color: var(--accent); box-shadow: 0 0 8px var(--glow-color); }
+
+        .chat-composer-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chat-chips {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* ============ Markdown ============ */
+        .md-body > *:first-child { margin-top: 0; }
+        .md-body > *:last-child { margin-bottom: 0; }
+        .md-body h1, .md-body h2, .md-body h3, .md-body h4, .md-body h5, .md-body h6 {
+            margin: 1em 0 0.5em 0;
+            line-height: 1.3;
+            font-weight: 700;
+        }
+        .md-body h1 { font-size: 1.5em; }
+        .md-body h2 { font-size: 1.3em; }
+        .md-body h3 { font-size: 1.15em; }
+        .md-body h4 { font-size: 1em; }
+        .md-body p { margin: 0.5em 0; }
+        .md-body ul, .md-body ol { margin: 0.5em 0; padding-left: 1.6em; }
+        .md-body li { margin: 0.2em 0; }
+        .md-body li > ul, .md-body li > ol { margin: 0.1em 0; }
+        .md-body blockquote {
+            margin: 0.6em 0;
+            padding: 0.3em 1em;
+            border-left: 3px solid var(--accent);
+            background: var(--bg-base);
+            border-radius: 0 8px 8px 0;
+            color: var(--text-muted);
+        }
+        .md-body hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
+        .md-body a { color: var(--accent); text-decoration: underline; }
+        .md-body table {
+            border-collapse: collapse;
+            margin: 0.6em 0;
+            font-size: 13px;
+            width: 100%;
+        }
+        .md-body th, .md-body td {
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            text-align: left;
+        }
+        .md-body th { background: var(--bg-base); }
+        .md-body code.inline-code {
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 1px 6px;
+            font-size: 0.88em;
+            font-family: 'JetBrains Mono', Consolas, monospace;
+        }
+        .md-body img { max-width: 100%; border-radius: 8px; }
+
+        /* ============ Code blocks ============ */
+        .code-block {
+            margin: 0.7em 0;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--bg-base);
+        }
+        .code-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 12px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+        }
+        .code-block-lang {
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .code-block-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .code-btn {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s;
+        }
+        .code-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .code-block pre {
+            margin: 0;
+            padding: 12px 14px;
+            overflow-x: auto;
+        }
+        .code-block pre code {
+            background: transparent;
+            padding: 0;
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.55;
+            color: #e5e7eb;
+        }
+
+        /* KaTeX */
+        .md-body .katex-display { margin: 0.8em 0; overflow-x: auto; overflow-y: hidden; }
+        .md-body .katex { font-size: 1.05em; }
+
+        /* hljs theme override: keep tokens readable on dark block bg */
+        .hljs { background: transparent; color: #e5e7eb; }
+
+        /* Persona modal */
+        .persona-editor {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .persona-editor textarea {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: var(--text-main);
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+            min-height: 120px;
+            outline: none;
+            font-family: inherit;
+        }
+        .persona-editor textarea:focus { border-color: var(--accent); box-shadow: 0 0 8px var(--glow-color); }
+
+        .persona-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            transition: all 0.15s;
+        }
+        .persona-list-item:hover { border-color: var(--accent); }
+        .persona-list-item.active { border-color: var(--accent); background: var(--glow-color); }
+
+        .typing-dots {
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .typing-dots span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: inline-block;
+            animation: blink 1.2s infinite both;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -505,6 +781,9 @@
                 </button>
                 <button class="nav-item" data-target="view-server">
                     <i class="fa-solid fa-play" style="width: 16px;"></i> Server
+                </button>
+                <button class="nav-item" data-target="view-chat">
+                    <i class="fa-solid fa-comments" style="width: 16px;"></i> Chat
                 </button>
                 <button class="nav-item" data-target="view-backends">
                     <i class="fa-solid fa-microchip" style="width: 16px;"></i> Backends
@@ -720,6 +999,41 @@
             </div>
         </div>
 
+        <!-- CHAT VIEW -->
+        <div id="view-chat" class="view-pane">
+            <div class="header-row">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    <div>
+                        <h2>Chat</h2>
+                        <p class="subtitle">Chat with your running model</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <select id="chat-persona-select" style="max-width: 220px; padding: 10px 12px; font-size: 13px;"></select>
+                    <button class="btn secondary" id="btn-manage-personas" title="Create, edit, or delete personas"><i class="fa-solid fa-user-pen"></i> Personas</button>
+                    <button class="btn secondary" id="btn-chat-clear"><i class="fa-solid fa-trash"></i> Clear</button>
+                </div>
+            </div>
+            <div class="card chat-layout">
+                <div class="chat-scroll" id="chat-scroll">
+                    <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">
+                        <i class="fa-solid fa-comments" style="font-size: 28px; display: block; margin-bottom: 10px; opacity: 0.6;"></i>
+                        Start a conversation with your model.<br>Select a persona above, then type below.
+                    </div>
+                </div>
+                <div class="chat-composer">
+                    <textarea id="chat-input" placeholder="Type a message... (Enter to send, Shift+Enter for newline)"></textarea>
+                    <div class="chat-composer-actions">
+                        <div class="chat-chips">
+                            <span id="chat-persona-indicator" style="font-size: 12px; color: var(--text-muted);"><i class="fa-solid fa-user"></i> General Assistant</span>
+                        </div>
+                        <button class="btn primary" id="btn-chat-send"><i class="fa-solid fa-paper-plane"></i> Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- BACKENDS VIEW -->
         <div id="view-backends" class="view-pane">
             <div class="header-row">
@@ -820,8 +1134,128 @@
         </div>
     </div>
 
+    <!-- Personas Modal -->
+    <div class="modal-overlay" id="personas-modal">
+        <div class="modal" style="width: 780px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="card-title"><i class="fa-solid fa-user-pen"></i> Manage Personas</div>
+                <button class="btn secondary" id="btn-close-personas" style="padding: 4px 10px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="display: grid; grid-template-columns: 280px 1fr; gap: 20px; min-height: 360px;">
+                <div>
+                    <button class="btn primary" id="btn-new-persona" style="width: 100%; margin-bottom: 12px;"><i class="fa-solid fa-plus"></i> New Persona</button>
+                    <div id="persona-list" style="max-height: 380px; overflow-y: auto;"></div>
+                </div>
+                <div class="persona-editor">
+                    <div>
+                        <label>Persona Name</label>
+                        <input type="text" id="persona-name" placeholder="e.g. Expert Coder">
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column;">
+                        <label>System Prompt</label>
+                        <textarea id="persona-prompt" style="flex: 1;" placeholder="Define this persona's behavior, style, and instructions..."></textarea>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button class="btn danger" id="btn-delete-persona" style="display: none;"><i class="fa-solid fa-trash"></i> Delete</button>
+                        <button class="btn primary" id="btn-save-persona"><i class="fa-solid fa-floppy-disk"></i> Save Persona</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const { ipcRenderer } = require('electron');
+        const { marked } = require('marked');
+        const hljs = require('highlight.js');
+        const katex = require('katex');
+        const createDOMPurify = require('dompurify');
+        const DOMPurify = createDOMPurify(window);
+
+        // ============ Markdown + LaTeX rendering ============
+        function escapeHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // Strip a leading language label from a code fence. llama.cpp models
+        // sometimes write "```python title=..." or paste language names.
+        function detectLang(fenceLang) {
+            if (!fenceLang) return null;
+            const clean = fenceLang.trim().split(/[\s,]+/)[0].toLowerCase();
+            return clean || null;
+        }
+
+        marked.use({
+            gfm: true,
+            breaks: true,
+            renderer: {
+                code({ text, lang }) {
+                    const langName = detectLang(lang);
+                    const highlighted = hljs.highlightAuto(text, langName ? [langName] : undefined);
+                    const displayLang = (highlighted.language || langName || 'text').toLowerCase();
+
+                    return `<div class="code-block">
+                        <div class="code-block-header">
+                            <span class="code-block-lang"><i class="fa-solid fa-code"></i> ${escapeHtml(displayLang)}</span>
+                            <span class="code-block-actions">
+                                <button class="code-btn" data-action="copy" title="Copy code"><i class="fa-solid fa-copy"></i> Copy</button>
+                                <button class="code-btn" data-action="download" title="Download as file"><i class="fa-solid fa-download"></i> Download</button>
+                            </span>
+                        </div>
+                        <pre><code class="hljs">${highlighted.value}</code></pre>
+                    </div>`;
+                }
+            }
+        });
+
+        // Convert $...$ / $$...$$ / \(...\) / \[...\] LaTeX into KaTeX HTML.
+        // Runs AFTER code blocks are already rendered as opaque placeholders so
+        // math inside code is never touched.
+        function renderLatex(text) {
+            // Protect fenced code blocks and inline code before math processing.
+            const placeholders = [];
+            let working = text.replace(/(```[\s\S]*?```)/g, (m) => {
+                placeholders.push(m);
+                return '\u0000MB_' + (placeholders.length - 1) + '\u0000';
+            });
+            working = working.replace(/(`[^`\n]*`)/g, (m) => {
+                placeholders.push(m);
+                return '\u0000MB_' + (placeholders.length - 1) + '\u0000';
+            });
+
+            // Display math $$...$$
+            working = working.replace(/\$\$([\s\S]+?)\$\$/g, (m, expr) => {
+                try {
+                    return katex.renderToString(expr.trim(), { displayMode: true, throwOnError: false });
+                } catch (e) {
+                    return m;
+                }
+            });
+            // Inline math $...$ (not preceded by backslash escape)
+            working = working.replace(/(^|[^\\$])\$([^$\n]+?)\$/g, (m, pre, expr) => {
+                try {
+                    return pre + katex.renderToString(expr.trim(), { displayMode: false, throwOnError: false });
+                } catch (e) {
+                    return m;
+                }
+            });
+
+            // Restore code placeholders
+            working = working.replace(/\u0000MB_(\d+)\u0000/g, (m, i) => placeholders[Number(i)]);
+            return working;
+        }
+
+        function renderMarkdown(text) {
+            if (!text) return '<p></p>';
+            const withLatex = renderLatex(text);
+            const raw = marked.parse(withLatex);
+            const sanitized = DOMPurify.sanitize(raw, {
+                USE_PROFILES: { html: true },
+                ADD_TAGS: ['math', 'mrow', 'mfrac', 'msqrt', 'msub', 'msup', 'munder', 'mover', 'mtext', 'mspace', 'mroot', 'mmultiscripts', 'mpadded', 'mphantom', 'menclose', 'mtable', 'mtr', 'mtd', 'merror', 'annotation', 'semantics', 'mi', 'mo', 'mn'],
+                ADD_ATTR: ['encoding', 'data-mathml', 'xmlns']
+            });
+            return sanitized;
+        }
 
         const navItems = document.querySelectorAll('.nav-item');
         const viewPanes = document.querySelectorAll('.view-pane');
@@ -957,12 +1391,35 @@
         const btnFullscreenToggle = document.getElementById('btn-fullscreen-toggle');
         const webuiCardContainer = document.getElementById('webui-card-container');
 
+        const chatScroll = document.getElementById('chat-scroll');
+        const chatInput = document.getElementById('chat-input');
+        const btnChatSend = document.getElementById('btn-chat-send');
+        const btnChatClear = document.getElementById('btn-chat-clear');
+        const chatPersonaSelect = document.getElementById('chat-persona-select');
+        const btnManagePersonas = document.getElementById('btn-manage-personas');
+        const chatPersonaIndicator = document.getElementById('chat-persona-indicator');
+        const personasModal = document.getElementById('personas-modal');
+        const btnClosePersonas = document.getElementById('btn-close-personas');
+        const btnNewPersona = document.getElementById('btn-new-persona');
+        const btnSavePersona = document.getElementById('btn-save-persona');
+        const btnDeletePersona = document.getElementById('btn-delete-persona');
+        const personaList = document.getElementById('persona-list');
+        const personaName = document.getElementById('persona-name');
+        const personaPrompt = document.getElementById('persona-prompt');
+
         let isServerOnline = false;
         let isFullscreenMode = false;
         let startTime = null;
         let uptimeInterval = null;
         let webuiLoadTimer = null;
         const webuiPort = () => parseInt(document.getElementById('inp-port').value, 10) || 8080;
+
+        // Chat state
+        let personas = [];
+        let activePersonaId = 'general';
+        let editingPersonaId = null;
+        let chatHistory = [];
+        let chatStreaming = false;
 
         function loadWebui() {
             if (!isServerOnline) return;
@@ -1031,11 +1488,307 @@
             }
         });
 
+        // ============ Personas ============
+        async function loadPersonas() {
+            personas = await ipcRenderer.invoke('list-personas');
+            chatPersonaSelect.innerHTML = '';
+            personas.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name;
+                chatPersonaSelect.appendChild(opt);
+            });
+            if (personas.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'No personas';
+                chatPersonaSelect.appendChild(opt);
+                activePersonaId = null;
+            } else if (!personas.find(p => p.id === activePersonaId)) {
+                activePersonaId = personas[0].id;
+            }
+            chatPersonaSelect.value = activePersonaId || '';
+            updatePersonaIndicator();
+            renderPersonaList();
+        }
+
+        function getActivePersona() {
+            return personas.find(p => p.id === activePersonaId) || null;
+        }
+
+        function updatePersonaIndicator() {
+            const p = getActivePersona();
+            chatPersonaIndicator.innerHTML = p
+                ? `<i class="fa-solid fa-user"></i> ${escapeHtml(p.name)}`
+                : `<i class="fa-solid fa-user"></i> No persona`;
+        }
+
+        function renderPersonaList() {
+            personaList.innerHTML = '';
+            personas.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'persona-list-item' + (p.id === editingPersonaId ? ' active' : '');
+                item.innerHTML = `
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <span style="font-weight: 600; font-size: 13px;">${escapeHtml(p.name)}</span>
+                        <span style="font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 190px;">${escapeHtml(p.systemPrompt || 'No system prompt')}</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); font-size: 11px;"></i>
+                `;
+                item.addEventListener('click', () => {
+                    editingPersonaId = p.id;
+                    personaName.value = p.name;
+                    personaPrompt.value = p.systemPrompt || '';
+                    btnDeletePersona.style.display = 'inline-flex';
+                    renderPersonaList();
+                });
+                personaList.appendChild(item);
+            });
+        }
+
+        btnManagePersonas.addEventListener('click', () => { personasModal.style.display = 'flex'; });
+        btnClosePersonas.addEventListener('click', () => { personasModal.style.display = 'none'; });
+
+        btnNewPersona.addEventListener('click', () => {
+            editingPersonaId = null;
+            personaName.value = '';
+            personaPrompt.value = '';
+            btnDeletePersona.style.display = 'none';
+            renderPersonaList();
+        });
+
+        btnSavePersona.addEventListener('click', async () => {
+            const name = personaName.value.trim();
+            if (!name) { alert('Please enter a persona name.'); return; }
+            const persona = {
+                id: editingPersonaId || undefined,
+                name,
+                systemPrompt: personaPrompt.value.trim()
+            };
+            try {
+                const list = await ipcRenderer.invoke('save-persona', persona);
+                personas = list;
+                editingPersonaId = persona.id;
+                if (!activePersonaId || persona.id === undefined || persona.id === activePersonaId) {
+                    activePersonaId = editingPersonaId;
+                }
+                await loadPersonas();
+                renderPersonaList();
+            } catch (e) {
+                alert('Error saving persona: ' + e.message);
+            }
+        });
+
+        btnDeletePersona.addEventListener('click', async () => {
+            if (!editingPersonaId) return;
+            if (!confirm('Delete this persona?')) return;
+            try {
+                const list = await ipcRenderer.invoke('delete-persona', editingPersonaId);
+                personas = list;
+                if (activePersonaId === editingPersonaId) activePersonaId = null;
+                editingPersonaId = null;
+                personaName.value = '';
+                personaPrompt.value = '';
+                btnDeletePersona.style.display = 'none';
+                await loadPersonas();
+                renderPersonaList();
+            } catch (e) {
+                alert('Error deleting persona: ' + e.message);
+            }
+        });
+
+        chatPersonaSelect.addEventListener('change', () => {
+            activePersonaId = chatPersonaSelect.value || null;
+            updatePersonaIndicator();
+        });
+
+        // ============ Chat ============
+        function scrollChatToBottom() {
+            requestAnimationFrame(() => {
+                chatScroll.scrollTop = chatScroll.scrollHeight;
+            });
+        }
+
+        function appendMessage(role, html, opts = {}) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant');
+
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble' + (opts.error ? ' error' : '') + ' md-body';
+            bubble.innerHTML = html;
+
+            const meta = document.createElement('div');
+            meta.className = 'chat-meta';
+            if (opts.streaming) {
+                meta.innerHTML = `<span class="typing-dots"><span></span><span></span><span></span></span> Generating...`;
+            } else if (role === 'assistant') {
+                meta.innerHTML = '<i class="fa-solid fa-robot"></i> Assistant';
+            } else {
+                meta.innerHTML = '<i class="fa-solid fa-user"></i> You';
+            }
+
+            wrapper.appendChild(bubble);
+            wrapper.appendChild(meta);
+            chatScroll.appendChild(wrapper);
+            scrollChatToBottom();
+            return wrapper;
+        }
+
+        function removeWelcomeHint() {
+            const placeholder = chatScroll.querySelector('i.fa-comments');
+            if (placeholder && placeholder.closest('div')) placeholder.closest('div').remove();
+        }
+
+        function updateChatComposerState() {
+            btnChatSend.disabled = chatStreaming;
+            btnChatSend.innerHTML = chatStreaming
+                ? '<i class="fa-solid fa-stop"></i> Stop'
+                : '<i class="fa-solid fa-paper-plane"></i> Send';
+        }
+
+        function currentChatParams() {
+            const val = (id) => document.getElementById(id).value;
+            return {
+                temperature: parseFloat(val('inp-temp')) || 0.8,
+                topP: parseFloat(val('inp-topp')) || 0.95,
+                topK: parseInt(val('inp-topk'), 10) || 40,
+                minP: parseFloat(val('inp-minp')) || 0.05,
+                repeatPenalty: parseFloat(val('inp-repeat')) || 1.1,
+                maxTokens: 2048
+            };
+        }
+
+        async function sendChatMessage() {
+            if (chatStreaming) {
+                ipcRenderer.send('chat-stop');
+                return;
+            }
+            const text = chatInput.value.trim();
+            if (!text) return;
+            if (!isServerOnline) {
+                alert('The server is offline. Start it from the Dashboard first.');
+                return;
+            }
+            chatInput.value = '';
+            removeWelcomeHint();
+
+            appendMessage('user', `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`);
+            chatHistory.push({ role: 'user', content: text });
+
+            const persona = getActivePersona();
+            const messages = [];
+            if (persona && persona.systemPrompt) {
+                messages.push({ role: 'system', content: persona.systemPrompt });
+            }
+            messages.push(...chatHistory.slice(-20));
+
+            chatStreaming = true;
+            updateChatComposerState();
+
+            let acc = '';
+            const assistantMsg = appendMessage('assistant', '<p></p>', { streaming: true });
+            const bubble = assistantMsg.querySelector('.chat-bubble');
+
+            const renderStream = () => {
+                bubble.innerHTML = renderMarkdown(acc) || '<p></p>';
+                scrollChatToBottom();
+            };
+
+            const chunkHandler = (event, { delta }) => {
+                acc += delta;
+                renderStream();
+            };
+            const doneHandler = (event, data) => {
+                cleanup();
+                chatHistory.push({ role: 'assistant', content: acc });
+            };
+            const errorHandler = (event, { message }) => {
+                cleanup();
+                bubble.classList.add('error');
+                bubble.innerHTML = `<p><i class="fa-solid fa-triangle-exclamation"></i> <strong>Error:</strong> ${escapeHtml(message)}</p>`;
+                scrollChatToBottom();
+            };
+            const cleanup = () => {
+                ipcRenderer.removeListener('chat-chunk', chunkHandler);
+                ipcRenderer.removeListener('chat-done', doneHandler);
+                ipcRenderer.removeListener('chat-error', errorHandler);
+                chatStreaming = false;
+                updateChatComposerState();
+                const meta = assistantMsg.querySelector('.chat-meta');
+                if (meta) meta.innerHTML = '<i class="fa-solid fa-robot"></i> Assistant';
+            };
+
+            ipcRenderer.on('chat-chunk', chunkHandler);
+            ipcRenderer.on('chat-done', doneHandler);
+            ipcRenderer.on('chat-error', errorHandler);
+
+            try {
+                ipcRenderer.send('chat-start', {
+                    port: webuiPort(),
+                    messages,
+                    params: currentChatParams()
+                });
+            } catch (e) {
+                cleanup();
+            }
+        }
+
+        btnChatSend.addEventListener('click', sendChatMessage);
+
+        chatInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendChatMessage();
+            }
+        });
+
+        btnChatClear.addEventListener('click', () => {
+            ipcRenderer.send('chat-stop');
+            chatHistory = [];
+            chatScroll.innerHTML = '';
+            const hint = document.createElement('div');
+            hint.style.cssText = 'text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;';
+            hint.innerHTML = `<i class="fa-solid fa-comments" style="font-size: 28px; display: block; margin-bottom: 10px; opacity: 0.6;"></i>
+                Start a conversation with your model.<br>Select a persona above, then type below.`;
+            chatScroll.appendChild(hint);
+            chatStreaming = false;
+            updateChatComposerState();
+        });
+
+        // Code block copy/download via event delegation
+        chatScroll.addEventListener('click', (event) => {
+            const btn = event.target.closest('.code-btn');
+            if (!btn) return;
+            const block = btn.closest('.code-block');
+            if (!block) return;
+            const codeEl = block.querySelector('pre code');
+            const code = codeEl ? codeEl.innerText : '';
+            const langEl = block.querySelector('.code-block-lang');
+            const lang = langEl ? langEl.textContent.trim() : 'code';
+
+            if (btn.dataset.action === 'copy') {
+                navigator.clipboard.writeText(code).then(() => {
+                    const orig = btn.innerHTML;
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+                    setTimeout(() => { btn.innerHTML = orig; }, 1500);
+                });
+            } else if (btn.dataset.action === 'download') {
+                const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `snippet.${lang.replace(/[^a-z0-9]/gi, '') || 'txt'}`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }
+        });
+
         async function init() {
             const saved = await ipcRenderer.invoke('get-settings');
             applySettings(saved);
             await checkBackend();
             await loadModels();
+            await loadPersonas();
             if (saved && saved.model) {
                 dashModelSelect.value = saved.model;
                 serverModelSelect.value = saved.model;
