@@ -1385,6 +1385,15 @@
                     </div>
                 </div>
                 <div>
+                    <label>Reasoning Effort (R1-style models)</label>
+                    <select id="inp-reasoning" style="max-width: 340px;">
+                        <option value="none">None (disabled)</option>
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                <div>
                     <label>Extra CLI Arguments</label>
                     <input type="text" id="inp-extra" placeholder="e.g. --flash-attn on --threads 8">
                 </div>
@@ -1554,6 +1563,21 @@
                         <label>System Prompt</label>
                         <textarea id="persona-prompt" style="flex: 1;" placeholder="Define this persona's behavior, style, and instructions..."></textarea>
                     </div>
+                    <button type="button" class="btn secondary" id="btn-toggle-advanced" style="justify-content: flex-start; width: 100%;"><i class="fa-solid fa-sliders"></i> Advanced Options <i class="fa-solid fa-chevron-down adv-chevron" style="margin-left: auto; font-size: 10px; transition: transform 0.18s;"></i></button>
+                    <div id="persona-advanced" style="display: none; flex-direction: column; gap: 12px;">
+                        <div>
+                            <label>Personality <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
+                            <input type="text" id="persona-personality" placeholder="e.g. witty, curious, blunt when needed">
+                        </div>
+                        <div>
+                            <label>Appearance <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
+                            <input type="text" id="persona-appearance" placeholder="e.g. holographic assistant with a warm, animated face">
+                        </div>
+                        <div>
+                            <label>Background <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
+                            <textarea id="persona-background" style="min-height: 70px;" placeholder="e.g. Created in a research lab, you have worked as a guide for over a decade..."></textarea>
+                        </div>
+                    </div>
                     <div style="display: flex; justify-content: flex-end; gap: 10px;">
                         <button class="btn danger" id="btn-delete-persona" style="display: none;"><i class="fa-solid fa-trash"></i> Delete</button>
                         <button class="btn primary" id="btn-save-persona"><i class="fa-solid fa-floppy-disk"></i> Save Persona</button>
@@ -1707,7 +1731,8 @@
                 minP: parseFloat(document.getElementById('inp-minp').value),
                 repeatPenalty: parseFloat(document.getElementById('inp-repeat').value),
                 maxTokens: parseInt(document.getElementById('inp-maxtokens').value, 10) || 2048,
-                maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked
+                maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked,
+                reasoningEffort: document.getElementById('inp-reasoning').value
             };
         }
 
@@ -1727,6 +1752,7 @@
                 document.getElementById('inp-maxtokens-unlimited').checked = s.maxTokensUnlimited;
                 updateMaxTokensUI();
             }
+            if (s.reasoningEffort !== undefined) document.getElementById('inp-reasoning').value = s.reasoningEffort;
             if (s.theme) {
                 themeSelect.value = s.theme;
                 document.documentElement.setAttribute('data-theme', s.theme);
@@ -1756,7 +1782,8 @@
                 port: 8080, ctxSize: 40000, gpuLayers: 99, extraArgs: '',
                 model: '', theme: 'dark',
                 temperature: 0.8, topK: 40, topP: 0.95, minP: 0.05, repeatPenalty: 1.1,
-                maxTokens: 2048, maxTokensUnlimited: true
+                maxTokens: 2048, maxTokensUnlimited: true,
+                reasoningEffort: 'medium'
             };
             applySettings(defaults);
             await ipcRenderer.invoke('save-settings', defaults);
@@ -1823,6 +1850,11 @@
         const personaList = document.getElementById('persona-list');
         const personaName = document.getElementById('persona-name');
         const personaPrompt = document.getElementById('persona-prompt');
+        const personaPersonality = document.getElementById('persona-personality');
+        const personaAppearance = document.getElementById('persona-appearance');
+        const personaBackground = document.getElementById('persona-background');
+        const btnToggleAdvanced = document.getElementById('btn-toggle-advanced');
+        const personaAdvanced = document.getElementById('persona-advanced');
 
         let isServerOnline = false;
         let isFullscreenMode = false;
@@ -1981,6 +2013,9 @@
                     editingPersonaId = p.id;
                     personaName.value = p.name;
                     personaPrompt.value = p.systemPrompt || '';
+                    personaPersonality.value = p.personality || '';
+                    personaAppearance.value = p.appearance || '';
+                    personaBackground.value = p.background || '';
                     btnDeletePersona.style.display = 'inline-flex';
                     renderPersonaList();
                 });
@@ -1995,8 +2030,17 @@
             editingPersonaId = null;
             personaName.value = '';
             personaPrompt.value = '';
+            personaPersonality.value = '';
+            personaAppearance.value = '';
+            personaBackground.value = '';
             btnDeletePersona.style.display = 'none';
             renderPersonaList();
+        });
+
+        btnToggleAdvanced.addEventListener('click', () => {
+            const open = personaAdvanced.style.display === 'flex';
+            personaAdvanced.style.display = open ? 'none' : 'flex';
+            btnToggleAdvanced.querySelector('.adv-chevron').style.transform = open ? '' : 'rotate(180deg)';
         });
 
         btnSavePersona.addEventListener('click', async () => {
@@ -2005,7 +2049,10 @@
             const persona = {
                 id: editingPersonaId || undefined,
                 name,
-                systemPrompt: personaPrompt.value.trim()
+                systemPrompt: personaPrompt.value.trim(),
+                personality: personaPersonality.value.trim(),
+                appearance: personaAppearance.value.trim(),
+                background: personaBackground.value.trim()
             };
             try {
                 const list = await ipcRenderer.invoke('save-persona', persona);
@@ -2031,6 +2078,9 @@
                 editingPersonaId = null;
                 personaName.value = '';
                 personaPrompt.value = '';
+                personaPersonality.value = '';
+                personaAppearance.value = '';
+                personaBackground.value = '';
                 btnDeletePersona.style.display = 'none';
                 await loadPersonas();
                 renderPersonaList();
@@ -2151,8 +2201,15 @@
         function buildChatMessages() {
             const persona = getActivePersona();
             const messages = [];
-            if (persona && persona.systemPrompt) {
-                messages.push({ role: 'system', content: persona.systemPrompt });
+            if (persona) {
+                const sysParts = [];
+                if (persona.systemPrompt) sysParts.push(persona.systemPrompt);
+                if (persona.personality) sysParts.push('Personality: ' + persona.personality);
+                if (persona.appearance) sysParts.push('Appearance: ' + persona.appearance);
+                if (persona.background) sysParts.push('Background: ' + persona.background);
+                if (sysParts.length > 0) {
+                    messages.push({ role: 'system', content: sysParts.join('\n\n') });
+                }
             }
             messages.push(...chatHistory.slice(-20));
             return messages;
@@ -2174,7 +2231,8 @@
                 minP: parseFloat(val('inp-minp')) || 0.05,
                 repeatPenalty: parseFloat(val('inp-repeat')) || 1.1,
                 maxTokens: parseInt(val('inp-maxtokens'), 10) || 2048,
-                maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked
+                maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked,
+                reasoningEffort: val('inp-reasoning')
             };
         }
 
@@ -2679,7 +2737,8 @@
                     minP: parseFloat(document.getElementById('inp-minp').value),
                     repeatPenalty: parseFloat(document.getElementById('inp-repeat').value),
                     maxTokens: parseInt(document.getElementById('inp-maxtokens').value, 10) || 2048,
-                    maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked
+                    maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked,
+                    reasoningEffort: document.getElementById('inp-reasoning').value
                 });
 
                 dashStatusText.textContent = 'Running';

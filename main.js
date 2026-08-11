@@ -28,7 +28,8 @@ const DEFAULT_SETTINGS = {
     topK: 40,
     topP: 0.95,
     repeatPenalty: 1.1,
-    minP: 0.05
+    minP: 0.05,
+    reasoningEffort: 'medium'
 };
 
 function getSettings() {
@@ -434,7 +435,10 @@ ipcMain.on('chat-start', (event, payload) => {
         repeat_penalty: (params && params.repeatPenalty !== undefined) ? params.repeatPenalty : 1.1,
         max_tokens: (params && params.maxTokensUnlimited)
             ? -1
-            : ((params && params.maxTokens !== undefined) ? params.maxTokens : 2048)
+            : ((params && params.maxTokens !== undefined) ? params.maxTokens : 2048),
+        reasoning_effort: (params && params.reasoningEffort && params.reasoningEffort !== 'none')
+            ? params.reasoningEffort
+            : undefined
     };
 
     axios.post(url, body, {
@@ -517,7 +521,7 @@ ipcMain.handle('select-model-dialog', async () => {
     return null;
 });
 
-ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited }) => {
+ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, reasoningEffort }) => {
     if (llamaProcess) {
         throw new Error('Server is already running. Please stop it first.');
     }
@@ -557,6 +561,11 @@ ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, ex
     // n_predict = -1 (unlimited) is llama.cpp's default; only pass it when a limit is set.
     if (maxTokensUnlimited === false || maxTokensUnlimited === undefined) {
         samplingArgs.push({ flag: '--n-predict', value: (maxTokens !== undefined && maxTokens !== null) ? maxTokens : -1 });
+    }
+
+    // R1-style models: map the UI effort to llama.cpp's --reasoning-effort flag.
+    if (reasoningEffort && reasoningEffort !== 'none') {
+        args.push('--reasoning-effort', reasoningEffort);
     }
 
     for (const { flag, value } of samplingArgs) {
