@@ -543,7 +543,7 @@
                 <div id="dashboard-action-btn-container" style="display: flex; gap: 12px; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <label for="dash-ctx" style="margin: 0; white-space: nowrap; font-size: 12px;">Context</label>
-                        <input type="number" id="dash-ctx" value="4096" min="1" step="1" title="Context size passed to llama-server (-c)" style="width: 92px; padding: 10px 8px;">
+                        <input type="number" id="dash-ctx" value="40000" min="1" step="1" title="Auto-detected from the model. Falls back to 40000 when unknown." style="width: 92px; padding: 10px 8px;">
                     </div>
                     <div style="width: 220px;">
                         <select id="dash-model-select" style="padding: 10px 14px; font-size: 13px;"></select>
@@ -684,11 +684,33 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                     <div>
                         <label>Context Size (-c)</label>
-                        <input type="number" id="inp-ctx" value="4096" min="1" step="1">
+                        <input type="number" id="inp-ctx" value="40000" min="1" step="1">
                     </div>
                     <div>
                         <label>GPU Layers (-ngl)</label>
                         <input type="number" id="inp-ngl" value="99">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;">
+                    <div>
+                        <label>Temperature</label>
+                        <input type="number" id="inp-temp" value="0.8" min="0" max="2" step="0.01">
+                    </div>
+                    <div>
+                        <label>Top K</label>
+                        <input type="number" id="inp-topk" value="40" min="0" step="1">
+                    </div>
+                    <div>
+                        <label>Top P</label>
+                        <input type="number" id="inp-topp" value="0.95" min="0" max="1" step="0.01">
+                    </div>
+                    <div>
+                        <label>Min P</label>
+                        <input type="number" id="inp-minp" value="0.05" min="0" max="1" step="0.01">
+                    </div>
+                    <div>
+                        <label>Repeat Penalty</label>
+                        <input type="number" id="inp-repeat" value="1.1" min="0" max="2" step="0.01">
                     </div>
                 </div>
                 <div>
@@ -772,6 +794,17 @@
                     </select>
                 </div>
             </div>
+            <div class="card">
+                <div class="card-title">Server Settings</div>
+                <p style="margin: 0 0 12px 0; color: var(--text-muted); font-size: 13px;">
+                    Save the current port, context size, GPU layers, sampling parameters, extra arguments, and theme. These are loaded automatically the next time the app starts.
+                </p>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn primary" id="btn-save-settings"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
+                    <button class="btn secondary" id="btn-reset-settings"><i class="fa-solid fa-rotate-left"></i> Reset to Defaults</button>
+                </div>
+                <p id="settings-feedback" style="margin: 12px 0 0 0; color: var(--accent); font-size: 13px; display: none;"></p>
+            </div>
         </div>
 
     </div>
@@ -820,6 +853,68 @@
         themeSelect.addEventListener('change', (e) => {
             document.documentElement.setAttribute('data-theme', e.target.value);
             localStorage.setItem('llama-manager-theme', e.target.value);
+        });
+
+        // Settings persistence
+        const btnSaveSettings = document.getElementById('btn-save-settings');
+        const btnResetSettings = document.getElementById('btn-reset-settings');
+        const settingsFeedback = document.getElementById('settings-feedback');
+
+        function collectSettings() {
+            return {
+                port: parseInt(document.getElementById('inp-port').value, 10) || 8080,
+                ctxSize: parseInt(dashCtxInput.value, 10) || 40000,
+                gpuLayers: parseInt(document.getElementById('inp-ngl').value, 10) || 0,
+                extraArgs: document.getElementById('inp-extra').value,
+                model: dashModelSelect.value || '',
+                theme: themeSelect.value,
+                temperature: parseFloat(document.getElementById('inp-temp').value),
+                topK: parseInt(document.getElementById('inp-topk').value, 10),
+                topP: parseFloat(document.getElementById('inp-topp').value),
+                minP: parseFloat(document.getElementById('inp-minp').value),
+                repeatPenalty: parseFloat(document.getElementById('inp-repeat').value)
+            };
+        }
+
+        function applySettings(s) {
+            if (!s) return;
+            if (s.port) document.getElementById('inp-port').value = s.port;
+            if (s.ctxSize) { dashCtxInput.value = s.ctxSize; serverCtxInput.value = s.ctxSize; }
+            if (s.gpuLayers !== undefined) document.getElementById('inp-ngl').value = s.gpuLayers;
+            if (s.extraArgs !== undefined) document.getElementById('inp-extra').value = s.extraArgs;
+            if (s.temperature !== undefined) document.getElementById('inp-temp').value = s.temperature;
+            if (s.topK !== undefined) document.getElementById('inp-topk').value = s.topK;
+            if (s.topP !== undefined) document.getElementById('inp-topp').value = s.topP;
+            if (s.minP !== undefined) document.getElementById('inp-minp').value = s.minP;
+            if (s.repeatPenalty !== undefined) document.getElementById('inp-repeat').value = s.repeatPenalty;
+            if (s.theme) {
+                themeSelect.value = s.theme;
+                document.documentElement.setAttribute('data-theme', s.theme);
+                localStorage.setItem('llama-manager-theme', s.theme);
+            }
+        }
+
+        function showSettingsFeedback(msg) {
+            settingsFeedback.textContent = msg;
+            settingsFeedback.style.display = 'block';
+            clearTimeout(showSettingsFeedback._t);
+            showSettingsFeedback._t = setTimeout(() => { settingsFeedback.style.display = 'none'; }, 2500);
+        }
+
+        btnSaveSettings.addEventListener('click', async () => {
+            await ipcRenderer.invoke('save-settings', collectSettings());
+            showSettingsFeedback('Settings saved successfully.');
+        });
+
+        btnResetSettings.addEventListener('click', async () => {
+            const defaults = {
+                port: 8080, ctxSize: 40000, gpuLayers: 99, extraArgs: '',
+                model: '', theme: 'dark',
+                temperature: 0.8, topK: 40, topP: 0.95, minP: 0.05, repeatPenalty: 1.1
+            };
+            applySettings(defaults);
+            await ipcRenderer.invoke('save-settings', defaults);
+            showSettingsFeedback('Settings reset to defaults.');
         });
 
         // Sidebar Toggle
@@ -937,8 +1032,15 @@
         });
 
         async function init() {
+            const saved = await ipcRenderer.invoke('get-settings');
+            applySettings(saved);
             await checkBackend();
             await loadModels();
+            if (saved && saved.model) {
+                dashModelSelect.value = saved.model;
+                serverModelSelect.value = saved.model;
+                detectAndSetCtx(saved.model);
+            }
         }
 
         async function checkBackend() {
@@ -974,17 +1076,41 @@
 
                     const row = document.createElement('div');
                     row.className = 'list-row';
-                    row.innerHTML = `<span style="font-size: 13px;"><i class="fa-solid fa-file-lines" style="color: var(--accent); margin-right: 8px;"></i> ${m}</span>`;
+                    row.style.justifyContent = 'space-between';
+                    row.innerHTML = `
+                        <span style="font-size: 13px; display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-file-lines" style="color: var(--accent);"></i> ${m}</span>
+                        <button class="btn danger" style="padding: 5px 10px; font-size: 12px;" data-model="${m.replace(/"/g, '&quot;')}"><i class="fa-solid fa-trash"></i> Remove</button>
+                    `;
+                    row.querySelector('button').addEventListener('click', async (e) => {
+                        const modelName = e.currentTarget.dataset.model;
+                        if (!confirm(`Remove "${modelName}" from the app? The file will be deleted.`)) return;
+                        try {
+                            await ipcRenderer.invoke('delete-model', modelName);
+                            loadModels();
+                        } catch (err) {
+                            alert('Error removing model: ' + err.message);
+                        }
+                    });
                     modelsListContainer.appendChild(row);
                 });
             }
         }
 
+        async function detectAndSetCtx(modelName) {
+            const detected = await ipcRenderer.invoke('get-model-ctx', modelName);
+            const ctx = (detected && Number.isInteger(detected) && detected > 0) ? detected : 40000;
+            dashCtxInput.value = ctx;
+            serverCtxInput.value = ctx;
+            return ctx;
+        }
+
         dashModelSelect.addEventListener('change', () => {
             serverModelSelect.value = dashModelSelect.value;
+            if (dashModelSelect.value) detectAndSetCtx(dashModelSelect.value);
         });
         serverModelSelect.addEventListener('change', () => {
             dashModelSelect.value = serverModelSelect.value;
+            if (serverModelSelect.value) detectAndSetCtx(serverModelSelect.value);
         });
 
         // Keep the context-size controls in the Dashboard and Server panels synchronized.
@@ -1085,7 +1211,12 @@
                     port: port,
                     ctxSize: ctx,
                     gpuLayers: parseInt(document.getElementById('inp-ngl').value),
-                    extraArgs: document.getElementById('inp-extra').value
+                    extraArgs: document.getElementById('inp-extra').value,
+                    temperature: parseFloat(document.getElementById('inp-temp').value),
+                    topK: parseInt(document.getElementById('inp-topk').value, 10),
+                    topP: parseFloat(document.getElementById('inp-topp').value),
+                    minP: parseFloat(document.getElementById('inp-minp').value),
+                    repeatPenalty: parseFloat(document.getElementById('inp-repeat').value)
                 });
 
                 dashStatusText.textContent = 'Running';

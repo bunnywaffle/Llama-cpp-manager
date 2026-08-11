@@ -11,9 +11,113 @@ let llamaProcess = null;
 const baseUserDataDir = app.getPath('userData');
 const binDir = path.join(baseUserDataDir, 'bin');
 const modelsDir = path.join(baseUserDataDir, 'models');
+const settingsPath = path.join(baseUserDataDir, 'settings.json');
 
 if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
 if (!fs.existsSync(modelsDir)) fs.mkdirSync(modelsDir, { recursive: true });
+
+const DEFAULT_SETTINGS = {
+    port: 8080,
+    ctxSize: 40000,
+    gpuLayers: 99,
+    extraArgs: '',
+    model: '',
+    theme: 'dark',
+    temperature: 0.8,
+    topK: 40,
+    topP: 0.95,
+    repeatPenalty: 1.1,
+    minP: 0.05
+};
+
+function getSettings() {
+    try {
+        const raw = fs.readFileSync(settingsPath, 'utf8');
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    } catch (e) {
+        return { ...DEFAULT_SETTINGS };
+    }
+}
+
+function saveSettings(settings) {
+    const merged = { ...getSettings(), ...(settings || {}) };
+    fs.writeFileSync(settingsPath, JSON.stringify(merged, null, 2));
+    return merged;
+}
+
+const GGUF_TYPES = {
+    UINT8: 0, INT8: 1, UINT16: 2, INT16: 3, UINT32: 4, INT32: 5,
+    FLOAT32: 6, BOOL: 7, STRING: 8, ARRAY: 9, UINT64: 10, INT64: 11, FLOAT64: 12
+};
+
+// Reads the trained context length (llama.context_length) from a GGUF file's
+// metadata header. Returns null when the file is not GGUF or the key is absent.
+function readGgufContextLength(filePath) {
+    const fd = fs.openSync(filePath, 'r');
+    try {
+        let buf = Buffer.alloc(0);
+        let offset = 0;
+
+        const readBytes = (n) => {
+            while (buf.length < offset + n) {
+                const chunk = Buffer.alloc(Math.max(n, 8192));
+                const bytesRead = fs.readSync(fd, chunk, 0, chunk.length, buf.length);
+                if (bytesRead === 0) throw new Error('Unexpected end of GGUF file');
+                buf = Buffer.concat([buf, chunk.subarray(0, bytesRead)]);
+            }
+            const val = buf.subarray(offset, offset + n);
+            offset += n;
+            return val;
+        };
+
+        const readString = () => {
+            const len = Number(readBytes(8).readBigUInt64LE(0));
+            return readBytes(len).toString('utf8');
+        };
+
+        const readValue = (type) => {
+            switch (type) {
+                case GGUF_TYPES.UINT8: return readBytes(1).readUInt8(0);
+                case GGUF_TYPES.INT8: return readBytes(1).readInt8(0);
+                case GGUF_TYPES.UINT16: return readBytes(2).readUInt16LE(0);
+                case GGUF_TYPES.INT16: return readBytes(2).readInt16LE(0);
+                case GGUF_TYPES.UINT32: return readBytes(4).readUInt32LE(0);
+                case GGUF_TYPES.INT32: return readBytes(4).readInt32LE(0);
+                case GGUF_TYPES.FLOAT32: return readBytes(4).readFloatLE(0);
+                case GGUF_TYPES.BOOL: return readBytes(1).readUInt8(0) !== 0;
+                case GGUF_TYPES.STRING: return readString();
+                case GGUF_TYPES.UINT64: return Number(readBytes(8).readBigUInt64LE(0));
+                case GGUF_TYPES.INT64: return Number(readBytes(8).readBigInt64LE(0));
+                case GGUF_TYPES.FLOAT64: return readBytes(8).readDoubleLE(0);
+                case GGUF_TYPES.ARRAY: {
+                    const elemType = readBytes(4).readUInt32LE(0);
+                    const n = Number(readBytes(8).readBigUInt64LE(0));
+                    const arr = [];
+                    for (let i = 0; i < n; i++) arr.push(readValue(elemType));
+                    return arr;
+                }
+                default: throw new Error('Unknown GGUF value type: ' + type);
+            }
+        };
+
+        if (readBytes(4).toString('ascii') !== 'GGUF') return null;
+        readBytes(4); // version
+        readBytes(8); // tensor count
+        const kvCount = Number(readBytes(8).readBigUInt64LE(0));
+
+        for (let i = 0; i < kvCount; i++) {
+            const key = readString();
+            const type = readBytes(4).readUInt32LE(0);
+            const value = readValue(type);
+            if (key === 'llama.context_length' || key === 'context_length') {
+                return Number(value) > 0 ? Number(value) : null;
+            }
+        }
+        return null;
+    } finally {
+        fs.closeSync(fd);
+    }
+}
 
 function findExecutable(dir) {
     const exeName = process.platform === 'win32' ? 'llama-server.exe' : 'llama-server';
@@ -215,6 +319,48 @@ ipcMain.handle('list-models', () => {
     }
 });
 
+ipcMain.handle('delete-model', (event, modelName) => {
+    if (!modelName || path.basename(modelName) !== modelName) {
+        throw new Error('Invalid model name.');
+    }
+    const modelPath = path.join(modelsDir, modelName);
+    if (!fs.existsSync(modelPath)) {
+        throw new Error('Model file not found.');
+    }
+    if (llamaProcess) {
+        throw new Error('Stop the server before removing a model.');
+    }
+    try {
+        const st = fs.lstatSync(modelPath);
+        if (st.isSymbolicLink()) {
+            fs.unlinkSync(modelPath);
+        } else if (st.isFile()) {
+            fs.unlinkSync(modelPath);
+        } else {
+            throw new Error('Not a regular file.');
+        }
+    } catch (e) {
+        if (e.code === 'EPERM') throw new Error('Failed to remove model (permission denied).');
+        throw new Error('Failed to remove model: ' + e.message);
+    }
+    return true;
+});
+
+ipcMain.handle('get-model-ctx', (event, modelName) => {
+    if (!modelName || path.basename(modelName) !== modelName) return null;
+    const modelPath = path.join(modelsDir, modelName);
+    if (!fs.existsSync(modelPath)) return null;
+    try {
+        return readGgufContextLength(modelPath);
+    } catch (e) {
+        return null;
+    }
+});
+
+ipcMain.handle('get-settings', () => getSettings());
+
+ipcMain.handle('save-settings', (event, settings) => saveSettings(settings || {}));
+
 ipcMain.handle('select-model-dialog', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
@@ -231,7 +377,7 @@ ipcMain.handle('select-model-dialog', async () => {
     return null;
 });
 
-ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, extraArgs }) => {
+ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty }) => {
     if (llamaProcess) {
         throw new Error('Server is already running. Please stop it first.');
     }
@@ -259,6 +405,20 @@ ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, ex
         '-c', ctxSize.toString(),
         '-ngl', gpuLayers.toString()
     ];
+
+    const samplingArgs = [
+        { flag: '--temp', value: temperature },
+        { flag: '--top-k', value: topK },
+        { flag: '--top-p', value: topP },
+        { flag: '--min-p', value: minP },
+        { flag: '--repeat-penalty', value: repeatPenalty }
+    ];
+
+    for (const { flag, value } of samplingArgs) {
+        if (value !== undefined && value !== null && value !== '' && !isNaN(parseFloat(value))) {
+            args.push(flag, parseFloat(value).toString());
+        }
+    }
 
     if (extraArgs && extraArgs.trim().length > 0) {
         args.push(...extraArgs.trim().split(/\s+/));
