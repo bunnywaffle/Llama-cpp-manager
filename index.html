@@ -601,26 +601,14 @@
             max-height: 450px;
         }
 
-        .chat-shell { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-base); border-radius: 12px; }
-        .chat-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-        .chat-connection { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
-        .chat-dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; }
-        .chat-dot.online { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
-        .chat-messages { flex: 1; overflow-y: auto; padding: 28px clamp(16px, 7vw, 120px); display: flex; flex-direction: column; gap: 20px; }
-        .chat-empty { margin: auto; text-align: center; max-width: 420px; color: var(--text-muted); }
-        .chat-empty i { font-size: 42px; color: var(--accent); margin-bottom: 16px; }
-        .chat-empty h3 { color: var(--text-main); margin: 0 0 8px; }
-        .chat-message { display: flex; gap: 12px; max-width: 900px; }
-        .chat-message.user { align-self: flex-end; flex-direction: row-reverse; }
-        .chat-avatar { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 9px; background: var(--bg-card); border: 1px solid var(--border); color: var(--accent); font-size: 13px; }
-        .chat-message.user .chat-avatar { background: var(--accent); color: white; }
-        .chat-bubble { white-space: pre-wrap; line-height: 1.55; padding: 12px 15px; border: 1px solid var(--border); background: var(--bg-surface); border-radius: 4px 14px 14px 14px; }
-        .chat-message.user .chat-bubble { background: var(--glow-color); border-radius: 14px 4px 14px 14px; }
-        .chat-composer { padding: 14px clamp(16px, 7vw, 120px) 20px; border-top: 1px solid var(--border); background: var(--bg-surface); }
-        .chat-input-wrap { display: flex; gap: 10px; align-items: flex-end; border: 1px solid var(--border); border-radius: 14px; padding: 8px; background: var(--bg-base); }
-        #chat-input { resize: none; min-height: 42px; max-height: 160px; padding: 10px; border: 0; background: transparent; box-shadow: none; }
-        #chat-input:focus { outline: none; }
-        .chat-hint { margin: 8px 4px 0; font-size: 11px; color: var(--text-muted); }
+        #webui-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 10px;
+            background: #fff;
+            flex: 1;
+        }
 
         .list-row {
             display: flex;
@@ -1488,25 +1476,21 @@
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
                     <div>
-                        <h2>Chat</h2>
-                        <p class="subtitle">Private local conversation powered by your running model</p>
+                        <h2>Web UI</h2>
+                        <p class="subtitle">Direct chat interface with the running llama.cpp server</p>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button class="btn primary" id="btn-fullscreen-toggle"><i class="fa-solid fa-expand"></i> Fullscreen Mode</button>
-                    <button class="btn secondary" id="btn-clear-chat"><i class="fa-solid fa-broom"></i> Clear</button>
+                    <button class="btn secondary" id="btn-refresh-webui"><i class="fa-solid fa-rotate"></i> Reload</button>
                 </div>
             </div>
-            <div class="card" id="webui-card-container" style="flex: 1; padding: 0; overflow: hidden; display: flex;">
+            <div class="card" id="webui-card-container" style="flex: 1; padding: 10px; overflow: hidden; display: flex;">
                 <div id="webui-offline-msg" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); gap: 10px;">
                     <i class="fa-solid fa-triangle-exclamation" style="font-size: 32px; color: #ef4444;"></i>
                     <p>Server is offline. Start the server from the Dashboard first.</p>
                 </div>
-                <div class="chat-shell" id="chat-shell" style="display: none;">
-                    <div class="chat-toolbar"><div class="chat-connection"><span class="chat-dot" id="chat-dot"></span><span id="chat-status">Connecting…</span></div><span class="subtitle" id="chat-model-label"></span></div>
-                    <div class="chat-messages" id="chat-messages"><div class="chat-empty" id="chat-empty"><i class="fa-solid fa-comments"></i><h3>Ready when you are</h3><div>Ask your local model anything. Nothing leaves this machine.</div></div></div>
-                    <div class="chat-composer"><div class="chat-input-wrap"><textarea id="chat-input" placeholder="Message your model…" rows="1"></textarea><button class="btn primary" id="btn-send-chat" style="padding: 11px 14px;" title="Send message"><i class="fa-solid fa-arrow-up"></i></button></div><div class="chat-hint">Enter to send · Shift + Enter for a new line</div></div>
-                </div>
+                <iframe id="webui-frame" style="display: none;"></iframe>
             </div>
         </div>
 
@@ -1843,17 +1827,11 @@
         const btnOpenLogsModal = document.getElementById('btn-open-logs-modal');
         const btnCloseLogs = document.getElementById('btn-close-logs');
 
+        const webuiFrame = document.getElementById('webui-frame');
         const webuiOfflineMsg = document.getElementById('webui-offline-msg');
+        const btnRefreshWebui = document.getElementById('btn-refresh-webui');
         const btnFullscreenToggle = document.getElementById('btn-fullscreen-toggle');
         const webuiCardContainer = document.getElementById('webui-card-container');
-        const chatShell = document.getElementById('chat-shell');
-        const chatMessages = document.getElementById('chat-messages');
-        const chatInput = document.getElementById('chat-input');
-        const btnSendChat = document.getElementById('btn-send-chat');
-        const chatDot = document.getElementById('chat-dot');
-        const chatStatus = document.getElementById('chat-status');
-        const chatModelLabel = document.getElementById('chat-model-label');
-        const chatHistory = [];
 
         const chatScroll = document.getElementById('chat-scroll');
         const chatInput = document.getElementById('chat-input');
@@ -1897,46 +1875,13 @@
             if (!isServerOnline) return;
             if (webuiLoadTimer) clearTimeout(webuiLoadTimer);
             webuiOfflineMsg.style.display = 'none';
-            chatShell.style.display = 'flex';
-            chatDot.classList.add('online');
-            chatStatus.textContent = `Connected · 127.0.0.1:${webuiPort()}`;
+            webuiFrame.style.display = 'block';
+            webuiFrame.src = `http://127.0.0.1:${webuiPort()}/`;
         }
-
-        function addChatMessage(role, content) {
-            document.getElementById('chat-empty')?.remove();
-            const item = document.createElement('div');
-            item.className = `chat-message ${role}`;
-            const avatar = document.createElement('div');
-            avatar.className = 'chat-avatar';
-            avatar.innerHTML = role === 'user' ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-robot"></i>';
-            const bubble = document.createElement('div');
-            bubble.className = 'chat-bubble'; bubble.textContent = content;
-            item.append(avatar, bubble); chatMessages.appendChild(item);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            return bubble;
-        }
-
-        async function sendChat() {
-            const content = chatInput.value.trim();
-            if (!content || !isServerOnline || btnSendChat.disabled) return;
-            chatHistory.push({ role: 'user', content }); addChatMessage('user', content);
-            chatInput.value = ''; chatInput.style.height = 'auto'; btnSendChat.disabled = true;
-            const answer = addChatMessage('assistant', ''); let assistantText = '';
-            try {
-                const response = await fetch(`http://127.0.0.1:${webuiPort()}/v1/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'local-model', messages: chatHistory, stream: true }) });
-                if (!response.ok || !response.body) throw new Error(`Server returned ${response.status}`);
-                const reader = response.body.getReader(), decoder = new TextDecoder(); let pending = '';
-                while (true) {
-                    const { done, value } = await reader.read(); if (done) break;
-                    pending += decoder.decode(value, { stream: true }); const lines = pending.split('\n'); pending = lines.pop();
-                    for (const line of lines) { if (!line.startsWith('data: ')) continue; const data = line.slice(6).trim(); if (data === '[DONE]') continue; try { assistantText += JSON.parse(data).choices?.[0]?.delta?.content || ''; } catch (_) {} }
-                    answer.textContent = assistantText || 'Thinking…'; chatMessages.scrollTop = chatMessages.scrollHeight;
-                }
-                if (!assistantText) assistantText = 'The model returned an empty response.';
-                answer.textContent = assistantText; chatHistory.push({ role: 'assistant', content: assistantText });
-            } catch (error) { answer.textContent = `Chat request failed: ${error.message}`; }
-            finally { btnSendChat.disabled = false; chatInput.focus(); }
-        }
+        webuiFrame.addEventListener('error', () => {
+            if (!isServerOnline) return;
+            webuiLoadTimer = setTimeout(loadWebui, 1000);
+        });
 
         function setSidebarCollapsed(collapsed) {
             sidebar.classList.toggle('collapsed', collapsed);
@@ -2803,7 +2748,6 @@
                 metricModel.textContent = modelName;
                 metricCtx.textContent = ctx;
                 metricAddr.textContent = `127.0.0.1:${port}`;
-                chatModelLabel.textContent = modelName;
 
                 startTime = Date.now();
                 if (uptimeInterval) clearInterval(uptimeInterval);
@@ -2816,7 +2760,7 @@
                 }, 1000);
 
                 isServerOnline = true;
-                loadWebui();
+                webuiLoadTimer = setTimeout(loadWebui, 500);
             } catch (e) {
                 alert('Error starting server: ' + e.message);
             }
@@ -2835,13 +2779,9 @@
             button.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
             setTimeout(() => { button.innerHTML = '<i class="fa-regular fa-copy"></i> Copy URL'; }, 1500);
         });
-        document.getElementById('btn-clear-chat').addEventListener('click', () => {
-            chatHistory.length = 0;
-            chatMessages.innerHTML = '<div class="chat-empty" id="chat-empty"><i class="fa-solid fa-comments"></i><h3>Fresh conversation</h3><div>Your previous messages were cleared locally.</div></div>';
+        btnRefreshWebui.addEventListener('click', () => {
+            if (isServerOnline) loadWebui();
         });
-        btnSendChat.addEventListener('click', sendChat);
-        chatInput.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChat(); } });
-        chatInput.addEventListener('input', () => { chatInput.style.height = 'auto'; chatInput.style.height = `${Math.min(chatInput.scrollHeight, 160)}px`; });
 
         ipcRenderer.on('server-log', (event, data) => {
             logConsole.textContent += data;
@@ -2858,9 +2798,7 @@
             metricUptime.textContent = '00:00:00';
             isServerOnline = false;
             if (webuiLoadTimer) clearTimeout(webuiLoadTimer);
-            chatShell.style.display = 'none';
-            chatDot.classList.remove('online');
-            chatStatus.textContent = 'Server offline';
+            webuiFrame.style.display = 'none';
             webuiOfflineMsg.style.display = 'flex';
         });
 
