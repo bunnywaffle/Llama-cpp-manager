@@ -7,6 +7,7 @@ const { spawn } = require('child_process');
 
 let mainWindow;
 let llamaProcess = null;
+let serverStarting = false;
 
 const baseUserDataDir = app.getPath('userData');
 const binDir = path.join(baseUserDataDir, 'bin');
@@ -269,7 +270,7 @@ ipcMain.handle('link-models-folder-dialog', async () => {
                 const fullPath = path.join(dir, entry.name);
                 if (entry.isDirectory()) {
                     scanAndSymlink(fullPath);
-                } else if (entry.name.endsWith('.gguf')) {
+                } else if (entry.name.toLowerCase().endsWith('.gguf')) {
                     const destPath = path.join(modelsDir, entry.name);
                     if (!fs.existsSync(destPath)) {
                         // Create symlink or copy file if symlink fails
@@ -335,7 +336,7 @@ ipcMain.handle('download-release', async (event, downloadUrl, fileName) => {
 ipcMain.handle('list-models', () => {
     try {
         const files = fs.readdirSync(modelsDir);
-        return files.filter(f => f.endsWith('.gguf'));
+        return files.filter(f => f.toLowerCase().endsWith('.gguf'));
     } catch (e) {
         return [];
     }
@@ -521,19 +522,47 @@ ipcMain.handle('select-model-dialog', async () => {
     return null;
 });
 
-ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, reasoningEffort }) => {
-    if (llamaProcess) {
+function splitCommandLine(value) {
+    const args = [];
+    const pattern = /(?:[^\s"']+|"[^"]*"|'[^']*')+/g;
+    for (const item of value.match(pattern) || []) args.push(item.replace(/^("|')|("|')$/g, ''));
+    return args;
+}
+
+async function waitForServer(port, child, timeoutMs = 45000) {
+    const url = `http://127.0.0.1:${port}/health`;
+    const startedAt = Date.now();
+    let lastError = '';
+    while (Date.now() - startedAt < timeoutMs) {
+        if (!child || child.exitCode !== null || child.killed) {
+            throw new Error(lastError || 'llama-server exited before it was ready. Check Server Logs for details.');
+        }
+        try {
+            const response = await axios.get(url, { timeout: 1200, validateStatus: () => true });
+            if (response.status >= 200 && response.status < 300) return;
+        } catch (error) {
+            lastError = error.code === 'ECONNREFUSED' ? '' : error.message;
+        }
+        await new Promise(resolve => setTimeout(resolve, 350));
+    }
+    throw new Error('Timed out waiting for llama-server to become ready. Check Server Logs for the model-loading error.');
+}
+
+ipcMain.handle('start-server', async (event, { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, reasoningEffort }) => {
+    if (llamaProcess || serverStarting) {
         throw new Error('Server is already running. Please stop it first.');
     }
+
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Port must be a number between 1 and 65535.');
+    if (!Number.isInteger(ctxSize) || ctxSize < 1) throw new Error('Context size must be a positive whole number.');
+    if (!Number.isInteger(gpuLayers)) throw new Error('GPU layers must be a whole number.');
 
     const exePath = findExecutable(binDir);
     let modelPath = path.join(modelsDir, modelName);
 
-    // If model path is a symlink or file, resolve properly
+    // realpath handles both absolute and relative symlink targets correctly.
     try {
-        if (fs.lstatSync(modelPath).isSymbolicLink()) {
-            modelPath = fs.readlinkSync(modelPath);
-        }
+        modelPath = fs.realpathSync(modelPath);
     } catch (e) {}
 
     if (!exePath) {
@@ -545,6 +574,7 @@ ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, ex
 
     const args = [
         '-m', modelPath,
+        '--host', '127.0.0.1',
         '--port', port.toString(),
         '-c', ctxSize.toString(),
         '-ngl', gpuLayers.toString()
@@ -575,41 +605,62 @@ ipcMain.handle('start-server', (event, { modelName, port, ctxSize, gpuLayers, ex
     }
 
     if (extraArgs && extraArgs.trim().length > 0) {
-        args.push(...extraArgs.trim().split(/\s+/));
+        args.push(...splitCommandLine(extraArgs.trim()));
     }
 
     const workingDir = path.dirname(exePath);
     console.log('Spawning:', exePath, args.join(' '));
 
-    llamaProcess = spawn(exePath, args, { cwd: workingDir });
+    serverStarting = true;
+    const child = spawn(exePath, args, { cwd: workingDir, windowsHide: true });
+    llamaProcess = child;
 
-    llamaProcess.stdout.on('data', (data) => {
+    child.stdout.on('data', (data) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('server-log', data.toString());
         }
     });
 
-    llamaProcess.stderr.on('data', (data) => {
+    child.stderr.on('data', (data) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('server-log', data.toString());
         }
     });
 
-    llamaProcess.on('close', (code) => {
+    child.on('error', (error) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('server-log', `\n[Unable to start server: ${error.message}]\n`);
+        }
+    });
+
+    child.on('close', (code) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('server-log', `\n[Server exited with code ${code}]\n`);
             mainWindow.webContents.send('server-stopped');
         }
         llamaProcess = null;
+        serverStarting = false;
     });
 
-    return true;
+    try {
+        await waitForServer(port, child);
+        serverStarting = false;
+        return { url: `http://127.0.0.1:${port}` };
+    } catch (error) {
+        if (llamaProcess === child) {
+            try { child.kill(); } catch (e) {}
+            llamaProcess = null;
+        }
+        serverStarting = false;
+        throw error;
+    }
 });
 
 ipcMain.handle('stop-server', () => {
     if (llamaProcess) {
         llamaProcess.kill();
         llamaProcess = null;
+        serverStarting = false;
         return true;
     }
     return false;
