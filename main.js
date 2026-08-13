@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
@@ -9,18 +9,59 @@ let mainWindow;
 let llamaProcess = null;
 let serverStarting = false;
 
-const baseUserDataDir = app.getPath('userData');
-const binDir = path.join(baseUserDataDir, 'bin');
-const modelsDir = path.join(baseUserDataDir, 'models');
-const settingsPath = path.join(baseUserDataDir, 'settings.json');
-const personasPath = path.join(baseUserDataDir, 'personas.json');
+// ============ Self-Contained Data Directory Resolver ============
+const configFilePath = path.join(app.getPath('appData'), 'llama-manager-location.json');
 
-if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
-if (!fs.existsSync(modelsDir)) fs.mkdirSync(modelsDir, { recursive: true });
+function resolveDefaultDataDir() {
+    // 1. If user previously chose a custom folder, use it.
+    try {
+        if (fs.existsSync(configFilePath)) {
+            const raw = fs.readFileSync(configFilePath, 'utf8');
+            const parsed = JSON.parse(raw);
+            if (parsed.dataDir && fs.existsSync(parsed.dataDir)) {
+                return parsed.dataDir;
+            }
+        }
+    } catch (e) {}
+
+    // 2. If running as portable Windows executable, keep all data right in the executable's folder/llama-manager-data
+    if (process.env.PORTABLE_EXECUTABLE_DIR) {
+        const portableData = path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'llama-manager-data');
+        return portableData;
+    }
+
+    // 3. Fallback to standard user data directory
+    return app.getPath('userData');
+}
+
+let activeDataDir = resolveDefaultDataDir();
+
+function getDataDir() {
+    if (!fs.existsSync(activeDataDir)) {
+        try { fs.mkdirSync(activeDataDir, { recursive: true }); } catch (e) {}
+    }
+    return activeDataDir;
+}
+
+function getBinDir() {
+    const dir = path.join(getDataDir(), 'bin');
+    if (!fs.existsSync(dir)) try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}
+    return dir;
+}
+
+function getModelsDir() {
+    const dir = path.join(getDataDir(), 'models');
+    if (!fs.existsSync(dir)) try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}
+    return dir;
+}
+
+function getSettingsPath() { return path.join(getDataDir(), 'settings.json'); }
+function getPersonasPath() { return path.join(getDataDir(), 'personas.json'); }
+function getModelsMetaPath() { return path.join(getDataDir(), 'models-meta.json'); }
 
 const DEFAULT_SETTINGS = {
     port: 8080,
-    ctxSize: 40000,
+    ctxSize: 8192,
     gpuLayers: 99,
     extraArgs: '',
     model: '',
@@ -35,7 +76,7 @@ const DEFAULT_SETTINGS = {
 
 function getSettings() {
     try {
-        const raw = fs.readFileSync(settingsPath, 'utf8');
+        const raw = fs.readFileSync(getSettingsPath(), 'utf8');
         return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
     } catch (e) {
         return { ...DEFAULT_SETTINGS };
@@ -44,7 +85,7 @@ function getSettings() {
 
 function saveSettings(settings) {
     const merged = { ...getSettings(), ...(settings || {}) };
-    fs.writeFileSync(settingsPath, JSON.stringify(merged, null, 2));
+    fs.writeFileSync(getSettingsPath(), JSON.stringify(merged, null, 2));
     return merged;
 }
 
@@ -56,7 +97,7 @@ const DEFAULT_PERSONAS = [
 
 function readPersonas() {
     try {
-        const raw = fs.readFileSync(personasPath, 'utf8');
+        const raw = fs.readFileSync(getPersonasPath(), 'utf8');
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : DEFAULT_PERSONAS;
     } catch (e) {
@@ -65,7 +106,20 @@ function readPersonas() {
 }
 
 function writePersonas(list) {
-    fs.writeFileSync(personasPath, JSON.stringify(list, null, 2));
+    fs.writeFileSync(getPersonasPath(), JSON.stringify(list, null, 2));
+}
+
+function readModelsMeta() {
+    try {
+        const raw = fs.readFileSync(getModelsMetaPath(), 'utf8');
+        return JSON.parse(raw) || {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function writeModelsMeta(meta) {
+    fs.writeFileSync(getModelsMetaPath(), JSON.stringify(meta || {}, null, 2));
 }
 
 const GGUF_TYPES = {
@@ -73,11 +127,10 @@ const GGUF_TYPES = {
     FLOAT32: 6, BOOL: 7, STRING: 8, ARRAY: 9, UINT64: 10, INT64: 11, FLOAT64: 12
 };
 
-// Reads the trained context length (llama.context_length) from a GGUF file's
-// metadata header. Returns null when the file is not GGUF or the key is absent.
 function readGgufContextLength(filePath) {
-    const fd = fs.openSync(filePath, 'r');
+    let fd;
     try {
+        fd = fs.openSync(filePath, 'r');
         let buf = Buffer.alloc(0);
         let offset = 0;
 
@@ -124,8 +177,8 @@ function readGgufContextLength(filePath) {
         };
 
         if (readBytes(4).toString('ascii') !== 'GGUF') return null;
-        readBytes(4); // version
-        readBytes(8); // tensor count
+        readBytes(4);
+        readBytes(8);
         const kvCount = Number(readBytes(8).readBigUInt64LE(0));
 
         for (let i = 0; i < kvCount; i++) {
@@ -137,23 +190,31 @@ function readGgufContextLength(filePath) {
             }
         }
         return null;
+    } catch (e) {
+        return null;
     } finally {
-        fs.closeSync(fd);
+        if (fd !== undefined) {
+            try { fs.closeSync(fd); } catch (e) {}
+        }
     }
 }
 
 function findExecutable(dir) {
-    const exeName = process.platform === 'win32' ? 'llama-server.exe' : 'llama-server';
+    const exeNames = process.platform === 'win32'
+        ? ['llama-server.exe', 'server.exe']
+        : ['llama-server', 'server'];
     
-    function searchRecursive(currentDir) {
+    function searchRecursive(currentDir, depth = 0) {
+        if (!currentDir || depth > 5) return null;
         try {
+            if (!fs.existsSync(currentDir)) return null;
             const entries = fs.readdirSync(currentDir, { withFileTypes: true });
             for (let entry of entries) {
                 const fullPath = path.join(currentDir, entry.name);
                 if (entry.isDirectory()) {
-                    const found = searchRecursive(fullPath);
+                    const found = searchRecursive(fullPath, depth + 1);
                     if (found) return found;
-                } else if (entry.name.toLowerCase() === exeName.toLowerCase()) {
+                } else if (exeNames.some(name => entry.name.toLowerCase() === name.toLowerCase())) {
                     return fullPath;
                 }
             }
@@ -161,7 +222,41 @@ function findExecutable(dir) {
         return null;
     }
 
-    return searchRecursive(dir);
+    const searchDirs = [
+        dir,
+        getBinDir(),
+        path.join(app.getPath('userData'), 'bin'),
+        path.join(app.getPath('appData'), 'llama-manager', 'bin'),
+        process.cwd(),
+        path.join(process.cwd(), 'bin'),
+        process.env.PORTABLE_EXECUTABLE_DIR ? path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'bin') : null,
+        process.env.PORTABLE_EXECUTABLE_DIR ? path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'llama-manager-data', 'bin') : null
+    ].filter(Boolean);
+
+    for (const d of searchDirs) {
+        const found = searchRecursive(d);
+        if (found) {
+            // If found in a fallback location and getBinDir() is different and empty, auto-copy files over
+            const targetBin = getBinDir();
+            if (targetBin && !searchRecursive(targetBin)) {
+                try {
+                    const srcDir = path.dirname(found);
+                    const files = fs.readdirSync(srcDir);
+                    for (const f of files) {
+                        const s = path.join(srcDir, f);
+                        const dst = path.join(targetBin, f);
+                        if (!fs.existsSync(dst) && fs.statSync(s).isFile()) {
+                            try { fs.copyFileSync(s, dst); } catch(e) {}
+                        }
+                    }
+                    const syncedExe = searchRecursive(targetBin);
+                    if (syncedExe) return syncedExe;
+                } catch(err) {}
+            }
+            return found;
+        }
+    }
+    return null;
 }
 
 function createWindow() {
@@ -177,27 +272,6 @@ function createWindow() {
     });
 
     Menu.setApplicationMenu(null);
-
-    // llama-server may send X-Frame-Options/CSP headers intended for a
-    // top-level browser page. The manager embeds that page in its Web UI tab,
-    // so remove only the framing restrictions for the local server.
-    mainWindow.webContents.session.webRequest.onHeadersReceived(
-        { urls: ['http://127.0.0.1:*/*', 'http://localhost:*/*'] },
-        (details, callback) => {
-            const headers = { ...details.responseHeaders };
-            for (const key of Object.keys(headers)) {
-                if (key.toLowerCase() === 'x-frame-options') delete headers[key];
-                if (key.toLowerCase() === 'content-security-policy') {
-                    headers[key] = headers[key].filter(value =>
-                        !/frame-ancestors/i.test(value)
-                    );
-                    if (headers[key].length === 0) delete headers[key];
-                }
-            }
-            callback({ responseHeaders: headers });
-        }
-    );
-
     mainWindow.loadFile('index.html');
 }
 
@@ -216,24 +290,133 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
 
+// ============ Storage & Data Directory IPC Handlers ============
+ipcMain.handle('get-data-directory', () => {
+    return getDataDir();
+});
+
+ipcMain.handle('select-data-directory-dialog', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select App Storage & Data Folder',
+        properties: ['openDirectory', 'createDirectory']
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+        const newDir = result.filePaths[0];
+        try {
+            if (!fs.existsSync(newDir)) fs.mkdirSync(newDir, { recursive: true });
+            activeDataDir = newDir;
+            fs.writeFileSync(configFilePath, JSON.stringify({ dataDir: newDir }, null, 2));
+
+            // Ensure standard subfolders exist
+            getBinDir();
+            getModelsDir();
+
+            return activeDataDir;
+        } catch (e) {
+            throw new Error('Failed to set data directory: ' + e.message);
+        }
+    }
+    return null;
+});
+
+ipcMain.handle('open-data-directory', () => {
+    shell.openPath(getDataDir());
+    return true;
+});
+
+// ============ Vision Adapter (mmproj) IPC Handlers ============
+ipcMain.handle('get-models-meta', () => {
+    return readModelsMeta();
+});
+
+ipcMain.handle('link-mmproj-dialog', async (event, modelName) => {
+    if (!modelName) throw new Error('No model name specified.');
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select Vision Projector (mmproj) for ' + modelName,
+        properties: ['openFile'],
+        filters: [{ name: 'GGUF Vision Projector', extensions: ['gguf'] }, { name: 'All Files', extensions: ['*'] }]
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+        const srcPath = result.filePaths[0];
+        const destPath = path.join(getModelsDir(), path.basename(srcPath));
+        if (srcPath !== destPath && !fs.existsSync(destPath)) {
+            try {
+                fs.symlinkSync(srcPath, destPath, 'file');
+            } catch (e) {
+                try { fs.copyFileSync(srcPath, destPath); } catch (err) {}
+            }
+        }
+        const meta = readModelsMeta();
+        meta[modelName] = meta[modelName] || {};
+        meta[modelName].mmproj = path.basename(destPath);
+        meta[modelName].mmprojFullPath = srcPath;
+        writeModelsMeta(meta);
+        return meta;
+    }
+    return null;
+});
+
+ipcMain.handle('unlink-mmproj', (event, modelName) => {
+    if (!modelName) return;
+    const meta = readModelsMeta();
+    if (meta[modelName]) {
+        delete meta[modelName].mmproj;
+        delete meta[modelName].mmprojFullPath;
+        writeModelsMeta(meta);
+    }
+    return meta;
+});
+
+// ============ Backend & Models ============
 ipcMain.handle('check-installed', () => {
-    const foundPath = findExecutable(binDir);
+    const foundPath = findExecutable(getBinDir());
     return !!foundPath;
 });
 
+function cleanBinDir() {
+    if (llamaProcess) {
+        try { llamaProcess.kill(); } catch (e) {}
+        llamaProcess = null;
+        serverStarting = false;
+    }
+    const binDir = getBinDir();
+    if (!fs.existsSync(binDir)) {
+        try { fs.mkdirSync(binDir, { recursive: true }); } catch (e) {}
+        return;
+    }
+    const entries = fs.readdirSync(binDir);
+    for (const entry of entries) {
+        const fullPath = path.join(binDir, entry);
+        try {
+            const st = fs.lstatSync(fullPath);
+            if (st.isDirectory()) {
+                fs.rmSync(fullPath, { recursive: true, force: true });
+            } else {
+                fs.unlinkSync(fullPath);
+            }
+        } catch (e) {
+            console.error('Error removing old bin item:', fullPath, e.message);
+        }
+    }
+}
+
 ipcMain.handle('link-folder-dialog', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select llama.cpp Folder (Will replace existing backend)',
         properties: ['openDirectory']
     });
 
     if (!result.canceled && result.filePaths.length > 0) {
         const srcFolder = result.filePaths[0];
-        const exeName = process.platform === 'win32' ? 'llama-server.exe' : 'llama-server';
-        
         const found = findExecutable(srcFolder);
         if (!found) {
-            throw new Error(`Could not find "${exeName}" inside the selected folder.`);
+            throw new Error('Could not find "llama-server" or "server" executable inside the selected folder.');
         }
+
+        // Clean out existing backend binaries first to ensure clean state
+        cleanBinDir();
 
         function copyRecursive(src, dest) {
             if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
@@ -244,12 +427,16 @@ ipcMain.handle('link-folder-dialog', async () => {
                 if (entry.isDirectory()) {
                     copyRecursive(srcPath, destPath);
                 } else {
-                    fs.copyFileSync(srcPath, destPath);
+                    try {
+                        fs.copyFileSync(srcPath, destPath);
+                    } catch (e) {
+                        console.error('Error copying file:', srcPath, e);
+                    }
                 }
             }
         }
 
-        copyRecursive(srcFolder, binDir);
+        copyRecursive(srcFolder, getBinDir());
         return true;
     }
     return false;
@@ -264,25 +451,37 @@ ipcMain.handle('link-models-folder-dialog', async () => {
         const srcFolder = result.filePaths[0];
         let count = 0;
 
-        function scanAndSymlink(dir) {
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
-            for (let entry of entries) {
-                const fullPath = path.join(dir, entry.name);
-                if (entry.isDirectory()) {
-                    scanAndSymlink(fullPath);
-                } else if (entry.name.toLowerCase().endsWith('.gguf')) {
-                    const destPath = path.join(modelsDir, entry.name);
-                    if (!fs.existsSync(destPath)) {
-                        // Create symlink or copy file if symlink fails
-                        try {
-                            fs.symlinkSync(fullPath, destPath);
-                        } catch (e) {
-                            fs.copyFileSync(fullPath, destPath);
+        function scanAndSymlink(dir, depth = 0) {
+            if (depth > 5) return;
+            try {
+                const entries = fs.readdirSync(dir, { withFileTypes: true });
+                for (let entry of entries) {
+                    const fullPath = path.join(dir, entry.name);
+                    if (entry.isDirectory()) {
+                        scanAndSymlink(fullPath, depth + 1);
+                    } else if (entry.name.toLowerCase().endsWith('.gguf')) {
+                        const destPath = path.join(getModelsDir(), entry.name);
+                        if (!fs.existsSync(destPath)) {
+                            try {
+                                fs.symlinkSync(fullPath, destPath, 'file');
+                                count++;
+                            } catch (e) {
+                                try {
+                                    fs.copyFileSync(fullPath, destPath);
+                                    count++;
+                                } catch (e2) {}
+                            }
+                            try {
+                                const ctx = readGgufContextLength(fullPath) || 40000;
+                                const meta = readModelsMeta();
+                                meta[entry.name] = meta[entry.name] || {};
+                                meta[entry.name].ctxLength = ctx;
+                                writeModelsMeta(meta);
+                            } catch (err) {}
                         }
-                        count++;
                     }
                 }
-            }
+            } catch (e) {}
         }
 
         scanAndSymlink(srcFolder);
@@ -308,35 +507,51 @@ ipcMain.handle('get-releases', async () => {
 });
 
 ipcMain.handle('download-release', async (event, downloadUrl, fileName) => {
-    const zipPath = path.join(binDir, fileName);
+    const tempZipPath = path.join(getDataDir(), 'temp_release_' + Date.now() + '.zip');
     const response = await axios({
         url: downloadUrl,
         method: 'GET',
         responseType: 'stream'
     });
 
-    const writer = fs.createWriteStream(zipPath);
+    const writer = fs.createWriteStream(tempZipPath);
     response.data.pipe(writer);
 
     return new Promise((resolve, reject) => {
         writer.on('finish', () => {
             try {
-                const zip = new AdmZip(zipPath);
-                zip.extractAllTo(binDir, true);
-                fs.unlinkSync(zipPath);
+                // Wipe out existing old backend files before extracting new release
+                cleanBinDir();
+
+                const zip = new AdmZip(tempZipPath);
+                zip.extractAllTo(getBinDir(), true);
+                try { fs.unlinkSync(tempZipPath); } catch (err) {}
                 resolve(true);
             } catch (e) {
+                try { fs.unlinkSync(tempZipPath); } catch (err) {}
                 reject(e);
             }
         });
-        writer.on('error', reject);
+        writer.on('error', (err) => {
+            try { fs.unlinkSync(tempZipPath); } catch (e) {}
+            reject(err);
+        });
     });
 });
 
 ipcMain.handle('list-models', () => {
     try {
+        const modelsDir = getModelsDir();
         const files = fs.readdirSync(modelsDir);
-        return files.filter(f => f.toLowerCase().endsWith('.gguf'));
+        return files.filter(f => {
+            if (!f.toLowerCase().endsWith('.gguf')) return false;
+            const fullPath = path.join(modelsDir, f);
+            try {
+                return fs.existsSync(fullPath);
+            } catch (e) {
+                return false;
+            }
+        });
     } catch (e) {
         return [];
     }
@@ -346,7 +561,7 @@ ipcMain.handle('delete-model', (event, modelName) => {
     if (!modelName || path.basename(modelName) !== modelName) {
         throw new Error('Invalid model name.');
     }
-    const modelPath = path.join(modelsDir, modelName);
+    const modelPath = path.join(getModelsDir(), modelName);
     if (!fs.existsSync(modelPath)) {
         throw new Error('Model file not found.');
     }
@@ -370,20 +585,29 @@ ipcMain.handle('delete-model', (event, modelName) => {
 });
 
 ipcMain.handle('get-model-ctx', (event, modelName) => {
-    if (!modelName || path.basename(modelName) !== modelName) return null;
-    const modelPath = path.join(modelsDir, modelName);
-    if (!fs.existsSync(modelPath)) return null;
+    if (!modelName || path.basename(modelName) !== modelName) return 40000;
+    const meta = readModelsMeta();
+    if (meta[modelName] && meta[modelName].ctxLength) {
+        return meta[modelName].ctxLength;
+    }
+    let modelPath = path.join(getModelsDir(), modelName);
     try {
-        return readGgufContextLength(modelPath);
+        modelPath = fs.realpathSync(modelPath);
+    } catch (e) {}
+    if (!fs.existsSync(modelPath)) return 40000;
+    try {
+        const detected = readGgufContextLength(modelPath) || 40000;
+        meta[modelName] = meta[modelName] || {};
+        meta[modelName].ctxLength = detected;
+        writeModelsMeta(meta);
+        return detected;
     } catch (e) {
-        return null;
+        return 40000;
     }
 });
 
 ipcMain.handle('get-settings', () => getSettings());
-
 ipcMain.handle('save-settings', (event, settings) => saveSettings(settings || {}));
-
 ipcMain.handle('list-personas', () => readPersonas());
 
 ipcMain.handle('save-persona', (event, persona) => {
@@ -417,13 +641,12 @@ ipcMain.on('chat-start', (event, payload) => {
         return;
     }
 
-    // Abort any existing stream before starting a new one.
     if (chatStream) {
         try { chatStream.destroy(); } catch (e) {}
         chatStream = null;
     }
 
-    const url = `http://127.0.0.1:${port}/v1/chat/completions`;
+    const url = 'http://127.0.0.1:' + port + '/v1/chat/completions';
 
     const body = {
         model: 'local-model',
@@ -508,16 +731,38 @@ ipcMain.on('chat-stop', () => {
 
 ipcMain.handle('select-model-dialog', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select GGUF Model File',
         properties: ['openFile'],
-        filters: [{ name: 'GGUF Models', extensions: ['gguf'] }]
+        filters: [{ name: 'GGUF Models', extensions: ['gguf'] }, { name: 'All Files', extensions: ['*'] }]
     });
     if (!result.canceled && result.filePaths.length > 0) {
         const srcPath = result.filePaths[0];
-        const destPath = path.join(modelsDir, path.basename(srcPath));
+        const fileName = path.basename(srcPath);
+        const destPath = path.join(getModelsDir(), fileName);
         if (srcPath !== destPath) {
-            fs.copyFileSync(srcPath, destPath);
+            if (!fs.existsSync(destPath)) {
+                try {
+                    fs.symlinkSync(srcPath, destPath, 'file');
+                } catch (e) {
+                    try {
+                        fs.copyFileSync(srcPath, destPath);
+                    } catch (err) {
+                        throw new Error('Could not link or copy model file: ' + err.message);
+                    }
+                }
+            }
         }
-        return path.basename(destPath);
+        
+        // Immediately detect and cache context length in models-meta.json on import
+        try {
+            const ctx = readGgufContextLength(srcPath) || 40000;
+            const meta = readModelsMeta();
+            meta[fileName] = meta[fileName] || {};
+            meta[fileName].ctxLength = ctx;
+            writeModelsMeta(meta);
+        } catch (e) {}
+
+        return fileName;
     }
     return null;
 });
@@ -529,47 +774,86 @@ function splitCommandLine(value) {
     return args;
 }
 
-async function waitForServer(port, child, timeoutMs = 45000) {
-    const url = `http://127.0.0.1:${port}/health`;
+async function waitForServer(port, child, getRecentLogs, timeoutMs = 45000) {
+    const healthUrl = 'http://127.0.0.1:' + port + '/health';
+    const propsUrl = 'http://127.0.0.1:' + port + '/props';
+    const rootUrl = 'http://127.0.0.1:' + port + '/';
     const startedAt = Date.now();
     let lastError = '';
     while (Date.now() - startedAt < timeoutMs) {
         if (!child || child.exitCode !== null || child.killed) {
-            throw new Error(lastError || 'llama-server exited before it was ready. Check Server Logs for details.');
+            const logs = getRecentLogs ? getRecentLogs() : '';
+            const errorDetail = logs ? '\n\nLog output:\n' + logs : '';
+            throw new Error((lastError || 'llama-server exited unexpectedly before becoming ready.') + errorDetail);
         }
         try {
-            const response = await axios.get(url, { timeout: 1200, validateStatus: () => true });
+            const response = await axios.get(healthUrl, { timeout: 1200, validateStatus: () => true });
             if (response.status >= 200 && response.status < 300) return;
         } catch (error) {
             lastError = error.code === 'ECONNREFUSED' ? '' : error.message;
+            try {
+                const r2 = await axios.get(propsUrl, { timeout: 1000, validateStatus: () => true });
+                if (r2.status >= 200 && r2.status < 300) return;
+            } catch (e2) {}
+            try {
+                const r3 = await axios.get(rootUrl, { timeout: 1000, validateStatus: () => true });
+                if (r3.status >= 200 && r3.status < 300) return;
+            } catch (e3) {}
         }
         await new Promise(resolve => setTimeout(resolve, 350));
     }
-    throw new Error('Timed out waiting for llama-server to become ready. Check Server Logs for the model-loading error.');
+    const logs = getRecentLogs ? getRecentLogs() : '';
+    const errorDetail = logs ? '\n\nLog output:\n' + logs : '';
+    throw new Error('Timed out waiting for llama-server to become ready.' + errorDetail);
 }
 
-ipcMain.handle('start-server', async (event, { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, reasoningEffort }) => {
+ipcMain.handle('start-server', async (event, params) => {
+    let { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited } = params || {};
+
     if (llamaProcess || serverStarting) {
         throw new Error('Server is already running. Please stop it first.');
     }
 
-    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Port must be a number between 1 and 65535.');
-    if (!Number.isInteger(ctxSize) || ctxSize < 1) throw new Error('Context size must be a positive whole number.');
-    if (!Number.isInteger(gpuLayers)) throw new Error('GPU layers must be a whole number.');
+    port = parseInt(port, 10);
+    if (isNaN(port) || port < 1 || port > 65535) port = 8080;
 
-    const exePath = findExecutable(binDir);
-    let modelPath = path.join(modelsDir, modelName);
+    ctxSize = parseInt(ctxSize, 10);
+    if (isNaN(ctxSize) || ctxSize < 1) ctxSize = 40000;
 
-    // realpath handles both absolute and relative symlink targets correctly.
-    try {
-        modelPath = fs.realpathSync(modelPath);
-    } catch (e) {}
+    gpuLayers = (gpuLayers !== undefined && gpuLayers !== null && !isNaN(parseInt(gpuLayers, 10)))
+        ? parseInt(gpuLayers, 10)
+        : 99;
+
+    let exePath = findExecutable(getBinDir());
+    if (!exePath) {
+        exePath = findExecutable(process.cwd());
+    }
 
     if (!exePath) {
         throw new Error('llama-server executable not found. Please install or link llama.cpp via Backend & Updates tab.');
     }
+
+    if (!modelName) {
+        throw new Error('No model selected. Please select a model first.');
+    }
+
+    let modelPath = path.join(getModelsDir(), modelName);
+    try {
+        modelPath = fs.realpathSync(modelPath);
+    } catch (e) {}
+
     if (!fs.existsSync(modelPath)) {
-        throw new Error('Selected model file not found.');
+        const fallback1 = path.join(app.getPath('userData'), 'models', modelName);
+        const fallback2 = path.join(app.getPath('appData'), 'llama-manager', 'models', modelName);
+        if (fs.existsSync(fallback1)) {
+            modelPath = fallback1;
+        } else if (fs.existsSync(fallback2)) {
+            modelPath = fallback2;
+        } else if (fs.existsSync(modelName)) {
+            modelPath = modelName;
+        } else {
+            throw new Error('Selected model file "' + modelName + '" was not found. Please verify the model file in the Models tab.');
+        }
     }
 
     const args = [
@@ -577,8 +861,22 @@ ipcMain.handle('start-server', async (event, { modelName, port, ctxSize, gpuLaye
         '--host', '127.0.0.1',
         '--port', port.toString(),
         '-c', ctxSize.toString(),
-        '-ngl', gpuLayers.toString()
+        '-ngl', gpuLayers.toString(),
+        '-fa', 'auto'
     ];
+
+    // Check for linked vision projector (mmproj) adapter
+    const meta = readModelsMeta();
+    if (meta[modelName] && meta[modelName].mmproj) {
+        let mmprojPath = path.join(getModelsDir(), meta[modelName].mmproj);
+        try { mmprojPath = fs.realpathSync(mmprojPath); } catch (e) {}
+        if (!fs.existsSync(mmprojPath) && meta[modelName].mmprojFullPath && fs.existsSync(meta[modelName].mmprojFullPath)) {
+            mmprojPath = meta[modelName].mmprojFullPath;
+        }
+        if (fs.existsSync(mmprojPath)) {
+            args.push('--mmproj', mmprojPath);
+        }
+    }
 
     const samplingArgs = [
         { flag: '--temp', value: temperature },
@@ -588,14 +886,8 @@ ipcMain.handle('start-server', async (event, { modelName, port, ctxSize, gpuLaye
         { flag: '--repeat-penalty', value: repeatPenalty }
     ];
 
-    // n_predict = -1 (unlimited) is llama.cpp's default; only pass it when a limit is set.
     if (maxTokensUnlimited === false || maxTokensUnlimited === undefined) {
         samplingArgs.push({ flag: '--n-predict', value: (maxTokens !== undefined && maxTokens !== null) ? maxTokens : -1 });
-    }
-
-    // R1-style models: map the UI effort to llama.cpp's --reasoning-effort flag.
-    if (reasoningEffort && reasoningEffort !== 'none') {
-        args.push('--reasoning-effort', reasoningEffort);
     }
 
     for (const { flag, value } of samplingArgs) {
@@ -612,30 +904,42 @@ ipcMain.handle('start-server', async (event, { modelName, port, ctxSize, gpuLaye
     console.log('Spawning:', exePath, args.join(' '));
 
     serverStarting = true;
+    let recentLogLines = [];
+    const pushLog = (txt) => {
+        recentLogLines.push(txt);
+        if (recentLogLines.length > 25) recentLogLines.shift();
+    };
+
     const child = spawn(exePath, args, { cwd: workingDir, windowsHide: true });
     llamaProcess = child;
 
     child.stdout.on('data', (data) => {
+        const str = data.toString();
+        pushLog(str);
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('server-log', data.toString());
+            mainWindow.webContents.send('server-log', str);
         }
     });
 
     child.stderr.on('data', (data) => {
+        const str = data.toString();
+        pushLog(str);
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('server-log', data.toString());
+            mainWindow.webContents.send('server-log', str);
         }
     });
 
     child.on('error', (error) => {
+        const str = '\n[Unable to start server: ' + error.message + ']\n';
+        pushLog(str);
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('server-log', `\n[Unable to start server: ${error.message}]\n`);
+            mainWindow.webContents.send('server-log', str);
         }
     });
 
     child.on('close', (code) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('server-log', `\n[Server exited with code ${code}]\n`);
+            mainWindow.webContents.send('server-log', '\n[Server exited with code ' + code + ']\n');
             mainWindow.webContents.send('server-stopped');
         }
         llamaProcess = null;
@@ -643,9 +947,9 @@ ipcMain.handle('start-server', async (event, { modelName, port, ctxSize, gpuLaye
     });
 
     try {
-        await waitForServer(port, child);
+        await waitForServer(port, child, () => recentLogLines.join(''));
         serverStarting = false;
-        return { url: `http://127.0.0.1:${port}` };
+        return { url: 'http://127.0.0.1:' + port };
     } catch (error) {
         if (llamaProcess === child) {
             try { child.kill(); } catch (e) {}
