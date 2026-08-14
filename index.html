@@ -3771,6 +3771,11 @@
             wrapper.dataset.msgId = msg.id;
             wrapper.dataset.msgIndex = index;
 
+            const versions = msg.versions || [];
+            const totalVersions = versions.length > 0 ? versions.length : 1;
+            const currentVer = (msg.currentVersionIndex !== undefined) ? msg.currentVersionIndex : (totalVersions - 1);
+            const activeVer = (versions.length > 0 && versions[currentVer]) ? versions[currentVer] : msg;
+
             const avatar = document.createElement('div');
             avatar.className = 'chat-avatar';
             avatar.innerHTML = msg.role === 'assistant'
@@ -3792,10 +3797,9 @@
                     });
                     userBubbleContent += '</div>';
                 }
-                userBubbleContent += `<p>${escapeHtml(msg.content || '').replace(/\n/g, '<br>')}</p>`;
+                userBubbleContent += `<p>${escapeHtml(activeVer.content || msg.content || '').replace(/\n/g, '<br>')}</p>`;
                 bubble.innerHTML = userBubbleContent;
             } else {
-                const activeVer = (msg.versions && msg.versions[currentVer]) ? msg.versions[currentVer] : msg;
                 bubble.innerHTML = renderAssistantBubble(activeVer.content, activeVer.reasoning, activeVer.agentSteps || msg.agentSteps);
             }
 
@@ -3809,9 +3813,6 @@
                 : '<i class="fa-solid fa-user" style="font-size: 10px;"></i> You';
 
             // ChatGPT-Style Branch Version Pager (e.g. ‹ 1/2 ›)
-            const versions = msg.versions || [];
-            const totalVersions = versions.length > 0 ? versions.length : 1;
-            const currentVer = (msg.currentVersionIndex !== undefined) ? msg.currentVersionIndex : (totalVersions - 1);
 
             if (totalVersions > 1) {
                 const pager = document.createElement('span');
@@ -3976,6 +3977,7 @@
             chatStreaming = true;
             updateChatComposerState();
             generatedTokenCount = 0;
+            currentAgentSteps = [];
 
             const tokenCounterEl = document.getElementById('chat-token-counter');
             const tokenCountVal = document.getElementById('chat-token-count');
@@ -4000,8 +4002,10 @@
                 chatMessagesContainer.appendChild(assistantMsg);
             }
 
-            bubble.innerHTML = '<p></p>';
-            metaRole.innerHTML = '<span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span> <span style="margin-left: 6px;">Generating...</span>';
+            bubble.innerHTML = isPiAgentActive 
+                ? '<div class="agent-step-item"><i class="fa-solid fa-spinner fa-spin" style="color: #c084fc;"></i> <span style="font-weight: 600; color: #c084fc;">Pi Agent: Initializing sandbox tools...</span></div>'
+                : '<p></p>';
+            metaRole.innerHTML = '<span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span> <span style="margin-left: 6px;">' + (isPiAgentActive ? 'Pi Agent Thinking...' : 'Generating...') + '</span>';
             scrollChatToBottom(true);
 
             let renderScheduled = false;
@@ -4010,9 +4014,21 @@
                 renderScheduled = true;
                 requestAnimationFrame(() => {
                     renderScheduled = false;
-                    bubble.innerHTML = renderAssistantBubble(acc, accReasoning);
+                    bubble.innerHTML = renderAssistantBubble(acc, accReasoning, currentAgentSteps);
+                    // code copy is handled via global click delegation
                     scrollChatToBottom();
                 });
+            };
+
+            const agentStepHandler = (event, stepData) => {
+                if (!stepData) return;
+                const existingIdx = currentAgentSteps.findIndex(s => s.step === stepData.step);
+                if (existingIdx >= 0) {
+                    currentAgentSteps[existingIdx] = stepData;
+                } else {
+                    currentAgentSteps.push(stepData);
+                }
+                scheduleStreamRender();
             };
 
             const chunkHandler = (event, { delta, reasoning }) => {
@@ -4031,13 +4047,16 @@
             const doneHandler = (event, data) => {
                 cleanup();
                 const session = getCurrentSession();
+                const finalAgentSteps = currentAgentSteps.length > 0 ? [...currentAgentSteps] : undefined;
+
                 if (targetId) {
                     const m = session.messages.find(x => x.id === targetId);
                     if (m) {
                         m.content = acc;
                         m.reasoning = accReasoning;
+                        m.agentSteps = finalAgentSteps;
                         m.versions = m.versions || [];
-                        m.versions.push({ content: acc, reasoning: accReasoning, following: [] });
+                        m.versions.push({ content: acc, reasoning: accReasoning, agentSteps: finalAgentSteps, following: [] });
                         m.currentVersionIndex = m.versions.length - 1;
                     }
                 } else {
@@ -4046,7 +4065,8 @@
                         role: 'assistant',
                         content: acc,
                         reasoning: accReasoning,
-                        versions: [{ content: acc, reasoning: accReasoning, following: [] }],
+                        agentSteps: finalAgentSteps,
+                        versions: [{ content: acc, reasoning: accReasoning, agentSteps: finalAgentSteps, following: [] }],
                         currentVersionIndex: 0
                     };
                     session.messages.push(msg);
@@ -4088,7 +4108,8 @@
                 ipcRenderer.send('chat-start', {
                     port: parseInt(document.getElementById('inp-port').value, 10) || 8080,
                     messages: buildChatMessages(targetId),
-                    params: currentChatParams()
+                    params: currentChatParams(),
+                    isAgent: Boolean(isPiAgentActive)
                 });
             } catch (e) {
                 cleanup();
