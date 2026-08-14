@@ -102,6 +102,34 @@
             transition: background 0.3s, color 0.3s;
         }
 
+        /* Universal Mini Sidebar Toggle Button */
+        #btn-universal-sidebar-toggle {
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            cursor: pointer;
+            z-index: 1200;
+            transition: all 0.18s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        }
+
+        #btn-universal-sidebar-toggle:hover {
+            color: var(--text-main);
+            border-color: var(--accent);
+            background: var(--bg-surface);
+            transform: scale(1.05);
+        }
+
         /* Sidebar */
         .sidebar {
             width: 240px;
@@ -109,10 +137,12 @@
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            padding: 24px 16px;
+            padding: 56px 16px 20px 16px;
             justify-content: space-between;
-            transition: margin-left 0.3s ease, width 0.3s ease;
-            z-index: 10;
+            transition: margin-left 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100;
+            position: relative;
+            flex-shrink: 0;
         }
 
         .sidebar.collapsed {
@@ -120,17 +150,7 @@
         }
 
         /* Keep a compact control available when the sidebar is collapsed. */
-        #sidebar-reopen {
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            z-index: 1100;
-            display: none;
-        }
 
-        .sidebar.collapsed ~ .workspace #sidebar-reopen {
-            display: inline-flex;
-        }
 
         #webui-exit-fullscreen {
             display: none;
@@ -1689,6 +1709,8 @@
     </style>
 </head>
 <body>
+    <!-- Universal Clean Minimal Sidebar Toggle Button -->
+    <button type="button" id="btn-universal-sidebar-toggle" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
 
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
@@ -1851,7 +1873,7 @@
         <div id="view-models" class="view-pane">
             <div class="header-row">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    
                     <div>
                         <h2>Models</h2>
                         <p class="subtitle">Manage local GGUF model files and folders</p>
@@ -1872,7 +1894,7 @@
         <div id="view-server" class="view-pane">
             <div class="header-row">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    
                     <div>
                         <h2>Server Configuration</h2>
                         <p class="subtitle">Configure parameters for llama-server inference</p>
@@ -1954,7 +1976,7 @@
         <div id="view-chat" class="view-pane">
             <div class="chat-header-bar">
                 <div class="chat-header-left">
-                    <button class="btn secondary btn-icon" id="btn-toggle-sidebar-chat" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    
                     <button class="btn secondary btn-icon" id="btn-toggle-sessions-drawer" title="Toggle Chat History"><i class="fa-solid fa-clock-rotate-left"></i></button>
                     <h2 class="chat-view-title">Chat</h2>
                     <span id="chat-model-badge" class="chat-model-pill" title="Active Model">
@@ -2147,7 +2169,7 @@
         <div id="view-backends" class="view-pane">
             <div class="header-row">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    
                     <div>
                         <h2>Backends & Updates</h2>
                         <p class="subtitle">Download release binaries or link existing installation folder</p>
@@ -2174,7 +2196,7 @@
         <div id="view-settings" class="view-pane">
             <div class="header-row">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button class="btn secondary" onclick="sidebar.classList.toggle('collapsed')" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    
                     <div>
                         <h2>Settings</h2>
                         <p class="subtitle">Application storage, theme, and persistent configuration</p>
@@ -2592,6 +2614,14 @@
         const logsModal = document.getElementById('logs-modal');
         const btnOpenLogsModal = document.getElementById('btn-open-logs-modal');
         const btnCloseLogs = document.getElementById('btn-close-logs');
+
+        // Universal Sidebar Toggle
+        const btnUniversalSidebarToggle = document.getElementById('btn-universal-sidebar-toggle');
+        if (btnUniversalSidebarToggle) {
+            btnUniversalSidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+            });
+        }
 
         // ============ Multi-Session Chat & Persona State ============
         let isServerOnline = false;
@@ -3459,8 +3489,8 @@
         function renderAssistantBubble(content, reasoning) {
             let html = '';
             if (reasoning && reasoning.trim()) {
-                html += `<div class="chat-reasoning ${chatStreaming ? '' : 'collapsed'}">
-                    <button class="reasoning-toggle"><i class="fa-solid fa-brain" style="color: var(--accent);"></i> ${chatStreaming ? '<span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span> Thinking...' : 'Thought Process'} <i class="fa-solid fa-chevron-down reasoning-chevron"></i></button>
+                html += `<div class="chat-reasoning collapsed">
+                    <button class="reasoning-toggle" type="button"><i class="fa-solid fa-brain" style="color: var(--accent);"></i> ${chatStreaming ? '<span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span> Thinking...' : 'Thought Process'} <i class="fa-solid fa-chevron-down reasoning-chevron"></i></button>
                     <div class="reasoning-body">${escapeHtml(reasoning)}</div>
                 </div>`;
             }
@@ -4298,7 +4328,31 @@
                     return;
                 }
                 try { await ipcRenderer.invoke('stop-server'); } catch(e) {}
-                await new Promise(r => setTimeout(r, 600));
+                await new Promise(r => setTimeout(r, 400));
+            }
+
+            // Immediate Visual Feedback on click
+            if (btnQuickRun) {
+                btnQuickRun.disabled = true;
+                btnQuickRun.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Starting...';
+            }
+            if (btnServerRun) {
+                btnServerRun.disabled = true;
+                btnServerRun.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Starting...';
+            }
+            if (btnChatStartServer) {
+                btnChatStartServer.disabled = true;
+                btnChatStartServer.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Starting...';
+            }
+            if (dashStatusText) {
+                dashStatusText.textContent = 'Starting...';
+                dashStatusText.style.color = '#f59e0b';
+            }
+            if (chatServerStatusText) {
+                chatServerStatusText.textContent = 'Starting...';
+            }
+            if (chatServerStatusPill) {
+                chatServerStatusPill.className = 'chat-status-pill starting';
             }
 
             logConsole.textContent = 'Starting server with ' + modelName + '...\n';
@@ -4354,6 +4408,26 @@
                 updateServerStatusUI(true);
             } catch (e) {
                 alert('Error starting server: ' + e.message);
+            } finally {
+                if (btnQuickRun) {
+                    btnQuickRun.disabled = false;
+                    btnQuickRun.innerHTML = '<i class="fa-solid fa-play"></i> Start Server';
+                }
+                if (btnServerRun) {
+                    btnServerRun.disabled = false;
+                    btnServerRun.innerHTML = '<i class="fa-solid fa-play"></i> Start Server';
+                }
+                if (btnChatStartServer) {
+                    btnChatStartServer.disabled = false;
+                    btnChatStartServer.innerHTML = '<i class="fa-solid fa-play"></i> Start Server';
+                }
+                if (!isServerOnline) {
+                    updateServerStatusUI(false);
+                    if (dashStatusText) {
+                        dashStatusText.textContent = 'Offline';
+                        dashStatusText.style.color = 'var(--text-muted)';
+                    }
+                }
             }
         }
 

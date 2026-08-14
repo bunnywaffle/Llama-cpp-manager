@@ -715,10 +715,25 @@ ipcMain.on('chat-start', (event, payload) => {
             if (!event.sender.isDestroyed()) event.sender.send('chat-done', {});
         });
     }).catch(err => {
-        const msg = err.response && err.response.data && err.response.data.error
-            ? (err.response.data.error.message || err.response.data.error)
-            : err.message;
-        if (!event.sender.isDestroyed()) event.sender.send('chat-error', { message: msg || 'Failed to connect to the server.' });
+        if (err.response && err.response.data && typeof err.response.data.on === 'function') {
+            let errBody = '';
+            err.response.data.on('data', chunk => { errBody += chunk.toString('utf8'); });
+            err.response.data.on('end', () => {
+                let parsedMsg = '';
+                try {
+                    const parsed = JSON.parse(errBody);
+                    parsedMsg = (parsed.error && (parsed.error.message || parsed.error)) || errBody;
+                } catch (e) {
+                    parsedMsg = errBody;
+                }
+                if (!event.sender.isDestroyed()) event.sender.send('chat-error', { message: parsedMsg || err.message || 'Vision model error' });
+            });
+        } else {
+            const msg = err.response && err.response.data && err.response.data.error
+                ? (err.response.data.error.message || err.response.data.error)
+                : err.message;
+            if (!event.sender.isDestroyed()) event.sender.send('chat-error', { message: msg || 'Failed to connect to the server.' });
+        }
     });
 });
 
@@ -800,7 +815,7 @@ async function waitForServer(port, child, getRecentLogs, timeoutMs = 45000) {
                 if (r3.status >= 200 && r3.status < 300) return;
             } catch (e3) {}
         }
-        await new Promise(resolve => setTimeout(resolve, 350));
+        await new Promise(resolve => setTimeout(resolve, 200));
     }
     const logs = getRecentLogs ? getRecentLogs() : '';
     const errorDetail = logs ? '\n\nLog output:\n' + logs : '';
@@ -818,7 +833,7 @@ ipcMain.handle('start-server', async (event, params) => {
     if (isNaN(port) || port < 1 || port > 65535) port = 8080;
 
     ctxSize = parseInt(ctxSize, 10);
-    if (isNaN(ctxSize) || ctxSize < 1) ctxSize = 40000;
+    if (isNaN(ctxSize) || ctxSize < 1) ctxSize = 8192;
 
     gpuLayers = (gpuLayers !== undefined && gpuLayers !== null && !isNaN(parseInt(gpuLayers, 10)))
         ? parseInt(gpuLayers, 10)
@@ -865,17 +880,34 @@ ipcMain.handle('start-server', async (event, params) => {
         '-fa', 'auto'
     ];
 
-    // Check for linked vision projector (mmproj) adapter
+    // Check for linked vision projector (mmproj) adapter with auto-detection
     const meta = readModelsMeta();
+    let mmprojPath = null;
     if (meta[modelName] && meta[modelName].mmproj) {
-        let mmprojPath = path.join(getModelsDir(), meta[modelName].mmproj);
+        mmprojPath = path.join(getModelsDir(), meta[modelName].mmproj);
         try { mmprojPath = fs.realpathSync(mmprojPath); } catch (e) {}
         if (!fs.existsSync(mmprojPath) && meta[modelName].mmprojFullPath && fs.existsSync(meta[modelName].mmprojFullPath)) {
             mmprojPath = meta[modelName].mmprojFullPath;
         }
-        if (fs.existsSync(mmprojPath)) {
-            args.push('--mmproj', mmprojPath);
-        }
+    }
+    // Auto-detection fallback: if no explicit mmproj linked, search models directory for matching mmproj
+    if (!mmprojPath || !fs.existsSync(mmprojPath)) {
+        try {
+            const modelsDir = getModelsDir();
+            const allFiles = fs.readdirSync(modelsDir);
+            const pureBase = modelName.replace(/[-_]?(Q[0-9]_[A-Z0-9]+|f16|f32)?.gguf$/i, '').toLowerCase();
+            const candidate = allFiles.find(f => {
+                const fl = f.toLowerCase();
+                return fl.endsWith('.gguf') && (fl.includes('mmproj') || fl.includes('projector')) && fl.includes(pureBase);
+            }) || allFiles.find(f => f.toLowerCase().startsWith('mmproj') && f.toLowerCase().endsWith('.gguf'));
+            if (candidate) {
+                mmprojPath = path.join(modelsDir, candidate);
+            }
+        } catch (e) {}
+    }
+    if (mmprojPath && fs.existsSync(mmprojPath)) {
+        console.log('Loading vision projector (mmproj):', mmprojPath);
+        args.push('--mmproj', mmprojPath);
     }
 
     const samplingArgs = [
