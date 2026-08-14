@@ -75,70 +75,91 @@ const GGUF_TYPES = {
 
 // Reads the trained context length (llama.context_length) from a GGUF file's
 // metadata header. Returns null when the file is not GGUF or the key is absent.
-function readGgufContextLength(filePath) {
-    const fd = fs.openSync(filePath, 'r');
+// Runs on async file I/O so it never blocks the main process, and grows its
+// work buffer geometrically (amortized linear time) to avoid O(n^2) concat.
+async function readGgufContextLength(filePath) {
+    const fd = await fs.promises.open(filePath, 'r');
     try {
-        let buf = Buffer.alloc(0);
-        let offset = 0;
+        const READ_CHUNK = 64 * 1024; // 64 KiB per read
+        const MAX_META = 256 * 1024 * 1024; // cap metadata scan at 256 MiB
+        let buffer = Buffer.alloc(0);
+        let filled = 0;   // bytes currently resident in buffer
+        let filePos = 0;  // next file offset to read
+        let offset = 0;   // parse cursor within buffer
+
+        // Grow the resident buffer (geometrically) and read from the file
+        // until at least `needed` additional bytes are available past `offset`.
+        const ensure = async (needed) => {
+            while (filled < offset + needed) {
+                if (filled >= MAX_META) throw new Error('GGUF metadata too large');
+                const target = Math.min(Math.max(READ_CHUNK, buffer.length * 2, offset + needed), MAX_META);
+                const grown = Buffer.alloc(target);
+                buffer.copy(grown, 0, 0, filled);
+                buffer = grown;
+                const { bytesRead } = await fd.read(buffer, filled, buffer.length - filled, filePos);
+                if (bytesRead === 0) throw new Error('Unexpected end of GGUF file');
+                filled += bytesRead;
+                filePos += bytesRead;
+            }
+        };
 
         const readBytes = (n) => {
-            while (buf.length < offset + n) {
-                const chunk = Buffer.alloc(Math.max(n, 8192));
-                const bytesRead = fs.readSync(fd, chunk, 0, chunk.length, buf.length);
-                if (bytesRead === 0) throw new Error('Unexpected end of GGUF file');
-                buf = Buffer.concat([buf, chunk.subarray(0, bytesRead)]);
-            }
-            const val = buf.subarray(offset, offset + n);
+            const val = buffer.subarray(offset, offset + n);
             offset += n;
             return val;
         };
 
-        const readString = () => {
+        const readString = async () => {
+            await ensure(8);
             const len = Number(readBytes(8).readBigUInt64LE(0));
+            await ensure(len);
             return readBytes(len).toString('utf8');
         };
 
-        const readValue = (type) => {
+        const readValue = async (type) => {
             switch (type) {
-                case GGUF_TYPES.UINT8: return readBytes(1).readUInt8(0);
-                case GGUF_TYPES.INT8: return readBytes(1).readInt8(0);
-                case GGUF_TYPES.UINT16: return readBytes(2).readUInt16LE(0);
-                case GGUF_TYPES.INT16: return readBytes(2).readInt16LE(0);
-                case GGUF_TYPES.UINT32: return readBytes(4).readUInt32LE(0);
-                case GGUF_TYPES.INT32: return readBytes(4).readInt32LE(0);
-                case GGUF_TYPES.FLOAT32: return readBytes(4).readFloatLE(0);
-                case GGUF_TYPES.BOOL: return readBytes(1).readUInt8(0) !== 0;
+                case GGUF_TYPES.UINT8: await ensure(1); return readBytes(1).readUInt8(0);
+                case GGUF_TYPES.INT8: await ensure(1); return readBytes(1).readInt8(0);
+                case GGUF_TYPES.UINT16: await ensure(2); return readBytes(2).readUInt16LE(0);
+                case GGUF_TYPES.INT16: await ensure(2); return readBytes(2).readInt16LE(0);
+                case GGUF_TYPES.UINT32: await ensure(4); return readBytes(4).readUInt32LE(0);
+                case GGUF_TYPES.INT32: await ensure(4); return readBytes(4).readInt32LE(0);
+                case GGUF_TYPES.FLOAT32: await ensure(4); return readBytes(4).readFloatLE(0);
+                case GGUF_TYPES.BOOL: await ensure(1); return readBytes(1).readUInt8(0) !== 0;
                 case GGUF_TYPES.STRING: return readString();
-                case GGUF_TYPES.UINT64: return Number(readBytes(8).readBigUInt64LE(0));
-                case GGUF_TYPES.INT64: return Number(readBytes(8).readBigInt64LE(0));
-                case GGUF_TYPES.FLOAT64: return readBytes(8).readDoubleLE(0);
+                case GGUF_TYPES.UINT64: await ensure(8); return Number(readBytes(8).readBigUInt64LE(0));
+                case GGUF_TYPES.INT64: await ensure(8); return Number(readBytes(8).readBigInt64LE(0));
+                case GGUF_TYPES.FLOAT64: await ensure(8); return readBytes(8).readDoubleLE(0);
                 case GGUF_TYPES.ARRAY: {
+                    await ensure(12);
                     const elemType = readBytes(4).readUInt32LE(0);
                     const n = Number(readBytes(8).readBigUInt64LE(0));
                     const arr = [];
-                    for (let i = 0; i < n; i++) arr.push(readValue(elemType));
+                    for (let i = 0; i < n; i++) arr.push(await readValue(elemType));
                     return arr;
                 }
                 default: throw new Error('Unknown GGUF value type: ' + type);
             }
         };
 
+        await ensure(4 + 4 + 8 + 8);
         if (readBytes(4).toString('ascii') !== 'GGUF') return null;
         readBytes(4); // version
         readBytes(8); // tensor count
         const kvCount = Number(readBytes(8).readBigUInt64LE(0));
 
         for (let i = 0; i < kvCount; i++) {
-            const key = readString();
+            const key = await readString();
+            await ensure(4);
             const type = readBytes(4).readUInt32LE(0);
-            const value = readValue(type);
+            const value = await readValue(type);
             if (key === 'llama.context_length' || key === 'context_length') {
                 return Number(value) > 0 ? Number(value) : null;
             }
         }
         return null;
     } finally {
-        fs.closeSync(fd);
+        await fd.close();
     }
 }
 
@@ -369,12 +390,12 @@ ipcMain.handle('delete-model', (event, modelName) => {
     return true;
 });
 
-ipcMain.handle('get-model-ctx', (event, modelName) => {
+ipcMain.handle('get-model-ctx', async (event, modelName) => {
     if (!modelName || path.basename(modelName) !== modelName) return null;
     const modelPath = path.join(modelsDir, modelName);
     if (!fs.existsSync(modelPath)) return null;
     try {
-        return readGgufContextLength(modelPath);
+        return await readGgufContextLength(modelPath);
     } catch (e) {
         return null;
     }
@@ -593,11 +614,6 @@ ipcMain.handle('start-server', async (event, { modelName, port, ctxSize, gpuLaye
         samplingArgs.push({ flag: '--n-predict', value: (maxTokens !== undefined && maxTokens !== null) ? maxTokens : -1 });
     }
 
-    // R1-style models: map the UI effort to llama.cpp's --reasoning-effort flag.
-    if (reasoningEffort && reasoningEffort !== 'none') {
-        args.push('--reasoning-effort', reasoningEffort);
-    }
-
     for (const { flag, value } of samplingArgs) {
         if (value !== undefined && value !== null && value !== '' && !isNaN(parseFloat(value))) {
             args.push(flag, parseFloat(value).toString());
@@ -611,7 +627,7 @@ ipcMain.handle('start-server', async (event, { modelName, port, ctxSize, gpuLaye
     const workingDir = path.dirname(exePath);
     console.log('Spawning:', exePath, args.join(' '));
 
-    serverStarting = true;
+serverStarting = true;
     const child = spawn(exePath, args, { cwd: workingDir, windowsHide: true });
     llamaProcess = child;
 
@@ -630,7 +646,10 @@ ipcMain.handle('start-server', async (event, { modelName, port, ctxSize, gpuLaye
     child.on('error', (error) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('server-log', `\n[Unable to start server: ${error.message}]\n`);
+            mainWindow.webContents.send('server-stopped');
         }
+        llamaProcess = null;
+        serverStarting = false;
     });
 
     child.on('close', (code) => {
