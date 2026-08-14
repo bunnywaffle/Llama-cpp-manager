@@ -325,6 +325,73 @@ ipcMain.handle('open-data-directory', () => {
     return true;
 });
 
+
+// ============ LoRA Adapter IPC Handlers ============
+ipcMain.handle('link-lora-dialog', async (event, modelName) => {
+    if (!modelName) throw new Error('No model name specified.');
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select LoRA Adapter (.gguf) for ' + modelName,
+        properties: ['openFile'],
+        filters: [{ name: 'GGUF LoRA Adapter', extensions: ['gguf'] }, { name: 'All Files', extensions: ['*'] }]
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+        const srcPath = result.filePaths[0];
+        const fileName = path.basename(srcPath);
+        const destPath = path.join(getModelsDir(), fileName);
+        if (srcPath !== destPath && !fs.existsSync(destPath)) {
+            try {
+                fs.symlinkSync(srcPath, destPath, 'file');
+            } catch (e) {
+                try { fs.copyFileSync(srcPath, destPath); } catch (err) {}
+            }
+        }
+        const meta = readModelsMeta();
+        meta[modelName] = meta[modelName] || {};
+        meta[modelName].loras = meta[modelName].loras || [];
+        // Avoid duplicate entry
+        const existingIdx = meta[modelName].loras.findIndex(l => l.file === fileName);
+        if (existingIdx >= 0) {
+            meta[modelName].loras[existingIdx].scale = 1.0;
+            meta[modelName].loras[existingIdx].enabled = true;
+        } else {
+            meta[modelName].loras.push({
+                file: fileName,
+                scale: 1.0,
+                enabled: true,
+                path: srcPath
+            });
+        }
+        writeModelsMeta(meta);
+        return meta;
+    }
+    return null;
+});
+
+ipcMain.handle('update-lora-settings', (event, { modelName, loraFile, scale, enabled }) => {
+    if (!modelName || !loraFile) return;
+    const meta = readModelsMeta();
+    if (meta[modelName] && Array.isArray(meta[modelName].loras)) {
+        const item = meta[modelName].loras.find(l => l.file === loraFile);
+        if (item) {
+            if (scale !== undefined) item.scale = parseFloat(scale);
+            if (enabled !== undefined) item.enabled = Boolean(enabled);
+            writeModelsMeta(meta);
+        }
+    }
+    return meta;
+});
+
+ipcMain.handle('unlink-lora', (event, { modelName, loraFile }) => {
+    if (!modelName || !loraFile) return;
+    const meta = readModelsMeta();
+    if (meta[modelName] && Array.isArray(meta[modelName].loras)) {
+        meta[modelName].loras = meta[modelName].loras.filter(l => l.file !== loraFile);
+        writeModelsMeta(meta);
+    }
+    return meta;
+});
+
 // ============ Vision Adapter (mmproj) IPC Handlers ============
 ipcMain.handle('get-models-meta', () => {
     return readModelsMeta();
@@ -662,7 +729,16 @@ ipcMain.on('chat-start', (event, payload) => {
             : ((params && params.maxTokens !== undefined) ? params.maxTokens : 2048),
         reasoning_effort: (params && params.reasoningEffort && params.reasoningEffort !== 'none')
             ? params.reasoningEffort
-            : undefined
+            : undefined,
+        // Advanced XTC, DRY, and CFG parameters
+        xtc_probability: (params && params.xtcProbability !== undefined) ? parseFloat(params.xtcProbability) : undefined,
+        xtc_threshold: (params && params.xtcThreshold !== undefined) ? parseFloat(params.xtcThreshold) : undefined,
+        dry_multiplier: (params && params.dryMultiplier !== undefined) ? parseFloat(params.dryMultiplier) : undefined,
+        dry_base: (params && params.dryBase !== undefined) ? parseFloat(params.dryBase) : undefined,
+        dry_allowed_length: (params && params.dryAllowedLength !== undefined) ? parseInt(params.dryAllowedLength, 10) : undefined,
+        dry_penalty_last_n: (params && params.dryPenaltyLastN !== undefined) ? parseInt(params.dryPenaltyLastN, 10) : undefined,
+        cfg_scale: (params && params.cfgScale !== undefined && parseFloat(params.cfgScale) > 1.0) ? parseFloat(params.cfgScale) : undefined,
+        negative_prompt: (params && params.cfgNegativePrompt) ? params.cfgNegativePrompt : undefined
     };
 
     axios.post(url, body, {
@@ -910,12 +986,42 @@ ipcMain.handle('start-server', async (event, params) => {
         args.push('--mmproj', mmprojPath);
     }
 
+    // LoRA Adapters loading
+    if (meta[modelName] && Array.isArray(meta[modelName].loras)) {
+        for (const lora of meta[modelName].loras) {
+            if (lora.enabled !== false) {
+                let loraPath = path.join(getModelsDir(), lora.file);
+                try { loraPath = fs.realpathSync(loraPath); } catch (e) {}
+                if (!fs.existsSync(loraPath) && lora.path && fs.existsSync(lora.path)) {
+                    loraPath = lora.path;
+                }
+                if (fs.existsSync(loraPath)) {
+                    const scale = (lora.scale !== undefined && !isNaN(parseFloat(lora.scale))) ? parseFloat(lora.scale) : 1.0;
+                    console.log('Loading LoRA adapter:', loraPath, 'with scale:', scale);
+                    args.push('--lora-scaled', `${loraPath}:${scale}`);
+                }
+            }
+        }
+    }
+
+    const { xtcProbability, xtcThreshold, dryMultiplier, dryBase, dryAllowedLength, dryPenaltyLastN, cfgScale, cfgNegativePrompt } = params || {};
+
     const samplingArgs = [
         { flag: '--temp', value: temperature },
         { flag: '--top-k', value: topK },
         { flag: '--top-p', value: topP },
         { flag: '--min-p', value: minP },
-        { flag: '--repeat-penalty', value: repeatPenalty }
+        { flag: '--repeat-penalty', value: repeatPenalty },
+        // Advanced XTC
+        { flag: '--xtc-probability', value: xtcProbability },
+        { flag: '--xtc-threshold', value: xtcThreshold },
+        // Advanced DRY
+        { flag: '--dry-multiplier', value: dryMultiplier },
+        { flag: '--dry-base', value: dryBase },
+        { flag: '--dry-allowed-length', value: dryAllowedLength },
+        { flag: '--dry-penalty-last-n', value: dryPenaltyLastN },
+        // Advanced CFG
+        { flag: '--cfg-scale', value: (cfgScale && parseFloat(cfgScale) > 1.0) ? cfgScale : undefined }
     ];
 
     if (maxTokensUnlimited === false || maxTokensUnlimited === undefined) {

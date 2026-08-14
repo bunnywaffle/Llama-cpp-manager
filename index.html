@@ -107,8 +107,8 @@
             position: fixed;
             top: 14px;
             left: 14px;
-            width: 30px;
-            height: 30px;
+            width: 28px;
+            height: 28px;
             border-radius: 8px;
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -116,11 +116,41 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 13px;
+            font-size: 12px;
             cursor: pointer;
             z-index: 1200;
-            transition: all 0.18s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+            transition: all 0.16s ease;
+        }
+
+        #btn-universal-sidebar-toggle:hover {
+            color: var(--text-main);
+            border-color: var(--accent);
+            background: var(--bg-surface);
+        }
+
+        .lora-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(168, 85, 247, 0.12);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: #c084fc;
+        }
+
+        .lora-item-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 10px;
+            gap: 8px;
+            margin-top: 4px;
+            font-size: 12px;
         }
 
         #btn-universal-sidebar-toggle:hover {
@@ -1754,14 +1784,14 @@
 
     <!-- Workspace -->
     <div class="workspace">
-        <button class="btn secondary" id="sidebar-reopen" title="Show sidebar"><i class="fa-solid fa-bars"></i> Show Sidebar</button>
+        
         
 
         <!-- DASHBOARD VIEW -->
         <div id="view-dashboard" class="view-pane active">
             <div class="header-row">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button class="btn secondary" id="btn-toggle-sidebar" style="padding: 8px 12px;" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+                    
                     <div>
                         <h2>Dashboard</h2>
                         <p class="subtitle">Active llama.cpp server</p>
@@ -2117,12 +2147,12 @@
                                             <i class="fa-solid fa-sliders" style="color: var(--accent);"></i>
                                             <span>Params</span>
                                         </button>
-                                        <div class="dropdown-menu dropdown-menu-up" id="composer-params-card" style="width: 260px; padding: 12px; display: none;">
+                                        <div class="dropdown-menu dropdown-menu-up" id="composer-params-card" style="width: 290px; padding: 14px; display: none;">
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                                <span style="font-weight: 600; font-size: 12px;">Quick Parameters</span>
+                                                <span style="font-weight: 600; font-size: 12.5px;"><i class="fa-solid fa-sliders" style="color: var(--accent);"></i> Sampling & Samplers</span>
                                                 <button type="button" class="btn-icon" id="btn-close-composer-params" style="font-size: 11px; padding: 2px 6px; background: none; border: none; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
                                             </div>
-                                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11.5px;">
+                                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11.5px; max-height: 280px; overflow-y: auto; padding-right: 2px;">
                                                 <div>
                                                     <div style="display: flex; justify-content: space-between;">
                                                         <span>Temperature</span>
@@ -2150,6 +2180,31 @@
                                                         <span id="quick-repeat-val" style="color: var(--accent); font-weight: 600;">1.1</span>
                                                     </div>
                                                     <input type="range" id="quick-inp-repeat" min="1" max="2" step="0.05" value="1.1" style="width: 100%;">
+                                                </div>
+                                                <div style="height: 1px; background: var(--border); margin: 2px 0;"></div>
+                                                <!-- Quick XTC -->
+                                                <div>
+                                                    <div style="display: flex; justify-content: space-between;">
+                                                        <span>XTC Probability</span>
+                                                        <span id="quick-xtc-prob-val" style="color: var(--accent); font-weight: 600;">0.00</span>
+                                                    </div>
+                                                    <input type="range" id="quick-inp-xtc-prob" min="0" max="1" step="0.05" value="0" style="width: 100%;">
+                                                </div>
+                                                <!-- Quick DRY -->
+                                                <div>
+                                                    <div style="display: flex; justify-content: space-between;">
+                                                        <span>DRY Multiplier</span>
+                                                        <span id="quick-dry-mult-val" style="color: var(--accent); font-weight: 600;">0.00</span>
+                                                    </div>
+                                                    <input type="range" id="quick-inp-dry-mult" min="0" max="2" step="0.05" value="0" style="width: 100%;">
+                                                </div>
+                                                <!-- Quick CFG -->
+                                                <div>
+                                                    <div style="display: flex; justify-content: space-between;">
+                                                        <span>CFG Scale</span>
+                                                        <span id="quick-cfg-scale-val" style="color: var(--accent); font-weight: 600;">1.0</span>
+                                                    </div>
+                                                    <input type="range" id="quick-inp-cfg-scale" min="1" max="3" step="0.1" value="1.0" style="width: 100%;">
                                                 </div>
                                             </div>
                                         </div>
@@ -3686,7 +3741,16 @@
                 repeatPenalty: parseFloat(val('inp-repeat')) || 1.1,
                 maxTokens: parseInt(val('inp-maxtokens'), 10) || 2048,
                 maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited') ? document.getElementById('inp-maxtokens-unlimited').checked : true,
-                reasoningEffort: val('inp-reasoning') || 'medium'
+                reasoningEffort: val('inp-reasoning') || 'medium',
+                // Advanced Samplers: XTC, DRY, CFG
+                xtcProbability: parseFloat(val('inp-xtc-prob')) || 0,
+                xtcThreshold: parseFloat(val('inp-xtc-thresh')) || 0.1,
+                dryMultiplier: parseFloat(val('inp-dry-mult')) || 0,
+                dryBase: parseFloat(val('inp-dry-base')) || 1.75,
+                dryAllowedLength: parseInt(val('inp-dry-allowed-length'), 10) || 2,
+                dryPenaltyLastN: parseInt(val('inp-dry-penalty-last-n'), 10) || 64,
+                cfgScale: parseFloat(val('inp-cfg-scale')) || 1.0,
+                cfgNegativePrompt: val('inp-cfg-negative-prompt') || ''
             };
         }
 
@@ -4134,24 +4198,101 @@
                     opt2.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '');
                     dashModelSelect.appendChild(opt2);
 
+                    const loras = (modelsMeta[m] && Array.isArray(modelsMeta[m].loras)) ? modelsMeta[m].loras : [];
                     const row = document.createElement('div');
                     row.className = 'list-row';
-                    row.style.justifyContent = 'space-between';
+                    row.style.flexDirection = 'column';
+                    row.style.alignItems = 'stretch';
+                    row.style.gap = '8px';
+
+                    let lorasHtml = '';
+                    if (loras.length > 0) {
+                        lorasHtml = '<div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px; padding-left: 12px; border-left: 2px solid rgba(168, 85, 247, 0.4);">';
+                        loras.forEach((lora, lIdx) => {
+                            lorasHtml += `
+                                <div class="lora-item-box">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="checkbox" class="chk-lora-enable" data-model="${escapeHtml(m)}" data-lora="${escapeHtml(lora.file)}" ${lora.enabled !== false ? 'checked' : ''} title="Enable/disable LoRA">
+                                        <span class="lora-badge"><i class="fa-solid fa-bolt"></i> ${escapeHtml(lora.file)}</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">Scale:</span>
+                                        <input type="range" class="rng-lora-scale" data-model="${escapeHtml(m)}" data-lora="${escapeHtml(lora.file)}" min="0" max="2" step="0.05" value="${lora.scale || 1.0}" style="width: 70px;">
+                                        <span class="lora-scale-val" style="font-size: 11px; font-weight: 600; min-width: 26px;">${lora.scale || 1.0}</span>
+                                        <button class="btn danger btn-unlink-lora" data-model="${escapeHtml(m)}" data-lora="${escapeHtml(lora.file)}" style="padding: 2px 6px; font-size: 10px;" title="Unlink LoRA"><i class="fa-solid fa-xmark"></i></button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        lorasHtml += '</div>';
+                    }
+
                     row.innerHTML = `
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <span style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-solid fa-cube" style="color: var(--accent);"></i> ${escapeHtml(m)}
-                            </span>
-                            ${hasMmproj ? `<span class="vision-adapter-badge"><i class="fa-solid fa-eye"></i> Vision Adaptor: ${escapeHtml(modelsMeta[m].mmproj)}</span>` : ''}
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa-solid fa-cube" style="color: var(--accent);"></i> ${escapeHtml(m)}
+                                </span>
+                                ${hasMmproj ? `<span class="vision-adapter-badge"><i class="fa-solid fa-eye"></i> Vision Adaptor: ${escapeHtml(modelsMeta[m].mmproj)}</span>` : ''}
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <button class="btn secondary btn-link-lora" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link LoRA adapter (.gguf)"><i class="fa-solid fa-bolt" style="color: #c084fc;"></i> + LoRA</button>
+                                ${hasMmproj
+                                    ? `<button class="btn secondary btn-unlink-vision" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Unlink vision adaptor"><i class="fa-solid fa-eye-slash"></i> Unlink Vision</button>`
+                                    : `<button class="btn secondary btn-link-vision" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link vision projector (mmproj) GGUF"><i class="fa-solid fa-eye"></i> + Vision</button>`
+                                }
+                                <button class="btn danger btn-del-model" style="padding: 4px 10px; font-size: 12px;" data-model="${escapeHtml(m)}" title="Delete model"><i class="fa-solid fa-trash"></i></button>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            ${hasMmproj
-                                ? `<button class="btn secondary btn-unlink-vision" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Unlink vision adaptor"><i class="fa-solid fa-eye-slash"></i> Unlink Vision</button>`
-                                : `<button class="btn secondary btn-link-vision" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link vision projector (mmproj) GGUF"><i class="fa-solid fa-eye"></i> + Vision (mmproj)</button>`
-                            }
-                            <button class="btn danger btn-del-model" style="padding: 4px 10px; font-size: 12px;" data-model="${escapeHtml(m)}" title="Delete model"><i class="fa-solid fa-trash"></i></button>
-                        </div>
+                        ${lorasHtml}
                     `;
+
+                    const linkLoraBtn = row.querySelector('.btn-link-lora');
+                    if (linkLoraBtn) {
+                        linkLoraBtn.addEventListener('click', async () => {
+                            try {
+                                const updated = await ipcRenderer.invoke('link-lora-dialog', m);
+                                if (updated) loadModels();
+                            } catch (err) {
+                                alert('Error linking LoRA adapter: ' + err.message);
+                            }
+                        });
+                    }
+
+                    row.querySelectorAll('.chk-lora-enable').forEach(chk => {
+                        chk.addEventListener('change', async (e) => {
+                            await ipcRenderer.invoke('update-lora-settings', {
+                                modelName: e.target.dataset.model,
+                                loraFile: e.target.dataset.lora,
+                                enabled: e.target.checked
+                            });
+                        });
+                    });
+
+                    row.querySelectorAll('.rng-lora-scale').forEach(rng => {
+                        rng.addEventListener('input', async (e) => {
+                            const valEl = rng.parentElement.querySelector('.lora-scale-val');
+                            if (valEl) valEl.textContent = e.target.value;
+                            await ipcRenderer.invoke('update-lora-settings', {
+                                modelName: e.target.dataset.model,
+                                loraFile: e.target.dataset.lora,
+                                scale: e.target.value
+                            });
+                        });
+                    });
+
+                    row.querySelectorAll('.btn-unlink-lora').forEach(btn => {
+                        btn.addEventListener('click', async (e) => {
+                            const btnTarget = e.currentTarget;
+                            if (confirm('Unlink LoRA adapter ' + btnTarget.dataset.lora + '?')) {
+                                await ipcRenderer.invoke('unlink-lora', {
+                                    modelName: btnTarget.dataset.model,
+                                    loraFile: btnTarget.dataset.lora
+                                });
+                                loadModels();
+                            }
+                        });
+                    });
 
                     const linkVisionBtn = row.querySelector('.btn-link-vision');
                     if (linkVisionBtn) {
@@ -4368,6 +4509,15 @@
                 serverCtxInput.value = ctx;
                 dashCtxInput.value = ctx;
 
+                const xtcProbEl = document.getElementById('inp-xtc-prob');
+                const xtcThreshEl = document.getElementById('inp-xtc-thresh');
+                const dryMultEl = document.getElementById('inp-dry-mult');
+                const dryBaseEl = document.getElementById('inp-dry-base');
+                const dryLenEl = document.getElementById('inp-dry-allowed-length');
+                const dryLastNEl = document.getElementById('inp-dry-penalty-last-n');
+                const cfgScaleEl = document.getElementById('inp-cfg-scale');
+                const cfgNegEl = document.getElementById('inp-cfg-negative-prompt');
+
                 await ipcRenderer.invoke('start-server', {
                     modelName,
                     port: port,
@@ -4381,7 +4531,16 @@
                     repeatPenalty: parseFloat(document.getElementById('inp-repeat').value) || 1.1,
                     maxTokens: parseInt(document.getElementById('inp-maxtokens').value, 10) || 2048,
                     maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked,
-                    reasoningEffort: document.getElementById('inp-reasoning').value
+                    reasoningEffort: document.getElementById('inp-reasoning').value,
+                    // Advanced XTC, DRY, and CFG parameters
+                    xtcProbability: xtcProbEl ? parseFloat(xtcProbEl.value) : 0,
+                    xtcThreshold: xtcThreshEl ? parseFloat(xtcThreshEl.value) : 0.1,
+                    dryMultiplier: dryMultEl ? parseFloat(dryMultEl.value) : 0,
+                    dryBase: dryBaseEl ? parseFloat(dryBaseEl.value) : 1.75,
+                    dryAllowedLength: dryLenEl ? parseInt(dryLenEl.value, 10) : 2,
+                    dryPenaltyLastN: dryLastNEl ? parseInt(dryLastNEl.value, 10) : 64,
+                    cfgScale: cfgScaleEl ? parseFloat(cfgScaleEl.value) : 1.0,
+                    cfgNegativePrompt: cfgNegEl ? cfgNegEl.value : ''
                 });
 
                 dashStatusText.textContent = 'Running';
