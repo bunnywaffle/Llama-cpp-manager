@@ -272,6 +272,9 @@ function createWindow() {
     });
 
     Menu.setApplicationMenu(null);
+    mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+        console.log(`[RENDERER ${level}] ${message} (${sourceId}:${line})`);
+    });
     mainWindow.loadFile('index.html');
 }
 
