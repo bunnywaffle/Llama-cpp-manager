@@ -293,6 +293,145 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
 
+
+// ============ Pi Agent Self-Contained Sandbox Engine ============
+function getSandboxDir() {
+    const sDir = path.join(getDataDir(), 'sandbox');
+    if (!fs.existsSync(sDir)) {
+        fs.mkdirSync(sDir, { recursive: true });
+    }
+    return sDir;
+}
+
+function resolveSafeSandboxPath(targetPath) {
+    const base = path.resolve(getSandboxDir());
+    const target = path.resolve(base, targetPath || '');
+    if (!target.startsWith(base)) {
+        throw new Error('Access denied: Path is outside the self-contained sandbox directory (' + targetPath + ')');
+    }
+    return target;
+}
+
+async function executeAgentTool(toolName, rawArgs) {
+    const sDir = getSandboxDir();
+    const cleanTool = (toolName || '').trim().toLowerCase();
+
+    try {
+        if (cleanTool === 'file_write') {
+            let filename = '';
+            let content = '';
+            if (typeof rawArgs === 'object' && rawArgs !== null) {
+                filename = rawArgs.filename || rawArgs.file || rawArgs.name || 'output.txt';
+                content = rawArgs.content || rawArgs.data || rawArgs.text || '';
+            } else if (typeof rawArgs === 'string') {
+                // Try JSON parse first
+                try {
+                    const parsed = JSON.parse(rawArgs);
+                    filename = parsed.filename || parsed.file || 'output.txt';
+                    content = parsed.content || parsed.data || '';
+                } catch (e) {
+                    const parts = rawArgs.split(/,(.+)/);
+                    filename = parts[0].replace(/^["']|["']$/g, '').trim();
+                    content = (parts[1] || '').replace(/^["']|["']$/g, '').trim();
+                }
+            }
+            const safePath = resolveSafeSandboxPath(filename);
+            const parentDir = path.dirname(safePath);
+            if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
+            fs.writeFileSync(safePath, content, 'utf8');
+            return `Successfully wrote ${Buffer.byteLength(content, 'utf8')} bytes to sandbox file: ${path.basename(safePath)}`;
+        }
+
+        if (cleanTool === 'file_read') {
+            let filename = typeof rawArgs === 'object' ? (rawArgs.filename || rawArgs.file) : String(rawArgs || '').replace(/^["']|["']$/g, '').trim();
+            const safePath = resolveSafeSandboxPath(filename);
+            if (!fs.existsSync(safePath)) {
+                return `Error: File "${filename}" does not exist in the sandbox.`;
+            }
+            const data = fs.readFileSync(safePath, 'utf8');
+            return data.length > 4000 ? data.slice(0, 4000) + '\n...[truncated]' : data;
+        }
+
+        if (cleanTool === 'file_list') {
+            const files = fs.readdirSync(sDir);
+            if (files.length === 0) return 'Sandbox directory is currently empty.';
+            return files.map(f => {
+                const stat = fs.statSync(path.join(sDir, f));
+                return `- ${f} (${stat.size} bytes)`;
+            }).join('\n');
+        }
+
+        if (cleanTool === 'run_python' || cleanTool === 'python') {
+            let code = typeof rawArgs === 'object' ? (rawArgs.code || rawArgs.script) : String(rawArgs || '');
+            code = code.replace(/^["']|["']$/g, '').replace(/\\n/g, '\n');
+            const scriptPath = path.join(sDir, '_agent_run.py');
+            fs.writeFileSync(scriptPath, code, 'utf8');
+
+            return await new Promise((resolve) => {
+                const { spawn } = require('child_process');
+                // Try python or py
+                const proc = spawn('python', ['_agent_run.py'], { cwd: sDir, windowsHide: true });
+                let stdout = '';
+                let stderr = '';
+                let isDone = false;
+
+                const timer = setTimeout(() => {
+                    if (!isDone) {
+                        isDone = true;
+                        try { proc.kill(); } catch (e) {}
+                        resolve('Execution timed out after 12 seconds.');
+                    }
+                }, 12000);
+
+                proc.stdout.on('data', d => { stdout += d.toString(); });
+                proc.stderr.on('data', d => { stderr += d.toString(); });
+                proc.on('error', (err) => {
+                    // Fallback to VM evaluation in Javascript if Python binary is not in PATH
+                    try {
+                        const vm = require('vm');
+                        const sandbox = { console: { log: (...a) => { stdout += a.join(' ') + '\n'; } } };
+                        vm.createContext(sandbox);
+                        const result = vm.runInContext(code, sandbox, { timeout: 5000 });
+                        clearTimeout(timer);
+                        if (!isDone) {
+                            isDone = true;
+                            resolve(stdout || String(result || 'Code executed successfully.'));
+                        }
+                    } catch (vmErr) {
+                        clearTimeout(timer);
+                        if (!isDone) {
+                            isDone = true;
+                            resolve('Execution error: Python not found and JS eval failed (' + vmErr.message + ')');
+                        }
+                    }
+                });
+                proc.on('close', (code) => {
+                    clearTimeout(timer);
+                    if (!isDone) {
+                        isDone = true;
+                        if (stderr && stderr.trim()) {
+                            resolve(`Exit code ${code}. Output:\n${stdout}\nErrors:\n${stderr}`);
+                        } else {
+                            resolve(stdout || `Execution completed with code ${code} (no stdout)`);
+                        }
+                    }
+                });
+            });
+        }
+
+        if (cleanTool === 'calc_eval' || cleanTool === 'calc') {
+            const expr = typeof rawArgs === 'object' ? rawArgs.expression : String(rawArgs || '').replace(/^["']|["']$/g, '');
+            const vm = require('vm');
+            const res = vm.runInNewContext(expr, Object.freeze({ Math }), { timeout: 2000 });
+            return String(res);
+        }
+
+        return `Unknown tool: "${cleanTool}". Available tools: file_write, file_read, file_list, run_python, calc_eval`;
+    } catch (err) {
+        return `Tool Execution Error: ${err.message}`;
+    }
+}
+
 // ============ Storage & Data Directory IPC Handlers ============
 ipcMain.handle('get-data-directory', () => {
     return getDataDir();
@@ -393,6 +532,32 @@ ipcMain.handle('unlink-lora', (event, { modelName, loraFile }) => {
         writeModelsMeta(meta);
     }
     return meta;
+});
+
+
+// ============ Sandbox Folder IPC Handlers ============
+ipcMain.handle('get-sandbox-directory', () => getSandboxDir());
+ipcMain.handle('open-sandbox-directory', () => {
+    shell.openPath(getSandboxDir());
+    return true;
+});
+ipcMain.handle('list-sandbox-files', () => {
+    const sDir = getSandboxDir();
+    if (!fs.existsSync(sDir)) return [];
+    return fs.readdirSync(sDir).map(name => {
+        const stat = fs.statSync(path.join(sDir, name));
+        return { name, size: stat.size, isDir: stat.isDirectory() };
+    });
+});
+ipcMain.handle('clear-sandbox-files', () => {
+    const sDir = getSandboxDir();
+    if (fs.existsSync(sDir)) {
+        const files = fs.readdirSync(sDir);
+        for (const f of files) {
+            try { fs.rmSync(path.join(sDir, f), { recursive: true, force: true }); } catch (e) {}
+        }
+    }
+    return true;
 });
 
 // ============ Vision Adapter (mmproj) IPC Handlers ============
@@ -704,8 +869,8 @@ ipcMain.handle('delete-persona', (event, id) => {
 
 let chatStream = null;
 
-ipcMain.on('chat-start', (event, payload) => {
-    const { port = 8080, messages, params } = payload || {};
+ipcMain.on('chat-start', async (event, payload) => {
+    const { port = 8080, messages, params, isAgent = false } = payload || {};
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         event.sender.send('chat-error', { message: 'No messages to send.' });
         return;
@@ -717,6 +882,148 @@ ipcMain.on('chat-start', (event, payload) => {
     }
 
     const url = 'http://127.0.0.1:' + port + '/v1/chat/completions';
+
+    // =========================================================================
+    // PI AGENT MODE: Autonomous Multi-Step ReAct Sandbox Execution Loop
+    // =========================================================================
+    if (isAgent) {
+        const agentSystemPrompt = {
+            role: 'system',
+            content: `You are Pi Agent, an autonomous problem-solving assistant with access to a self-contained local workspace sandbox.
+You solve tasks step-by-step using your sandbox tools. Nothing runs outside your dedicated sandbox folder.
+
+Available Tools:
+1. file_write(filename, content): Create or overwrite a file in the sandbox workspace.
+2. file_read(filename): Read the contents of a file in the sandbox.
+3. file_list(): List all files currently in the sandbox.
+4. run_python(code): Execute Python or mathematical code in the sandbox and return stdout/stderr.
+5. calc_eval(expression): Evaluate a mathematical formula.
+
+Always format each step as:
+Thought: <what you need to investigate or compute>
+Action: <tool_name>(<arguments>)
+
+When you have the final solution after receiving the observation, end with:
+Thought: I have solved the problem.
+Final Answer: <your final detailed response to the user>`
+        };
+
+        const agentMessages = [agentSystemPrompt, ...messages.map(m => {
+            if (Array.isArray(m.content)) {
+                const textPart = m.content.find(c => c.type === 'text');
+                return { role: m.role, content: textPart ? textPart.text : '' };
+            }
+            return { role: m.role, content: m.content || '' };
+        })];
+
+        let currentStep = 1;
+        const maxSteps = 6;
+        let isAgentStopped = false;
+
+        const onStop = () => { isAgentStopped = true; };
+        ipcMain.once('chat-stop', onStop);
+
+        try {
+            while (currentStep <= maxSteps && !isAgentStopped && !event.sender.isDestroyed()) {
+                const requestBody = {
+                    model: 'local-model',
+                    messages: agentMessages,
+                    stream: false,
+                    temperature: (params && params.temperature !== undefined) ? params.temperature : 0.6,
+                    max_tokens: 1500
+                };
+
+                const res = await axios.post(url, requestBody, { timeout: 60000 });
+                const reply = res.data && res.data.choices && res.data.choices[0] && res.data.choices[0].message
+                    ? res.data.choices[0].message.content
+                    : '';
+
+                if (!reply) break;
+
+                // Check for Final Answer
+                const finalIdx = reply.indexOf('Final Answer:');
+                if (finalIdx !== -1) {
+                    const beforeFinal = reply.slice(0, finalIdx).trim();
+                    const finalAnswer = reply.slice(finalIdx + 13).trim();
+
+                    if (beforeFinal) {
+                        event.sender.send('agent-step', {
+                            step: currentStep,
+                            thought: beforeFinal.replace(/^Thought:s*/i, ''),
+                            tool: null,
+                            status: 'done'
+                        });
+                    }
+
+                    event.sender.send('chat-chunk', { delta: finalAnswer, reasoning: '' });
+                    break;
+                }
+
+                // Parse Thought and Action
+                const actionMatch = reply.match(/Action:s*([a-zA-Z0-9_]+)s*(([sS]*?))(?:s*$|s*Observation:)/i)
+                    || reply.match(/Action:s*([a-zA-Z0-9_]+)s*:s*([sS]*?)(?:s*$|s*Observation:)/i);
+
+                let thoughtText = reply;
+                if (actionMatch) {
+                    thoughtText = reply.slice(0, reply.indexOf(actionMatch[0])).trim();
+                }
+                thoughtText = thoughtText.replace(/^Thought:s*/i, '').trim();
+
+                if (actionMatch) {
+                    const toolName = actionMatch[1].trim();
+                    const toolArgs = actionMatch[2].trim();
+
+                    event.sender.send('agent-step', {
+                        step: currentStep,
+                        thought: thoughtText || 'Executing ' + toolName,
+                        tool: toolName,
+                        args: toolArgs,
+                        status: 'executing'
+                    });
+
+                    // Execute tool safely in self-contained sandbox
+                    const observation = await executeAgentTool(toolName, toolArgs);
+
+                    event.sender.send('agent-step', {
+                        step: currentStep,
+                        thought: thoughtText || 'Executing ' + toolName,
+                        tool: toolName,
+                        args: toolArgs,
+                        observation: observation,
+                        status: 'completed'
+                    });
+
+                    // Append to agent history for next iteration
+                    agentMessages.push({
+                        role: 'assistant',
+                        content: `Thought: ${thoughtText}\nAction: ${toolName}(${toolArgs})`
+                    });
+                    agentMessages.push({
+                        role: 'user',
+                        content: `Observation: ${observation}`
+                    });
+
+                    currentStep++;
+                } else {
+                    // No action found, treat whole text as answer
+                    event.sender.send('chat-chunk', { delta: reply, reasoning: '' });
+                    break;
+                }
+            }
+
+            if (!event.sender.isDestroyed()) {
+                event.sender.send('chat-done', {});
+            }
+        } catch (err) {
+            const msg = err.response && err.response.data && err.response.data.error
+                ? (err.response.data.error.message || err.response.data.error)
+                : err.message;
+            if (!event.sender.isDestroyed()) event.sender.send('chat-error', { message: msg || 'Agent execution error.' });
+        } finally {
+            ipcMain.removeListener('chat-stop', onStop);
+        }
+        return;
+    }
 
     const body = {
         model: 'local-model',
