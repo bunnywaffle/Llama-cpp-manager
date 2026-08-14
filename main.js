@@ -883,6 +883,20 @@ ipcMain.on('chat-start', async (event, payload) => {
 
     const url = 'http://127.0.0.1:' + port + '/v1/chat/completions';
 
+    // Normalize messages: Ensure strictly AT MOST ONE system message at index 0 (satisfies strict Jinja templates)
+    let combinedSystemText = '';
+    const nonSystemMessages = [];
+    for (const m of messages) {
+        if (m.role === 'system') {
+            const sc = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(c => c.text || '').join('\n') : '');
+            if (sc && sc.trim()) {
+                combinedSystemText = combinedSystemText ? (combinedSystemText + '\n\n' + sc.trim()) : sc.trim();
+            }
+        } else {
+            nonSystemMessages.push(m);
+        }
+    }
+
     // =========================================================================
     // PI AGENT MODE: Native Tool Calling + ReAct Multi-Step Sandbox Loop
     // =========================================================================
@@ -955,9 +969,7 @@ ipcMain.on('chat-start', async (event, payload) => {
             }
         ];
 
-        const agentSystemPrompt = {
-            role: 'system',
-            content: `You are Pi Agent, an autonomous problem-solving assistant with access to a self-contained local workspace sandbox.
+        const baseAgentInstruction = `You are Pi Agent, an autonomous problem-solving assistant with access to a self-contained local workspace sandbox.
 You have access to tools to inspect, create files, and execute code strictly within your dedicated sandbox directory:
 - file_write(filename, content): Write a file in the sandbox.
 - file_read(filename): Read a file in the sandbox.
@@ -971,16 +983,22 @@ Thought: <reasoning>
 Action: <tool_name>(<arguments>)
 
 When you finish, present the final answer to the user:
-Final Answer: <your final answer>`
-        };
+Final Answer: <your final answer>`;
 
-        const agentMessages = [agentSystemPrompt, ...messages.map(m => {
-            if (Array.isArray(m.content)) {
-                const textPart = m.content.find(c => c.type === 'text');
-                return { role: m.role, content: textPart ? textPart.text : '' };
-            }
-            return { role: m.role, content: m.content || '' };
-        })];
+        const fullAgentSystemPrompt = combinedSystemText
+            ? (baseAgentInstruction + '\n\nPersona & Instructions:\n' + combinedSystemText)
+            : baseAgentInstruction;
+
+        const agentMessages = [
+            { role: 'system', content: fullAgentSystemPrompt },
+            ...nonSystemMessages.map(m => {
+                if (Array.isArray(m.content)) {
+                    const textPart = m.content.find(c => c.type === 'text');
+                    return { role: m.role, content: textPart ? textPart.text : '' };
+                }
+                return { role: m.role, content: m.content || '' };
+            })
+        ];
 
         let currentStep = 1;
         const maxSteps = 6;
@@ -1072,7 +1090,6 @@ Final Answer: <your final answer>`
                 // 2. Check ReAct Pattern Matching & Code Block Fallback
                 const actionRegex = /Action:\s*([a-zA-Z0-9_]+)\s*\(([\s\S]*?)\)(?:\s*$|\s*Observation:)/i;
                 const jsonToolRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/i;
-                const codeBlockPythonRegex = /```(?:python|py)\s*\n([\s\S]*?)\n```/i;
 
                 let matchedTool = null;
                 let matchedArgs = null;
@@ -1080,7 +1097,6 @@ Final Answer: <your final answer>`
 
                 const matchAction = reply.match(actionRegex);
                 const matchJson = reply.match(jsonToolRegex);
-                const matchCode = (currentStep === 1 && !reply.includes('Final Answer:')) ? reply.match(codeBlockPythonRegex) : null;
 
                 if (matchAction) {
                     matchedTool = matchAction[1].trim();
@@ -1166,11 +1182,17 @@ Final Answer: <your final answer>`
     }
 
     // =========================================================================
-    // STANDARD FAST STREAMING CHAT
+    // STANDARD FAST STREAMING CHAT (Sanitized Single-System Message for Jinja)
     // =========================================================================
+    const finalStandardMessages = [];
+    if (combinedSystemText) {
+        finalStandardMessages.push({ role: 'system', content: combinedSystemText });
+    }
+    finalStandardMessages.push(...nonSystemMessages);
+
     const body = {
         model: 'local-model',
-        messages,
+        messages: finalStandardMessages,
         stream: true,
         temperature: (params && params.temperature !== undefined) ? params.temperature : 0.8,
         top_p: (params && params.topP !== undefined) ? params.topP : 0.95,
@@ -1255,7 +1277,7 @@ Final Answer: <your final answer>`
                 } catch (e) {
                     parsedMsg = errBody;
                 }
-                if (!event.sender.isDestroyed()) event.sender.send('chat-error', { message: parsedMsg || err.message || 'Vision model error' });
+                if (!event.sender.isDestroyed()) event.sender.send('chat-error', { message: parsedMsg || err.message || 'Server error' });
             });
         } else {
             const msg = err.response && err.response.data && err.response.data.error
