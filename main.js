@@ -884,28 +884,94 @@ ipcMain.on('chat-start', async (event, payload) => {
     const url = 'http://127.0.0.1:' + port + '/v1/chat/completions';
 
     // =========================================================================
-    // PI AGENT MODE: Autonomous Multi-Step ReAct Sandbox Execution Loop
+    // PI AGENT MODE: Native Tool Calling + ReAct Multi-Step Sandbox Loop
     // =========================================================================
     if (isAgent) {
+        const toolsDefinition = [
+            {
+                type: 'function',
+                function: {
+                    name: 'file_write',
+                    description: 'Write or overwrite a file in the isolated sandbox folder.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            filename: { type: 'string', description: 'Relative file name (e.g. script.py, data.json, notes.txt)' },
+                            content: { type: 'string', description: 'Content to write into the file' }
+                        },
+                        required: ['filename', 'content']
+                    }
+                }
+            },
+            {
+                type: 'function',
+                function: {
+                    name: 'file_read',
+                    description: 'Read the contents of a file inside the isolated sandbox folder.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            filename: { type: 'string', description: 'The file name to read' }
+                        },
+                        required: ['filename']
+                    }
+                }
+            },
+            {
+                type: 'function',
+                function: {
+                    name: 'file_list',
+                    description: 'List all files currently in the isolated sandbox folder.',
+                    parameters: { type: 'object', properties: {} }
+                }
+            },
+            {
+                type: 'function',
+                function: {
+                    name: 'run_python',
+                    description: 'Execute Python or JavaScript code inside the sandbox and capture output.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            code: { type: 'string', description: 'Code to execute' }
+                        },
+                        required: ['code']
+                    }
+                }
+            },
+            {
+                type: 'function',
+                function: {
+                    name: 'calc_eval',
+                    description: 'Safely evaluate a mathematical or logic expression.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            expression: { type: 'string', description: 'Math expression e.g. Math.sqrt(144) * 5' }
+                        },
+                        required: ['expression']
+                    }
+                }
+            }
+        ];
+
         const agentSystemPrompt = {
             role: 'system',
             content: `You are Pi Agent, an autonomous problem-solving assistant with access to a self-contained local workspace sandbox.
-You solve tasks step-by-step using your sandbox tools. Nothing runs outside your dedicated sandbox folder.
+You have access to tools to inspect, create files, and execute code strictly within your dedicated sandbox directory:
+- file_write(filename, content): Write a file in the sandbox.
+- file_read(filename): Read a file in the sandbox.
+- file_list(): List all files in the sandbox.
+- run_python(code): Execute Python code in the sandbox.
+- calc_eval(expression): Evaluate math formulas.
 
-Available Tools:
-1. file_write(filename, content): Create or overwrite a file in the sandbox workspace.
-2. file_read(filename): Read the contents of a file in the sandbox.
-3. file_list(): List all files currently in the sandbox.
-4. run_python(code): Execute Python or mathematical code in the sandbox and return stdout/stderr.
-5. calc_eval(expression): Evaluate a mathematical formula.
-
-Always format each step as:
-Thought: <what you need to investigate or compute>
+Use tools whenever you need to calculate, write code, create files, or inspect files.
+Format tool calls either using standard tool calling or:
+Thought: <reasoning>
 Action: <tool_name>(<arguments>)
 
-When you have the final solution after receiving the observation, end with:
-Thought: I have solved the problem.
-Final Answer: <your final detailed response to the user>`
+When you finish, present the final answer to the user:
+Final Answer: <your final answer>`
         };
 
         const agentMessages = [agentSystemPrompt, ...messages.map(m => {
@@ -923,33 +989,122 @@ Final Answer: <your final detailed response to the user>`
         const onStop = () => { isAgentStopped = true; };
         ipcMain.once('chat-stop', onStop);
 
+        // Immediate visual feedback so user knows agent is working
+        event.sender.send('agent-step', {
+            step: 1,
+            thought: 'Analyzing task and preparing sandbox tools...',
+            tool: null,
+            status: 'thinking'
+        });
+
         try {
             while (currentStep <= maxSteps && !isAgentStopped && !event.sender.isDestroyed()) {
                 const requestBody = {
                     model: 'local-model',
                     messages: agentMessages,
+                    tools: toolsDefinition,
+                    tool_choice: 'auto',
                     stream: false,
-                    temperature: (params && params.temperature !== undefined) ? params.temperature : 0.6,
+                    temperature: (params && params.temperature !== undefined) ? params.temperature : 0.5,
                     max_tokens: 1500
                 };
 
-                const res = await axios.post(url, requestBody, { timeout: 60000 });
-                const reply = res.data && res.data.choices && res.data.choices[0] && res.data.choices[0].message
-                    ? res.data.choices[0].message.content
-                    : '';
+                let res;
+                try {
+                    res = await axios.post(url, requestBody, { timeout: 75000 });
+                } catch (apiErr) {
+                    // If tools flag not supported by model template, retry without tools parameter
+                    if (requestBody.tools) {
+                        delete requestBody.tools;
+                        delete requestBody.tool_choice;
+                        res = await axios.post(url, requestBody, { timeout: 75000 });
+                    } else {
+                        throw apiErr;
+                    }
+                }
 
-                if (!reply) break;
+                const choice = res.data && res.data.choices && res.data.choices[0];
+                const replyMsg = choice ? choice.message : null;
+                const reply = replyMsg ? (replyMsg.content || '') : '';
+                const toolCalls = replyMsg ? replyMsg.tool_calls : null;
+
+                // 1. Check Native OpenAI Tool Calls
+                if (toolCalls && Array.isArray(toolCalls) && toolCalls.length > 0) {
+                    for (const tc of toolCalls) {
+                        const fn = tc.function || {};
+                        const toolName = fn.name || '';
+                        let toolArgs = fn.arguments || '{}';
+                        try {
+                            if (typeof toolArgs === 'string') toolArgs = JSON.parse(toolArgs);
+                        } catch (e) {}
+
+                        event.sender.send('agent-step', {
+                            step: currentStep,
+                            thought: reply || 'Executing ' + toolName,
+                            tool: toolName,
+                            args: typeof toolArgs === 'object' ? JSON.stringify(toolArgs) : String(toolArgs),
+                            status: 'executing'
+                        });
+
+                        const observation = await executeAgentTool(toolName, toolArgs);
+
+                        event.sender.send('agent-step', {
+                            step: currentStep,
+                            thought: reply || 'Executed ' + toolName,
+                            tool: toolName,
+                            args: typeof toolArgs === 'object' ? JSON.stringify(toolArgs) : String(toolArgs),
+                            observation: observation,
+                            status: 'completed'
+                        });
+
+                        agentMessages.push(replyMsg);
+                        agentMessages.push({
+                            role: 'tool',
+                            tool_call_id: tc.id || ('call_' + currentStep),
+                            name: toolName,
+                            content: String(observation)
+                        });
+                        currentStep++;
+                    }
+                    continue;
+                }
+
+                // 2. Check ReAct Pattern Matching & Code Block Fallback
+                const actionRegex = /Action:\s*([a-zA-Z0-9_]+)\s*\(([\s\S]*?)\)(?:\s*$|\s*Observation:)/i;
+                const jsonToolRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/i;
+                const codeBlockPythonRegex = /```(?:python|py)\s*\n([\s\S]*?)\n```/i;
+
+                let matchedTool = null;
+                let matchedArgs = null;
+                let matchedThought = reply;
+
+                const matchAction = reply.match(actionRegex);
+                const matchJson = reply.match(jsonToolRegex);
+                const matchCode = (currentStep === 1 && !reply.includes('Final Answer:')) ? reply.match(codeBlockPythonRegex) : null;
+
+                if (matchAction) {
+                    matchedTool = matchAction[1].trim();
+                    matchedArgs = matchAction[2].trim();
+                    matchedThought = reply.slice(0, reply.indexOf(matchAction[0])).replace(/^Thought:\s*/i, '').trim();
+                } else if (matchJson) {
+                    try {
+                        const parsed = JSON.parse(matchJson[1]);
+                        matchedTool = parsed.name || parsed.tool;
+                        matchedArgs = parsed.arguments || parsed.args || parsed.parameters;
+                        matchedThought = reply.slice(0, reply.indexOf(matchJson[0])).replace(/^Thought:\s*/i, '').trim();
+                    } catch (e) {}
+                }
 
                 // Check for Final Answer
                 const finalIdx = reply.indexOf('Final Answer:');
-                if (finalIdx !== -1) {
+                if (finalIdx !== -1 && !matchedTool) {
                     const beforeFinal = reply.slice(0, finalIdx).trim();
                     const finalAnswer = reply.slice(finalIdx + 13).trim();
 
                     if (beforeFinal) {
                         event.sender.send('agent-step', {
                             step: currentStep,
-                            thought: beforeFinal.replace(/^Thought:s*/i, ''),
+                            thought: beforeFinal.replace(/^Thought:\s*/i, ''),
                             tool: null,
                             status: 'done'
                         });
@@ -959,44 +1114,29 @@ Final Answer: <your final detailed response to the user>`
                     break;
                 }
 
-                // Parse Thought and Action
-                const actionMatch = reply.match(/Action:s*([a-zA-Z0-9_]+)s*(([sS]*?))(?:s*$|s*Observation:)/i)
-                    || reply.match(/Action:s*([a-zA-Z0-9_]+)s*:s*([sS]*?)(?:s*$|s*Observation:)/i);
-
-                let thoughtText = reply;
-                if (actionMatch) {
-                    thoughtText = reply.slice(0, reply.indexOf(actionMatch[0])).trim();
-                }
-                thoughtText = thoughtText.replace(/^Thought:s*/i, '').trim();
-
-                if (actionMatch) {
-                    const toolName = actionMatch[1].trim();
-                    const toolArgs = actionMatch[2].trim();
-
+                if (matchedTool) {
                     event.sender.send('agent-step', {
                         step: currentStep,
-                        thought: thoughtText || 'Executing ' + toolName,
-                        tool: toolName,
-                        args: toolArgs,
+                        thought: matchedThought || 'Executing ' + matchedTool,
+                        tool: matchedTool,
+                        args: typeof matchedArgs === 'object' ? JSON.stringify(matchedArgs) : String(matchedArgs),
                         status: 'executing'
                     });
 
-                    // Execute tool safely in self-contained sandbox
-                    const observation = await executeAgentTool(toolName, toolArgs);
+                    const observation = await executeAgentTool(matchedTool, matchedArgs);
 
                     event.sender.send('agent-step', {
                         step: currentStep,
-                        thought: thoughtText || 'Executing ' + toolName,
-                        tool: toolName,
-                        args: toolArgs,
+                        thought: matchedThought || 'Executed ' + matchedTool,
+                        tool: matchedTool,
+                        args: typeof matchedArgs === 'object' ? JSON.stringify(matchedArgs) : String(matchedArgs),
                         observation: observation,
                         status: 'completed'
                     });
 
-                    // Append to agent history for next iteration
                     agentMessages.push({
                         role: 'assistant',
-                        content: `Thought: ${thoughtText}\nAction: ${toolName}(${toolArgs})`
+                        content: `Thought: ${matchedThought}\nAction: ${matchedTool}(${typeof matchedArgs === 'object' ? JSON.stringify(matchedArgs) : matchedArgs})`
                     });
                     agentMessages.push({
                         role: 'user',
@@ -1005,8 +1145,8 @@ Final Answer: <your final detailed response to the user>`
 
                     currentStep++;
                 } else {
-                    // No action found, treat whole text as answer
-                    event.sender.send('chat-chunk', { delta: reply, reasoning: '' });
+                    // No further tool action needed, output response
+                    event.sender.send('chat-chunk', { delta: reply.replace(/^Thought:[\s\S]*?Final Answer:\s*/i, ''), reasoning: '' });
                     break;
                 }
             }
@@ -1025,6 +1165,9 @@ Final Answer: <your final detailed response to the user>`
         return;
     }
 
+    // =========================================================================
+    // STANDARD FAST STREAMING CHAT
+    // =========================================================================
     const body = {
         model: 'local-model',
         messages,
@@ -1122,7 +1265,6 @@ Final Answer: <your final detailed response to the user>`
         }
     });
 });
-
 ipcMain.on('chat-stop', () => {
     if (chatStream) {
         try { chatStream.destroy(); } catch (e) {}

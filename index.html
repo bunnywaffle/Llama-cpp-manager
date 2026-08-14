@@ -3720,13 +3720,17 @@
             if (agentSteps && Array.isArray(agentSteps) && agentSteps.length > 0) {
                 let stepsHtml = '';
                 agentSteps.forEach((st, idx) => {
+                    const isRunning = st.status === 'executing' || st.status === 'thinking';
                     stepsHtml += `
                         <div class="agent-step-item">
                             <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <span style="font-weight: 600; color: #c084fc;">Step ${st.step || (idx + 1)}: ${escapeHtml(st.thought || '')}</span>
+                                <span style="font-weight: 600; color: #c084fc; display: flex; align-items: center; gap: 6px;">
+                                    ${isRunning ? '<i class="fa-solid fa-spinner fa-spin" style="color: #c084fc;"></i>' : '<i class="fa-solid fa-check-circle" style="color: var(--accent);"></i>'}
+                                    Step ${st.step || (idx + 1)}: ${escapeHtml(st.thought || '')}
+                                </span>
                                 ${st.tool ? `<span class="agent-tool-tag"><i class="fa-solid fa-wrench"></i> ${escapeHtml(st.tool)}</span>` : ''}
                             </div>
-                            ${st.args ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace;">Args: ${escapeHtml(st.args)}</div>` : ''}
+                            ${st.args ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 2px;">Args: ${escapeHtml(st.args)}</div>` : ''}
                             ${st.observation ? `<div class="agent-obs-box">${escapeHtml(st.observation)}</div>` : ''}
                         </div>
                     `;
@@ -3791,7 +3795,8 @@
                 userBubbleContent += `<p>${escapeHtml(msg.content || '').replace(/\n/g, '<br>')}</p>`;
                 bubble.innerHTML = userBubbleContent;
             } else {
-                bubble.innerHTML = renderAssistantBubble(msg.content, msg.reasoning);
+                const activeVer = (msg.versions && msg.versions[currentVer]) ? msg.versions[currentVer] : msg;
+                bubble.innerHTML = renderAssistantBubble(activeVer.content, activeVer.reasoning, activeVer.agentSteps || msg.agentSteps);
             }
 
             const meta = document.createElement('div');
