@@ -135,55 +135,56 @@ function readGgufContextLength(filePath) {
         let offset = 0;
 
         const readBytes = (n) => {
-            const val = buffer.subarray(offset, offset + n);
+            while (buf.length < offset + n) {
+                const chunk = Buffer.alloc(Math.max(n, 8192));
+                const bytesRead = fs.readSync(fd, chunk, 0, chunk.length, buf.length);
+                if (bytesRead === 0) throw new Error('Unexpected end of GGUF file');
+                buf = Buffer.concat([buf, chunk.subarray(0, bytesRead)]);
+            }
+            const val = buf.subarray(offset, offset + n);
             offset += n;
             return val;
         };
 
-        const readString = async () => {
-            await ensure(8);
+        const readString = () => {
             const len = Number(readBytes(8).readBigUInt64LE(0));
-            await ensure(len);
             return readBytes(len).toString('utf8');
         };
 
-        const readValue = async (type) => {
+        const readValue = (type) => {
             switch (type) {
-                case GGUF_TYPES.UINT8: await ensure(1); return readBytes(1).readUInt8(0);
-                case GGUF_TYPES.INT8: await ensure(1); return readBytes(1).readInt8(0);
-                case GGUF_TYPES.UINT16: await ensure(2); return readBytes(2).readUInt16LE(0);
-                case GGUF_TYPES.INT16: await ensure(2); return readBytes(2).readInt16LE(0);
-                case GGUF_TYPES.UINT32: await ensure(4); return readBytes(4).readUInt32LE(0);
-                case GGUF_TYPES.INT32: await ensure(4); return readBytes(4).readInt32LE(0);
-                case GGUF_TYPES.FLOAT32: await ensure(4); return readBytes(4).readFloatLE(0);
-                case GGUF_TYPES.BOOL: await ensure(1); return readBytes(1).readUInt8(0) !== 0;
+                case GGUF_TYPES.UINT8: return readBytes(1).readUInt8(0);
+                case GGUF_TYPES.INT8: return readBytes(1).readInt8(0);
+                case GGUF_TYPES.UINT16: return readBytes(2).readUInt16LE(0);
+                case GGUF_TYPES.INT16: return readBytes(2).readInt16LE(0);
+                case GGUF_TYPES.UINT32: return readBytes(4).readUInt32LE(0);
+                case GGUF_TYPES.INT32: return readBytes(4).readInt32LE(0);
+                case GGUF_TYPES.FLOAT32: return readBytes(4).readFloatLE(0);
+                case GGUF_TYPES.BOOL: return readBytes(1).readUInt8(0) !== 0;
                 case GGUF_TYPES.STRING: return readString();
-                case GGUF_TYPES.UINT64: await ensure(8); return Number(readBytes(8).readBigUInt64LE(0));
-                case GGUF_TYPES.INT64: await ensure(8); return Number(readBytes(8).readBigInt64LE(0));
-                case GGUF_TYPES.FLOAT64: await ensure(8); return readBytes(8).readDoubleLE(0);
+                case GGUF_TYPES.UINT64: return Number(readBytes(8).readBigUInt64LE(0));
+                case GGUF_TYPES.INT64: return Number(readBytes(8).readBigInt64LE(0));
+                case GGUF_TYPES.FLOAT64: return readBytes(8).readDoubleLE(0);
                 case GGUF_TYPES.ARRAY: {
-                    await ensure(12);
                     const elemType = readBytes(4).readUInt32LE(0);
                     const n = Number(readBytes(8).readBigUInt64LE(0));
                     const arr = [];
-                    for (let i = 0; i < n; i++) arr.push(await readValue(elemType));
+                    for (let i = 0; i < n; i++) arr.push(readValue(elemType));
                     return arr;
                 }
                 default: throw new Error('Unknown GGUF value type: ' + type);
             }
         };
 
-        await ensure(4 + 4 + 8 + 8);
         if (readBytes(4).toString('ascii') !== 'GGUF') return null;
         readBytes(4);
         readBytes(8);
         const kvCount = Number(readBytes(8).readBigUInt64LE(0));
 
         for (let i = 0; i < kvCount; i++) {
-            const key = await readString();
-            await ensure(4);
+            const key = readString();
             const type = readBytes(4).readUInt32LE(0);
-            const value = await readValue(type);
+            const value = readValue(type);
             if (key === 'llama.context_length' || key === 'context_length') {
                 return Number(value) > 0 ? Number(value) : null;
             }
@@ -1096,8 +1097,6 @@ ipcMain.handle('start-server', async (event, params) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('server-log', str);
         }
-        llamaProcess = null;
-        serverStarting = false;
     });
 
     child.on('close', (code) => {
