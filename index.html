@@ -2363,6 +2363,18 @@
                 </div>
                 <p id="settings-feedback" style="margin: 0; color: var(--accent); font-size: 13px; display: none;"></p>
             </div>
+
+            <!-- Chat Behavior Card -->
+            <div class="card" style="padding: 24px; gap: 14px;">
+                <div class="card-title" style="margin: 0;"><i class="fa-solid fa-bolt" style="color: var(--accent);"></i> Chat Behavior</div>
+                <p style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5;">
+                    Control how the chat view behaves when you generate a response.
+                </p>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="inp-auto-start-server" style="width: auto; height: auto;">
+                    <span>Auto-start server when clicking Generate in chat</span>
+                </label>
+            </div>
         </div>
 
     </div>
@@ -2653,7 +2665,8 @@
                 repeatPenalty: parseFloat(document.getElementById('inp-repeat').value) || 1.1,
                 maxTokens: parseInt(document.getElementById('inp-maxtokens').value, 10) || 2048,
                 maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked,
-                reasoningEffort: document.getElementById('inp-reasoning').value
+                reasoningEffort: document.getElementById('inp-reasoning').value,
+                autoStartServerOnGenerate: document.getElementById('inp-auto-start-server').checked
             };
         }
 
@@ -2675,6 +2688,7 @@
                 updateMaxTokensUI();
             }
             if (s.reasoningEffort !== undefined) document.getElementById('inp-reasoning').value = s.reasoningEffort;
+            if (s.autoStartServerOnGenerate !== undefined) document.getElementById('inp-auto-start-server').checked = s.autoStartServerOnGenerate;
             if (s.theme) {
                 themeSelect.value = s.theme;
                 document.documentElement.setAttribute('data-theme', s.theme);
@@ -2705,7 +2719,8 @@
                 model: '', theme: 'dark',
                 temperature: 0.8, topK: 40, topP: 0.95, minP: 0.05, repeatPenalty: 1.1,
                 maxTokens: 2048, maxTokensUnlimited: true,
-                reasoningEffort: 'medium'
+                reasoningEffort: 'medium',
+                autoStartServerOnGenerate: false
             };
             applySettings(defaults);
             await ipcRenderer.invoke('save-settings', defaults);
@@ -3830,8 +3845,14 @@
         async function generateReply(opts = {}) {
             if (chatStreaming) return;
             if (!isServerOnline) {
-                alert('The llama.cpp server is currently offline. Please start the server using the button above or on the Dashboard.');
-                return;
+                const autoStart = document.getElementById('inp-auto-start-server') && document.getElementById('inp-auto-start-server').checked;
+                if (autoStart) {
+                    await startServerFunc();
+                    if (!isServerOnline) return;
+                } else {
+                    alert('The llama.cpp server is currently offline. Please start the server using the button above or on the Dashboard.');
+                    return;
+                }
             }
             chatStreaming = true;
             updateChatComposerState();

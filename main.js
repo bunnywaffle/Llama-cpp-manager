@@ -71,7 +71,8 @@ const DEFAULT_SETTINGS = {
     topP: 0.95,
     repeatPenalty: 1.1,
     minP: 0.05,
-    reasoningEffort: 'medium'
+    reasoningEffort: 'medium',
+    autoStartServerOnGenerate: false
 };
 
 function getSettings() {

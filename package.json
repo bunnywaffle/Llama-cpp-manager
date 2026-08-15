@@ -25,10 +25,12 @@
     "appId": "com.llamamanager.app",
     "productName": "Llama.cpp Manager",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": "false",
