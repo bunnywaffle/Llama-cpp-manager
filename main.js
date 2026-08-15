@@ -72,7 +72,8 @@ const DEFAULT_SETTINGS = {
     repeatPenalty: 1.1,
     minP: 0.05,
     reasoningEffort: 'medium',
-    autoStartServerOnGenerate: false
+    autoStartServerOnGenerate: false,
+    routerMode: false
 };
 
 function getSettings() {
@@ -708,7 +709,7 @@ ipcMain.handle('delete-persona', (event, id) => {
 let chatStream = null;
 
 ipcMain.on('chat-start', (event, payload) => {
-    const { port = 8080, messages, params } = payload || {};
+    const { port = 8080, messages, params, model } = payload || {};
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         event.sender.send('chat-error', { message: 'No messages to send.' });
         return;
@@ -741,8 +742,9 @@ ipcMain.on('chat-start', (event, payload) => {
     }
     finalMessages.push(...nonSystemMessages);
 
+    const routerModel = (model && model.trim()) ? model.trim().replace(/\.gguf$/i, '') : '';
     const body = {
-        model: 'local-model',
+        model: routerModel || 'local-model',
         messages: finalMessages,
         stream: true,
         temperature: (params && params.temperature !== undefined) ? params.temperature : 0.8,
@@ -924,7 +926,7 @@ async function waitForServer(port, child, getRecentLogs, timeoutMs = 45000) {
 }
 
 ipcMain.handle('start-server', async (event, params) => {
-    let { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited } = params || {};
+    let { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode } = params || {};
 
     if (llamaProcess || serverStarting) {
         throw new Error('Server is already running. Please stop it first.');
@@ -949,31 +951,33 @@ ipcMain.handle('start-server', async (event, params) => {
         throw new Error('llama-server executable not found. Please install or link llama.cpp via Backend & Updates tab.');
     }
 
-    if (!modelName) {
+    if (!routerMode && !modelName) {
         throw new Error('No model selected. Please select a model first.');
     }
 
-    let modelPath = path.join(getModelsDir(), modelName);
-    try {
-        modelPath = fs.realpathSync(modelPath);
-    } catch (e) {}
+    let modelPath = null;
+    if (!routerMode) {
+        modelPath = path.join(getModelsDir(), modelName);
+        try {
+            modelPath = fs.realpathSync(modelPath);
+        } catch (e) {}
 
-    if (!fs.existsSync(modelPath)) {
-        const fallback1 = path.join(app.getPath('userData'), 'models', modelName);
-        const fallback2 = path.join(app.getPath('appData'), 'llama-manager', 'models', modelName);
-        if (fs.existsSync(fallback1)) {
-            modelPath = fallback1;
-        } else if (fs.existsSync(fallback2)) {
-            modelPath = fallback2;
-        } else if (fs.existsSync(modelName)) {
-            modelPath = modelName;
-        } else {
-            throw new Error('Selected model file "' + modelName + '" was not found. Please verify the model file in the Models tab.');
+        if (!fs.existsSync(modelPath)) {
+            const fallback1 = path.join(app.getPath('userData'), 'models', modelName);
+            const fallback2 = path.join(app.getPath('appData'), 'llama-manager', 'models', modelName);
+            if (fs.existsSync(fallback1)) {
+                modelPath = fallback1;
+            } else if (fs.existsSync(fallback2)) {
+                modelPath = fallback2;
+            } else if (fs.existsSync(modelName)) {
+                modelPath = modelName;
+            } else {
+                throw new Error('Selected model file "' + modelName + '" was not found. Please verify the model file in the Models tab.');
+            }
         }
     }
 
     const args = [
-        '-m', modelPath,
         '--host', '127.0.0.1',
         '--port', port.toString(),
         '-c', ctxSize.toString(),
@@ -981,10 +985,17 @@ ipcMain.handle('start-server', async (event, params) => {
         '-fa', 'auto'
     ];
 
+    if (routerMode) {
+        args.push('--models-dir', getModelsDir());
+    } else {
+        args.push('-m', modelPath);
+    }
+
     // Check for linked vision projector (mmproj) adapter with auto-detection
+    // (only in single-model mode; router mode auto-detects mmproj per model)
     const meta = readModelsMeta();
     let mmprojPath = null;
-    if (meta[modelName] && meta[modelName].mmproj) {
+    if (!routerMode && meta[modelName] && meta[modelName].mmproj) {
         mmprojPath = path.join(getModelsDir(), meta[modelName].mmproj);
         try { mmprojPath = fs.realpathSync(mmprojPath); } catch (e) {}
         if (!fs.existsSync(mmprojPath) && meta[modelName].mmprojFullPath && fs.existsSync(meta[modelName].mmprojFullPath)) {
@@ -992,7 +1003,7 @@ ipcMain.handle('start-server', async (event, params) => {
         }
     }
     // Auto-detection fallback: if no explicit mmproj linked, search models directory for matching mmproj
-    if (!mmprojPath || !fs.existsSync(mmprojPath)) {
+    if (!routerMode && (!mmprojPath || !fs.existsSync(mmprojPath))) {
         try {
             const modelsDir = getModelsDir();
             const allFiles = fs.readdirSync(modelsDir);
@@ -1012,7 +1023,7 @@ ipcMain.handle('start-server', async (event, params) => {
     }
 
     // LoRA Adapters loading
-    if (meta[modelName] && Array.isArray(meta[modelName].loras)) {
+    if (!routerMode && meta[modelName] && Array.isArray(meta[modelName].loras)) {
         for (const lora of meta[modelName].loras) {
             if (lora.enabled !== false) {
                 let loraPath = path.join(getModelsDir(), lora.file);
