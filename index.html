@@ -1461,45 +1461,116 @@
         }
 
         .chat-reasoning {
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             border: 1px solid var(--border);
-            border-radius: 10px;
-            background: var(--bg-base);
+            border-radius: 12px;
+            background: linear-gradient(180deg, var(--bg-base), color-mix(in srgb, var(--bg-base) 60%, var(--accent) 4%));
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+            transition: border-color 0.2s;
+        }
+
+        .chat-reasoning:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+
+        .reasoning-header {
+            display: flex;
+            align-items: center;
         }
 
         .reasoning-toggle {
-            width: 100%;
+            flex: 1;
             background: none;
             border: none;
             color: var(--accent);
             font-size: 11.5px;
-            padding: 7px 12px;
+            padding: 8px 12px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 7px;
+            gap: 8px;
             text-align: left;
             font-family: inherit;
+            min-width: 0;
         }
 
-        .reasoning-toggle:hover { opacity: 0.85; }
-        .reasoning-toggle .reasoning-chevron { margin-left: auto; transition: transform 0.15s; font-size: 9px; }
+        .reasoning-toggle-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            background: color-mix(in srgb, var(--accent) 14%, transparent);
+            font-size: 10px;
+            flex-shrink: 0;
+        }
+
+        .reasoning-toggle-label {
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .reasoning-toggle:hover { opacity: 0.9; }
+        .reasoning-toggle .reasoning-chevron { margin-left: auto; transition: transform 0.18s; font-size: 9px; flex-shrink: 0; }
         .chat-reasoning.collapsed .reasoning-chevron { transform: rotate(-90deg); }
 
+        .reasoning-copy-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 8px 12px;
+            font-size: 11px;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 0.15s, color 0.15s;
+        }
+        .chat-reasoning:hover .reasoning-copy-btn,
+        .chat-reasoning:focus-within .reasoning-copy-btn { opacity: 1; }
+        .reasoning-copy-btn:hover { color: var(--accent); }
+
         .reasoning-body {
-            padding: 8px 12px 10px;
+            padding: 10px 14px 12px;
             font-size: 12px;
             color: var(--text-muted);
-            line-height: 1.55;
+            line-height: 1.6;
             white-space: pre-wrap;
             word-break: break-word;
             border-top: 1px solid var(--border);
             margin: 0;
-            background: var(--bg-base);
+            background: color-mix(in srgb, var(--bg-base) 55%, transparent);
+            max-height: 340px;
+            overflow-y: auto;
+            scrollbar-width: thin;
         }
 
         .chat-reasoning.collapsed .reasoning-body { display: none; }
+
+        /* Thinking indicator dots */
+        .thinking-dots { display: inline-flex; gap: 3px; margin-left: 4px; align-items: center; }
+        .thinking-dots .tdot {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: var(--accent);
+            animation: tdot-bounce 1.2s infinite ease-in-out;
+        }
+        .thinking-dots .tdot:nth-child(2) { animation-delay: 0.15s; }
+        .thinking-dots .tdot:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes tdot-bounce {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+            40% { transform: translateY(-3px); opacity: 1; }
+        }
+
+        /* Subtle pulsing glow on the brain icon while thinking */
+        .chat-reasoning.thinking .reasoning-toggle-icon {
+            animation: brain-pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes brain-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 25%, transparent); }
+            50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 0%, transparent); }
+        }
 
         .chat-scroll-bottom-btn {
             position: absolute;
@@ -3712,13 +3783,28 @@
         let msgSeq = 0;
         const newMsgId = () => 'msg_' + (++msgSeq) + '_' + Date.now().toString(36);
 
-        function renderAssistantBubble(content, reasoning) {
+        function reasoningBlockHtml(reasoning, { streaming = false } = {}) {
+            const label = streaming
+                ? '<span class="thinking-dots"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></span> Thinking...'
+                : 'Thought Process';
+            return `<div class="chat-reasoning${streaming ? ' thinking' : ' collapsed'}">
+                <div class="reasoning-header">
+                    <button class="reasoning-toggle" type="button" title="${streaming ? 'Thinking...' : 'Toggle reasoning'}">
+                        <span class="reasoning-toggle-icon"><i class="fa-solid fa-brain"></i></span>
+                        <span class="reasoning-toggle-label">${label}</span>
+                        <i class="fa-solid fa-chevron-down reasoning-chevron"></i>
+                    </button>
+                    <button class="reasoning-copy-btn" type="button" title="Copy reasoning"><i class="fa-solid fa-copy"></i></button>
+                </div>
+                <div class="reasoning-body">${escapeHtml(reasoning)}</div>
+            </div>`;
+        }
+
+        function renderAssistantBubble(content, reasoning, opts = {}) {
+            const streaming = !!opts.streaming;
             let html = '';
             if (reasoning && reasoning.trim()) {
-                html += `<div class="chat-reasoning collapsed">
-                    <button class="reasoning-toggle" type="button"><i class="fa-solid fa-brain" style="color: var(--accent);"></i> ${chatStreaming ? '<span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span> Thinking...' : 'Thought Process'} <i class="fa-solid fa-chevron-down reasoning-chevron"></i></button>
-                    <div class="reasoning-body">${escapeHtml(reasoning)}</div>
-                </div>`;
+                html += reasoningBlockHtml(reasoning, { streaming });
             }
             html += (renderMarkdown(content) || '<p></p>');
             return html;
@@ -3970,13 +4056,44 @@
             metaRole.innerHTML = '<span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span><span class="typing-indicator-dot"></span> <span style="margin-left: 6px;">Generating...</span>';
             scrollChatToBottom(true);
 
+            let reasoningEl = null;
+            let reasoningBodyEl = null;
+            let reasoningCopyBtn = null;
+            let contentEl = null;
+
+            const ensureStreamingNodes = () => {
+                const hasReasoning = accReasoning && accReasoning.trim().length > 0;
+                if (hasReasoning && !reasoningEl) {
+                    bubble.innerHTML = reasoningBlockHtml(accReasoning, { streaming: true });
+                    reasoningEl = bubble.querySelector('.chat-reasoning');
+                    reasoningBodyEl = reasoningEl.querySelector('.reasoning-body');
+                    reasoningCopyBtn = reasoningEl.querySelector('.reasoning-copy-btn');
+                    contentEl = document.createElement('div');
+                    contentEl.className = 'streaming-content';
+                    bubble.appendChild(contentEl);
+                } else if (!hasReasoning && reasoningEl) {
+                    reasoningEl.remove();
+                    reasoningEl = null;
+                    reasoningBodyEl = null;
+                    reasoningCopyBtn = null;
+                    contentEl = null;
+                }
+            };
+
             let renderScheduled = false;
             const scheduleStreamRender = () => {
                 if (renderScheduled) return;
                 renderScheduled = true;
                 requestAnimationFrame(() => {
                     renderScheduled = false;
-                    bubble.innerHTML = renderAssistantBubble(acc, accReasoning);
+                    ensureStreamingNodes();
+                    if (reasoningBodyEl && accReasoning) {
+                        reasoningBodyEl.textContent = accReasoning;
+                        reasoningBodyEl.scrollTop = reasoningBodyEl.scrollHeight;
+                    }
+                    if (contentEl) {
+                        contentEl.innerHTML = renderMarkdown(acc) || '<p></p>';
+                    }
                     scrollChatToBottom();
                 });
             };
@@ -4237,7 +4354,24 @@
 
                 const reasoningToggle = event.target.closest('.reasoning-toggle');
                 if (reasoningToggle) {
-                    reasoningToggle.parentElement.classList.toggle('collapsed');
+                    const block = reasoningToggle.closest('.chat-reasoning');
+                    if (block) block.classList.toggle('collapsed');
+                    return;
+                }
+                const reasoningCopy = event.target.closest('.reasoning-copy-btn');
+                if (reasoningCopy) {
+                    const block = reasoningCopy.closest('.chat-reasoning');
+                    const body = block ? block.querySelector('.reasoning-body') : null;
+                    if (body && body.textContent) {
+                        navigator.clipboard.writeText(body.textContent).then(() => {
+                            const icon = reasoningCopy.querySelector('i');
+                            if (icon) {
+                                const prev = icon.className;
+                                icon.className = 'fa-solid fa-check';
+                                setTimeout(() => { icon.className = prev; }, 1200);
+                            }
+                        }).catch(() => {});
+                    }
                     return;
                 }
                 const saveBtn = event.target.closest('.btn-edit-save');
