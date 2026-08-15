@@ -2353,30 +2353,50 @@
 
             <!-- Server Settings Card -->
             <div class="card" style="padding: 24px; gap: 14px;">
-                <div class="card-title" style="margin: 0;"><i class="fa-solid fa-sliders" style="color: var(--accent);"></i> Persistent Default Settings</div>
+                <div class="card-title" style="margin: 0;"><i class="fa-solid fa-server" style="color: var(--accent);"></i> Server Settings</div>
                 <p style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5;">
-                    Save the current port, context size, GPU offloading layers (-ngl 99), sampling parameters, extra arguments, and theme as the startup defaults.
+                    Launch mode, concurrency, and persistent defaults for the llama.cpp server.
+                </p>
+
+                <!-- Launch Mode -->
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="inp-router-mode" style="width: auto; height: auto;">
+                        <span><strong>Router Mode</strong> — serve all imported models with live model switching without restarts</span>
+                    </label>
+                    <p style="margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.5;">
+                        In Router Mode the server exposes every GGUF in the models folder and automatically loads the model requested by each chat message (via the <code style="font-family: 'JetBrains Mono', Consolas, monospace;">model</code> field). Switching models in the chat UI takes effect immediately, no server restart needed. Requires a recent llama-server build with <code style="font-family: 'JetBrains Mono', Consolas, monospace;">--models-dir</code> support.
+                    </p>
+                </div>
+
+                <div style="height: 1px; background: var(--border);"></div>
+
+                <!-- Parallel Slots -->
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="inp-parallel-enabled" style="width: auto; height: auto;">
+                        <span><strong>Parallel slots</strong> (<code style="font-family: 'JetBrains Mono', Consolas, monospace;">-np / --parallel</code>)</span>
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="number" id="inp-parallel-slots" min="1" max="512" step="1" value="1" style="max-width: 120px;">
+                        <span style="color: var(--text-muted); font-size: 12px;">Number of parallel sequences llama-server can process simultaneously.</span>
+                    </div>
+                    <p style="margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.5;">
+                        Higher values allow the server to handle concurrent requests and multiple parallel sequences, but each slot reserves its own KV-cache context memory.
+                    </p>
+                </div>
+
+                <div style="height: 1px; background: var(--border);"></div>
+
+                <!-- Persistent Defaults -->
+                <p style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5;">
+                    Save the current port, context size, GPU offloading layers (<code style="font-family: 'JetBrains Mono', Consolas, monospace;">-ngl 99</code>), sampling parameters, extra arguments, and theme as the startup defaults.
                 </p>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;">
                     <button class="btn primary" id="btn-save-settings" style="padding: 8px 16px;"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
                     <button class="btn secondary" id="btn-reset-settings" style="padding: 8px 16px;"><i class="fa-solid fa-rotate-left"></i> Reset to Defaults</button>
                 </div>
                 <p id="settings-feedback" style="margin: 0; color: var(--accent); font-size: 13px; display: none;"></p>
-            </div>
-
-            <!-- Server Mode Card -->
-            <div class="card" style="padding: 24px; gap: 14px;">
-                <div class="card-title" style="margin: 0;"><i class="fa-solid fa-network-wired" style="color: var(--accent);"></i> Server Mode</div>
-                <p style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5;">
-                    Control how the llama.cpp server is launched.
-                </p>
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <input type="checkbox" id="inp-router-mode" style="width: auto; height: auto;">
-                    <span>Router Mode (serve all imported models, live model switching without restarts)</span>
-                </label>
-                <p style="margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.5;">
-                    In Router Mode the server exposes every GGUF in the models folder and automatically loads the model requested by each chat message (via the <code style="font-family: 'JetBrains Mono', Consolas, monospace;">model</code> field). Switching models in the chat UI takes effect immediately, no server restart needed. Requires a recent llama-server build with <code style="font-family: 'JetBrains Mono', Consolas, monospace;">--models-dir</code> support.
-                </p>
             </div>
 
             <!-- Chat Behavior Card -->
@@ -2682,7 +2702,9 @@
                 maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited').checked,
                 reasoningEffort: document.getElementById('inp-reasoning').value,
                 autoStartServerOnGenerate: document.getElementById('inp-auto-start-server').checked,
-                routerMode: document.getElementById('inp-router-mode').checked
+                routerMode: document.getElementById('inp-router-mode').checked,
+                parallelEnabled: document.getElementById('inp-parallel-enabled').checked,
+                parallelSlots: parseInt(document.getElementById('inp-parallel-slots').value, 10) || 1
             };
         }
 
@@ -2706,6 +2728,11 @@
             if (s.reasoningEffort !== undefined) document.getElementById('inp-reasoning').value = s.reasoningEffort;
             if (s.autoStartServerOnGenerate !== undefined) document.getElementById('inp-auto-start-server').checked = s.autoStartServerOnGenerate;
             if (s.routerMode !== undefined) document.getElementById('inp-router-mode').checked = s.routerMode;
+            if (s.parallelEnabled !== undefined) document.getElementById('inp-parallel-enabled').checked = s.parallelEnabled;
+            if (s.parallelSlots !== undefined) document.getElementById('inp-parallel-slots').value = s.parallelSlots;
+            const _pe = document.getElementById('inp-parallel-enabled');
+            const _ps = document.getElementById('inp-parallel-slots');
+            if (_pe && _ps) _ps.disabled = !_pe.checked;
             if (s.theme) {
                 themeSelect.value = s.theme;
                 document.documentElement.setAttribute('data-theme', s.theme);
@@ -2738,7 +2765,9 @@
                 maxTokens: 2048, maxTokensUnlimited: true,
                 reasoningEffort: 'medium',
                 autoStartServerOnGenerate: false,
-                routerMode: false
+                routerMode: false,
+                parallelEnabled: false,
+                parallelSlots: 1
             };
             applySettings(defaults);
             await ipcRenderer.invoke('save-settings', defaults);
@@ -2746,6 +2775,14 @@
         });
 
         const chkMaxTok = document.getElementById('inp-maxtokens-unlimited'); if (chkMaxTok) chkMaxTok.addEventListener('change', updateMaxTokensUI);
+
+        const inpParallelEnabled = document.getElementById('inp-parallel-enabled');
+        const inpParallelSlots = document.getElementById('inp-parallel-slots');
+        if (inpParallelEnabled && inpParallelSlots) {
+            const syncParallelUI = () => { inpParallelSlots.disabled = !inpParallelEnabled.checked; };
+            inpParallelEnabled.addEventListener('change', syncParallelUI);
+            syncParallelUI();
+        }
 
         // Sidebar Toggle
         const btnUniversalSidebarToggle = document.getElementById('btn-universal-sidebar-toggle');
@@ -4670,6 +4707,8 @@
                 await ipcRenderer.invoke('start-server', {
                     modelName,
                     routerMode,
+                    parallelEnabled: document.getElementById('inp-parallel-enabled') && document.getElementById('inp-parallel-enabled').checked,
+                    parallelSlots: parseInt((document.getElementById('inp-parallel-slots') || {}).value, 10) || 1,
                     port: port,
                     ctxSize: ctx,
                     gpuLayers: gpuLayers,

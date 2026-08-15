@@ -73,7 +73,9 @@ const DEFAULT_SETTINGS = {
     minP: 0.05,
     reasoningEffort: 'medium',
     autoStartServerOnGenerate: false,
-    routerMode: false
+    routerMode: false,
+    parallelEnabled: false,
+    parallelSlots: 1
 };
 
 function getSettings() {
@@ -926,7 +928,7 @@ async function waitForServer(port, child, getRecentLogs, timeoutMs = 45000) {
 }
 
 ipcMain.handle('start-server', async (event, params) => {
-    let { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode } = params || {};
+    let { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
 
     if (llamaProcess || serverStarting) {
         throw new Error('Server is already running. Please stop it first.');
@@ -989,6 +991,13 @@ ipcMain.handle('start-server', async (event, params) => {
         args.push('--models-dir', getModelsDir());
     } else {
         args.push('-m', modelPath);
+    }
+
+    if (parallelEnabled) {
+        const pSlots = parseInt(parallelSlots, 10);
+        if (!isNaN(pSlots) && pSlots >= 1) {
+            args.push('-np', pSlots.toString());
+        }
     }
 
     // Check for linked vision projector (mmproj) adapter with auto-detection
