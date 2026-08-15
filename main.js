@@ -126,6 +126,41 @@ function writeModelsMeta(meta) {
     fs.writeFileSync(getModelsMetaPath(), JSON.stringify(meta || {}, null, 2));
 }
 
+// Router mode: llama-server only auto-discovers an mmproj when the model and its
+// mmproj*.gguf sit together in a subdirectory of --models-dir. For top-level models
+// (which is how the app stores them) it never attaches a projector, so vision models
+// fail with "image input is not supported". To fix that, generate a --models-preset
+// INI that explicitly assigns each linked mmproj to its model.
+function buildRouterPresetFile() {
+    const meta = readModelsMeta();
+    const sections = [];
+    for (const [modelName, info] of Object.entries(meta)) {
+        if (!info || !info.mmproj) continue;
+        const modelPath = path.join(getModelsDir(), modelName);
+        if (!fs.existsSync(modelPath)) continue;
+        let mmprojPath = null;
+        if (info.mmprojFullPath && fs.existsSync(info.mmprojFullPath)) {
+            mmprojPath = info.mmprojFullPath;
+        } else {
+            const p = path.join(getModelsDir(), info.mmproj);
+            if (fs.existsSync(p)) mmprojPath = p;
+        }
+        if (!mmprojPath) continue;
+        const routerName = modelName.replace(/\.gguf$/i, '');
+        sections.push('[' + routerName + ']');
+        sections.push('mmproj = ' + mmprojPath);
+        sections.push('');
+    }
+    if (sections.length === 0) return null;
+    const presetPath = path.join(getDataDir(), 'router-models-preset.ini');
+    try {
+        fs.writeFileSync(presetPath, sections.join('\n'), 'utf8');
+        return presetPath;
+    } catch (e) {
+        return null;
+    }
+}
+
 const GGUF_TYPES = {
     UINT8: 0, INT8: 1, UINT16: 2, INT16: 3, UINT32: 4, INT32: 5,
     FLOAT32: 6, BOOL: 7, STRING: 8, ARRAY: 9, UINT64: 10, INT64: 11, FLOAT64: 12
@@ -989,6 +1024,10 @@ ipcMain.handle('start-server', async (event, params) => {
 
     if (routerMode) {
         args.push('--models-dir', getModelsDir());
+        const presetPath = buildRouterPresetFile();
+        if (presetPath) {
+            args.push('--models-preset', presetPath);
+        }
     } else {
         args.push('-m', modelPath);
     }
