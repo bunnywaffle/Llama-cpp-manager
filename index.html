@@ -2372,8 +2372,15 @@
                         <div class="card-title">Installation Status</div>
                         <p id="backend-status-text" style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 14px;">Checking...</p>
                     </div>
-                    <button class="btn primary" id="btn-fetch-releases"><i class="fa-solid fa-cloud-arrow-down"></i> Check GitHub Releases</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn secondary" id="btn-recheck-backend"><i class="fa-solid fa-stethoscope"></i> Recheck & Troubleshoot</button>
+                        <button class="btn secondary" id="btn-install-zip"><i class="fa-solid fa-file-zipper"></i> Install from Zip</button>
+                        <button class="btn danger" id="btn-delete-backend"><i class="fa-solid fa-trash"></i> Delete Backend</button>
+                        <button class="btn primary" id="btn-fetch-releases"><i class="fa-solid fa-cloud-arrow-down"></i> Check GitHub Releases</button>
+                    </div>
                 </div>
+                <div id="backend-details" style="margin-top: 14px; display: none;"></div>
+                <div id="backend-recheck" style="margin-top: 14px; display: none;"></div>
             </div>
             <div class="card" id="releases-card" style="display: none;">
                 <div class="card-title">Available Releases</div>
@@ -2883,6 +2890,11 @@
         const backendStatusText = document.getElementById('backend-status-text');
         const btnFetchReleases = document.getElementById('btn-fetch-releases');
         const btnLinkFolder = document.getElementById('btn-link-folder');
+        const btnRecheckBackend = document.getElementById('btn-recheck-backend');
+        const btnInstallZip = document.getElementById('btn-install-zip');
+        const btnDeleteBackend = document.getElementById('btn-delete-backend');
+        const backendDetails = document.getElementById('backend-details');
+        const backendRecheck = document.getElementById('backend-recheck');
         const releasesCard = document.getElementById('releases-card');
         const releasesContainer = document.getElementById('releases-container');
 
@@ -4476,12 +4488,103 @@
         }
 
         async function checkBackend() {
-            const installed = await ipcRenderer.invoke('check-installed');
-            if (installed) {
-                backendStatusText.innerHTML = '<span style="color: var(--accent);"><i class="fa-solid fa-check-circle"></i> Installed & Ready</span>';
-            } else {
-                backendStatusText.innerHTML = '<span style="color: #ef4444;">Not installed</span>';
+            try {
+                const info = await ipcRenderer.invoke('get-backend-info');
+                if (info.installed) {
+                    backendStatusText.innerHTML = '<span style="color: var(--accent);"><i class="fa-solid fa-check-circle"></i> Installed & Ready</span>';
+                } else {
+                    backendStatusText.innerHTML = '<span style="color: #ef4444;">Not installed</span>';
+                }
+                renderBackendDetails(info);
+            } catch (e) {
+                backendStatusText.innerHTML = '<span style="color: #ef4444;">Error checking</span>';
+                backendDetails.style.display = 'none';
             }
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes && bytes !== 0) return '—';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function renderBackendDetails(info) {
+            if (!info) return;
+            backendDetails.style.display = 'block';
+            let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+
+            if (info.installed) {
+                html += `
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25);">
+                        <i class="fa-solid fa-microchip" style="color: #22c55e; font-size: 16px;"></i>
+                        <div style="flex: 1;">
+                            <div style="font-size: 12.5px; font-weight: 600; color: #22c55e;">${escapeHtml(info.exeName)}</div>
+                            <div style="font-size: 11.5px; color: var(--text-muted); word-break: break-all;">${escapeHtml(info.exePath)}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            ${info.version ? `<div style="font-size: 12px; font-weight: 600; color: var(--accent);">Build ${escapeHtml(info.version)}</div>` : ''}
+                            <div style="font-size: 11px; color: var(--text-muted);">${info.fileCount} files · ${formatBytes(info.dirSize)}</div>
+                        </div>
+                    </div>`;
+            } else {
+                html += `
+                    <div style="padding: 10px 12px; border-radius: 10px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); font-size: 12.5px; color: #ef4444;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> No backend installed. Install from an official llama.cpp release zip, link an existing folder, or fetch a GitHub release below.
+                    </div>`;
+            }
+
+            if (info.files && info.files.length > 0) {
+                html += '<div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;">Installed files</div>';
+                html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 14px; max-height: 180px; overflow-y: auto;">';
+                info.files.forEach(f => {
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; background: var(--bg-base); font-size: 11.5px;">
+                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${f.isDirectory ? '<i class="fa-solid fa-folder" style="color: var(--text-muted); margin-right: 4px;"></i>' : '<i class="fa-solid fa-file" style="color: var(--text-muted); margin-right: 4px;"></i>'}${escapeHtml(f.name)}</span>
+                            <span style="color: var(--text-muted); flex-shrink: 0;">${f.isDirectory ? '' : formatBytes(f.size)}</span>
+                        </div>`;
+                });
+                html += '</div>';
+            }
+
+            html += '</div>';
+            backendDetails.innerHTML = html;
+        }
+
+        async function recheckBackend() {
+            btnRecheckBackend.disabled = true;
+            const orig = btnRecheckBackend.innerHTML;
+            btnRecheckBackend.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
+            try {
+                const result = await ipcRenderer.invoke('recheck-backend');
+                backendRecheck.style.display = 'block';
+                let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+                html += '<div style="font-size: 12px; font-weight: 600;"><i class="fa-solid fa-stethoscope" style="color: var(--accent);"></i> Troubleshoot Report</div>';
+                result.issues.forEach(issue => {
+                    if (issue.type === 'ok') {
+                        html += `<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #22c55e;"><i class="fa-solid fa-circle-check"></i> ${escapeHtml(issue.text)}</div>`;
+                    } else {
+                        html += `<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #ef4444;"><i class="fa-solid fa-circle-xmark"></i> ${escapeHtml(issue.text)}</div>`;
+                    }
+                });
+                result.warnings.forEach(w => {
+                    html += `<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #eab308;"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(w.text)}</div>`;
+                });
+                if (result.suggestions.length > 0) {
+                    html += '<div style="height: 1px; background: var(--border);"></div>';
+                    html += '<div style="font-size: 11.5px; color: var(--text-muted);">Suggestions:</div>';
+                    result.suggestions.forEach(s => {
+                        html += `<div style="font-size: 11.5px; color: var(--text-muted); padding-left: 12px;"><i class="fa-solid fa-lightbulb" style="color: #eab308;"></i> ${escapeHtml(s)}</div>`;
+                    });
+                }
+                html += '</div>';
+                backendRecheck.innerHTML = html;
+            } catch (e) {
+                backendRecheck.style.display = 'block';
+                backendRecheck.innerHTML = `<div style="color: #ef4444; font-size: 12px;"><i class="fa-solid fa-circle-xmark"></i> ${escapeHtml(e.message)}</div>`;
+            }
+            btnRecheckBackend.innerHTML = orig;
+            btnRecheckBackend.disabled = false;
         }
 
         async function loadModels() {
@@ -4726,6 +4829,42 @@
             } catch (e) {
                 alert('Error: ' + e.message);
             }
+        });
+
+        btnRecheckBackend.addEventListener('click', recheckBackend);
+
+        btnInstallZip.addEventListener('click', async () => {
+            btnInstallZip.disabled = true;
+            const orig = btnInstallZip.innerHTML;
+            btnInstallZip.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Installing...';
+            try {
+                const installed = await ipcRenderer.invoke('install-from-zip-dialog');
+                if (installed) {
+                    alert('Backend installed successfully from zip!');
+                    await checkBackend();
+                }
+            } catch (e) {
+                alert('Failed: ' + e.message);
+            }
+            btnInstallZip.innerHTML = orig;
+            btnInstallZip.disabled = false;
+        });
+
+        btnDeleteBackend.addEventListener('click', async () => {
+            if (!confirm('Delete the installed backend (all files in the bin folder)? This cannot be undone.')) return;
+            btnDeleteBackend.disabled = true;
+            const orig = btnDeleteBackend.innerHTML;
+            btnDeleteBackend.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
+            try {
+                await ipcRenderer.invoke('delete-backend');
+                alert('Backend deleted.');
+                await checkBackend();
+                backendRecheck.style.display = 'none';
+            } catch (e) {
+                alert('Failed: ' + e.message);
+            }
+            btnDeleteBackend.innerHTML = orig;
+            btnDeleteBackend.disabled = false;
         });
 
         btnFetchReleases.addEventListener('click', async () => {

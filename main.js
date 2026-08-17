@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const AdmZip = require('adm-zip');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 let mainWindow;
 let llamaProcess = null;
@@ -648,6 +648,124 @@ ipcMain.handle('download-release', async (event, downloadUrl, fileName) => {
             reject(err);
         });
     });
+});
+
+// ============ Backend management (view / delete / install / recheck) ============
+
+function listBinFiles() {
+    const binDir = getBinDir();
+    try {
+        if (!fs.existsSync(binDir)) return [];
+        return fs.readdirSync(binDir, { withFileTypes: true }).map(e => ({
+            name: e.name,
+            isDirectory: e.isDirectory(),
+            size: e.isDirectory() ? null : (fs.statSync(path.join(binDir, e.name)).size || 0)
+        }));
+    } catch (e) {
+        return [];
+    }
+}
+
+function getBackendVersion(exePath) {
+    if (!exePath || !fs.existsSync(exePath)) return null;
+    try {
+        const result = spawnSync(exePath, ['--version'], { encoding: 'utf8', timeout: 8000, windowsHide: true });
+        const text = (result.stdout || '') + (result.stderr || '');
+        const m = text.match(/build:\s*(\d+)/i) || text.match(/version:\s*([^\r\n]+)/i);
+        return m ? m[1].trim() : (text.trim() || null);
+    } catch (e) {
+        return null;
+    }
+}
+
+ipcMain.handle('get-backend-info', () => {
+    const binDir = getBinDir();
+    const exePath = findExecutable(binDir);
+    const files = listBinFiles();
+    return {
+        installed: !!exePath,
+        exePath: exePath || null,
+        exeName: exePath ? path.basename(exePath) : null,
+        binDir,
+        version: getBackendVersion(exePath || ''),
+        files,
+        fileCount: files.length,
+        dirSize: files.reduce((sum, f) => sum + (f.size || 0), 0)
+    };
+});
+
+ipcMain.handle('delete-backend', () => {
+    if (llamaProcess) {
+        throw new Error('Stop the server before deleting the backend.');
+    }
+    cleanBinDir();
+    return true;
+});
+
+ipcMain.handle('install-from-zip-dialog', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select llama.cpp release zip to install',
+        properties: ['openFile'],
+        filters: [{ name: 'Zip archive', extensions: ['zip'] }]
+    });
+
+    if (result.canceled || result.filePaths.length === 0) return false;
+
+    const zipPath = result.filePaths[0];
+    if (!fs.existsSync(zipPath)) throw new Error('Zip file not found.');
+
+    const zip = new AdmZip(zipPath);
+    const entries = zip.getEntries().map(e => e.entryName.replace(/\\/g, '/'));
+    const hasExe = entries.some(n => /llama-server\.exe$|server\.exe$|llama-server$|server$/i.test(n));
+    if (!hasExe) {
+        throw new Error('Selected zip does not appear to contain llama-server/server executable. Is this a llama.cpp release zip?');
+    }
+
+    cleanBinDir();
+    zip.extractAllTo(getBinDir(), true);
+    return true;
+});
+
+ipcMain.handle('recheck-backend', () => {
+    const binDir = getBinDir();
+    const exePath = findExecutable(binDir);
+    const files = listBinFiles();
+    const fileNames = files.filter(f => !f.isDirectory).map(f => f.name.toLowerCase());
+
+    const critical = process.platform === 'win32'
+        ? ['llama-server.exe', 'server.exe']
+        : ['llama-server', 'server'];
+    const commonDlls = process.platform === 'win32'
+        ? ['ggml.dll', 'ggml-base.dll', 'ggml-cpu.dll', 'llama.dll', 'ggml-cuda.dll']
+        : [];
+
+    const issues = [];
+    const warnings = [];
+
+    const foundExe = critical.some(c => fileNames.includes(c.toLowerCase()));
+    if (exePath && foundExe) {
+        const version = getBackendVersion(exePath);
+        issues.push({ type: 'ok', text: 'Backend executable found: ' + path.basename(exePath) + (version ? ' (build ' + version + ')' : '') });
+    } else {
+        issues.push({ type: 'error', text: 'Backend executable not found. Expected one of: ' + critical.join(', ') });
+    }
+
+    if (files.length === 0) {
+        issues.push({ type: 'error', text: 'Bin folder is empty. Install a llama.cpp release or link a folder.' });
+    }
+
+    for (const dll of commonDlls) {
+        if (!fileNames.includes(dll.toLowerCase())) {
+            warnings.push({ type: 'warn', text: 'Optional DLL missing: ' + dll });
+        }
+    }
+
+    const suggestions = [];
+    if (issues.some(i => i.type === 'error')) {
+        suggestions.push('Use "Install from Zip" to install an official llama.cpp release zip, or "Link Existing Folder" pointing at a folder containing llama-server.');
+    }
+
+    return { issues, warnings, suggestions, fileCount: files.length, binDir };
 });
 
 ipcMain.handle('list-models', () => {
