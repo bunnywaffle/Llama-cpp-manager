@@ -1083,9 +1083,7 @@ ipcMain.on('chat-start', (event, payload) => {
         max_tokens: (params && params.maxTokensUnlimited)
             ? -1
             : ((params && params.maxTokens !== undefined) ? params.maxTokens : 2048),
-        reasoning_effort: (params && params.reasoningEffort && params.reasoningEffort !== 'none')
-            ? params.reasoningEffort
-            : undefined,
+        reasoning_effort: (params && params.reasoningEffort) ? params.reasoningEffort : undefined,
         // Advanced XTC, DRY, and CFG parameters
         xtc_probability: (params && params.xtcProbability !== undefined) ? parseFloat(params.xtcProbability) : undefined,
         xtc_threshold: (params && params.xtcThreshold !== undefined) ? parseFloat(params.xtcThreshold) : undefined,
