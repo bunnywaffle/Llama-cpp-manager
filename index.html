@@ -4577,8 +4577,33 @@
                         html += `<div style="font-size: 11.5px; color: var(--text-muted); padding-left: 12px;"><i class="fa-solid fa-lightbulb" style="color: #eab308;"></i> ${escapeHtml(s)}</div>`;
                     });
                 }
+                if (result.missingFiles && result.missingFiles.length > 0) {
+                    html += '<div style="height: 1px; background: var(--border);"></div>';
+                    html += '<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">';
+                    html += '<button class="btn primary" id="btn-download-missing"><i class="fa-solid fa-cloud-arrow-down"></i> Download Missing Files (' + result.missingFiles.length + ')</button>';
+                    html += '<span style="font-size: 11.5px; color: var(--text-muted);">Fetches the required DLLs from the matching llama.cpp CUDA release (' + result.missingFiles.map(f => escapeHtml(f.name)).join(', ') + ').</span>';
+                    html += '</div>';
+                }
                 html += '</div>';
                 backendRecheck.innerHTML = html;
+
+                const dlBtn = document.getElementById('btn-download-missing');
+                if (dlBtn) {
+                    dlBtn.addEventListener('click', async () => {
+                        dlBtn.disabled = true;
+                        dlBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Downloading...';
+                        try {
+                            const res = await ipcRenderer.invoke('download-missing-files', result.missingFiles);
+                            alert('Downloaded ' + res.extracted.length + ' missing file(s) from ' + res.source + '.\n\n' + res.extracted.join('\n'));
+                            await checkBackend();
+                            await recheckBackend();
+                        } catch (e) {
+                            alert('Download failed: ' + e.message);
+                        }
+                        dlBtn.disabled = false;
+                        dlBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Download Missing Files (' + result.missingFiles.length + ')';
+                    });
+                }
             } catch (e) {
                 backendRecheck.style.display = 'block';
                 backendRecheck.innerHTML = `<div style="color: #ef4444; font-size: 12px;"><i class="fa-solid fa-circle-xmark"></i> ${escapeHtml(e.message)}</div>`;

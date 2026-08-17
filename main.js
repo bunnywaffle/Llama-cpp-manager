@@ -678,6 +678,43 @@ function getBackendVersion(exePath) {
     }
 }
 
+function getBackendBuildNumber(exePath) {
+    if (!exePath || !fs.existsSync(exePath)) return null;
+    try {
+        const result = spawnSync(exePath, ['--version'], { encoding: 'utf8', timeout: 8000, windowsHide: true });
+        const text = (result.stdout || '') + (result.stderr || '');
+        const m = text.match(/build:\s*(\d+)/i) || text.match(/\(build\s+(\d+)/i) || text.match(/build\s+(\d+)/i);
+        return m ? parseInt(m[1], 10) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function detectCudaVersion(binDir) {
+    const cudaDll = path.join(binDir, 'ggml-cuda.dll');
+    if (!fs.existsSync(cudaDll)) return null;
+    try {
+        const buf = fs.readFileSync(cudaDll);
+        const text = buf.toString('latin1');
+        const m = text.match(/cublas64_(\d+)\.\d+\.dll/);
+        if (m) return parseInt(m[1], 10);
+        const m2 = text.match(/cublas64_(\d+)\.dll/);
+        if (m2) return parseInt(m2[1], 10);
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function getRequiredCudaRuntimeDlls(cudaMajor) {
+    if (!cudaMajor) return [];
+    return [
+        'cublas64_' + cudaMajor + '.dll',
+        'cublasLt64_' + cudaMajor + '.dll',
+        'cudart64_' + cudaMajor + '.dll'
+    ];
+}
+
 ipcMain.handle('get-backend-info', () => {
     const binDir = getBinDir();
     const exePath = findExecutable(binDir);
@@ -741,6 +778,7 @@ ipcMain.handle('recheck-backend', () => {
 
     const issues = [];
     const warnings = [];
+    const missingFiles = [];
 
     const foundExe = critical.some(c => fileNames.includes(c.toLowerCase()));
     if (exePath && foundExe) {
@@ -760,12 +798,127 @@ ipcMain.handle('recheck-backend', () => {
         }
     }
 
+    // Detect missing CUDA runtime (the classic "slow after reinstall" cause)
+    const hasCudaDll = fileNames.includes('ggml-cuda.dll');
+    const cudaMajor = detectCudaVersion(binDir);
+    if (hasCudaDll && cudaMajor) {
+        const required = getRequiredCudaRuntimeDlls(cudaMajor);
+        const missingCuda = required.filter(dll => !fileNames.includes(dll.toLowerCase()));
+        if (missingCuda.length > 0) {
+            issues.push({
+                type: 'error',
+                text: 'CUDA runtime DLLs missing (CUDA ' + cudaMajor + '). GPU acceleration will not work — llama-server is falling back to CPU, causing slow generation. Missing: ' + missingCuda.join(', ')
+            });
+            missingCuda.forEach(dll => missingFiles.push({
+                name: dll,
+                kind: 'cuda_runtime',
+                cudaMajor: cudaMajor
+            }));
+        }
+    }
+
     const suggestions = [];
     if (issues.some(i => i.type === 'error')) {
         suggestions.push('Use "Install from Zip" to install an official llama.cpp release zip, or "Link Existing Folder" pointing at a folder containing llama-server.');
+        if (missingFiles.length > 0) {
+            suggestions.push('Or click "Download Missing Files" to fetch the missing CUDA runtime DLLs automatically.');
+        }
     }
 
-    return { issues, warnings, suggestions, fileCount: files.length, binDir };
+    return { issues, warnings, suggestions, missingFiles, fileCount: files.length, binDir };
+});
+
+ipcMain.handle('download-missing-files', async (event, missingFiles) => {
+    if (!missingFiles || !Array.isArray(missingFiles) || missingFiles.length === 0) {
+        throw new Error('No missing files specified.');
+    }
+
+    const binDir = getBinDir();
+    const exePath = findExecutable(binDir);
+    const buildNumber = exePath ? getBackendBuildNumber(exePath) : null;
+    const wanted = new Set(missingFiles.map(f => (f.name || '').toLowerCase()).filter(Boolean));
+
+    // Determine the CUDA major version needed (from the request or detected)
+    const cudaMajor = missingFiles.find(f => f.cudaMajor)?.cudaMajor || detectCudaVersion(binDir);
+    if (!cudaMajor) {
+        throw new Error('Could not determine the required CUDA version for this backend.');
+    }
+
+    const releases = await axios.get('https://api.github.com/repositories/612354784/releases?per_page=10', {
+        headers: { 'User-Agent': 'LlamaManager-Electron' }
+    });
+
+    // Pick the release matching the installed build number, else the latest
+    let release = null;
+    if (buildNumber) {
+        release = releases.data.find(r => r.tag_name === ('b' + buildNumber));
+    }
+    if (!release) {
+        release = releases.data.find(r => !r.draft && !r.prerelease);
+    }
+    if (!release) {
+        throw new Error('Could not find a suitable llama.cpp release.');
+    }
+
+    // Find a CUDA runtime zip matching the CUDA major version. The "cudart-llama-bin-win-cuda-X.Y-x64.zip"
+    // assets contain the CUDA runtime DLLs (cublas/cudart/cublasLt) without the full llama binaries.
+    const asset = release.assets.find(a =>
+        a.name.startsWith('cudart-llama-bin-win-cuda-') &&
+        a.name.includes('-x64.zip') &&
+        new RegExp('win-cuda-' + cudaMajor + '\\.\\d+-x64\\.zip$').test(a.name)
+    ) || release.assets.find(a =>
+        a.name.startsWith('llama-') &&
+        a.name.includes('win-cuda-' + cudaMajor) &&
+        a.name.endsWith('-x64.zip')
+    );
+
+    if (!asset) {
+        throw new Error('Could not find a CUDA runtime download matching CUDA ' + cudaMajor + ' in release ' + release.tag_name + '.');
+    }
+
+    const tempZipPath = path.join(getDataDir(), 'temp_missing_' + Date.now() + '.zip');
+    const response = await axios({
+        url: asset.browser_download_url,
+        method: 'GET',
+        responseType: 'stream'
+    });
+
+    const writer = fs.createWriteStream(tempZipPath);
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', (err) => {
+            try { fs.unlinkSync(tempZipPath); } catch (e) {}
+            reject(err);
+        });
+    });
+
+    try {
+        const zip = new AdmZip(tempZipPath);
+        const entries = zip.getEntries();
+        let extracted = [];
+
+        for (const entry of entries) {
+            const name = path.basename(entry.entryName);
+            if (!wanted.has(name.toLowerCase())) continue;
+            if (entry.isDirectory) continue;
+            const destPath = path.join(binDir, name);
+            const content = entry.getData();
+            fs.writeFileSync(destPath, content);
+            extracted.push(name);
+        }
+
+        try { fs.unlinkSync(tempZipPath); } catch (e) {}
+
+        if (extracted.length === 0) {
+            throw new Error('The downloaded archive did not contain the requested files: ' + Array.from(wanted).join(', '));
+        }
+        return { extracted, source: release.tag_name + ' / ' + asset.name };
+    } catch (e) {
+        try { fs.unlinkSync(tempZipPath); } catch (err) {}
+        throw e;
+    }
 });
 
 ipcMain.handle('list-models', () => {
