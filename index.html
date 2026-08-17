@@ -4594,7 +4594,8 @@
                         dlBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Downloading...';
                         try {
                             const res = await ipcRenderer.invoke('download-missing-files', result.missingFiles);
-                            alert('Downloaded ' + res.extracted.length + ' missing file(s) from ' + res.source + '.\n\n' + res.extracted.join('\n'));
+                            const names = res.extracted.map(e => e.name);
+                            alert('Restored ' + res.extracted.length + ' missing file(s) from ' + res.release + '.\n\n' + names.join('\n'));
                             await checkBackend();
                             await recheckBackend();
                         } catch (e) {

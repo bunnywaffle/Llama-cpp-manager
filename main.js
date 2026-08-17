@@ -786,6 +786,7 @@ ipcMain.handle('recheck-backend', () => {
         issues.push({ type: 'ok', text: 'Backend executable found: ' + path.basename(exePath) + (version ? ' (build ' + version + ')' : '') });
     } else {
         issues.push({ type: 'error', text: 'Backend executable not found. Expected one of: ' + critical.join(', ') });
+        missingFiles.push({ name: 'llama-server.exe', kind: 'core' });
     }
 
     if (files.length === 0) {
@@ -795,6 +796,9 @@ ipcMain.handle('recheck-backend', () => {
     for (const dll of commonDlls) {
         if (!fileNames.includes(dll.toLowerCase())) {
             warnings.push({ type: 'warn', text: 'Optional DLL missing: ' + dll });
+            if (dll === 'ggml.dll' || dll === 'ggml-base.dll' || dll === 'llama.dll' || dll === 'ggml-cpu.dll') {
+                missingFiles.push({ name: dll, kind: 'core' });
+            }
         }
     }
 
@@ -829,26 +833,21 @@ ipcMain.handle('recheck-backend', () => {
 });
 
 ipcMain.handle('download-missing-files', async (event, missingFiles) => {
-    if (!missingFiles || !Array.isArray(missingFiles) || missingFiles.length === 0) {
-        throw new Error('No missing files specified.');
-    }
-
     const binDir = getBinDir();
     const exePath = findExecutable(binDir);
     const buildNumber = exePath ? getBackendBuildNumber(exePath) : null;
-    const wanted = new Set(missingFiles.map(f => (f.name || '').toLowerCase()).filter(Boolean));
+    const cudaMajor = detectCudaVersion(binDir);
+    const hasCudaDll = fs.existsSync(path.join(binDir, 'ggml-cuda.dll'));
 
-    // Determine the CUDA major version needed (from the request or detected)
-    const cudaMajor = missingFiles.find(f => f.cudaMajor)?.cudaMajor || detectCudaVersion(binDir);
-    if (!cudaMajor) {
-        throw new Error('Could not determine the required CUDA version for this backend.');
-    }
+    // Which kinds were requested? If none given, restore everything missing.
+    const kinds = new Set((missingFiles || []).map(f => f.kind || 'core'));
+    const requestedNames = (missingFiles || []).map(f => (f.name || '').toLowerCase()).filter(Boolean);
+    const wantsRuntime = kinds.has('cuda_runtime') || requestedNames.some(n => n.startsWith('cublas') || n.startsWith('cudart'));
 
-    const releases = await axios.get('https://api.github.com/repositories/612354784/releases?per_page=10', {
+    const releases = await axios.get('https://api.github.com/repositories/612354784/releases?per_page=30', {
         headers: { 'User-Agent': 'LlamaManager-Electron' }
     });
 
-    // Pick the release matching the installed build number, else the latest
     let release = null;
     if (buildNumber) {
         release = releases.data.find(r => r.tag_name === ('b' + buildNumber));
@@ -860,65 +859,86 @@ ipcMain.handle('download-missing-files', async (event, missingFiles) => {
         throw new Error('Could not find a suitable llama.cpp release.');
     }
 
-    // Find a CUDA runtime zip matching the CUDA major version. The "cudart-llama-bin-win-cuda-X.Y-x64.zip"
-    // assets contain the CUDA runtime DLLs (cublas/cudart/cublasLt) without the full llama binaries.
-    const asset = release.assets.find(a =>
-        a.name.startsWith('cudart-llama-bin-win-cuda-') &&
-        a.name.includes('-x64.zip') &&
-        new RegExp('win-cuda-' + cudaMajor + '\\.\\d+-x64\\.zip$').test(a.name)
-    ) || release.assets.find(a =>
-        a.name.startsWith('llama-') &&
-        a.name.includes('win-cuda-' + cudaMajor) &&
-        a.name.endsWith('-x64.zip')
+    const buildTag = release.tag_name;
+    const x64Asset = (prefix) => release.assets.find(a => a.name.startsWith(prefix) && a.name.endsWith('-x64.zip'));
+
+    // Main binaries archive — the one matching this backend (CUDA or CPU variant).
+    let mainAsset = null;
+    if (hasCudaDll && cudaMajor) {
+        mainAsset = release.assets.find(a => a.name.startsWith('llama-') && a.name.includes('win-cuda-' + cudaMajor) && a.name.endsWith('-x64.zip'));
+    }
+    if (!mainAsset) {
+        mainAsset = release.assets.find(a => a.name.startsWith('llama-') && a.name.includes('bin-win') && a.name.endsWith('-x64.zip') && !a.name.includes('cuda'));
+    }
+    if (!mainAsset) {
+        mainAsset = x64Asset('llama-');
+    }
+
+    // CUDA runtime archive (only exists for CUDA releases; contains cublas/cudart/cublasLt).
+    let cudartAsset = null;
+    if (cudaMajor) {
+        cudartAsset = release.assets.find(a =>
+            a.name.startsWith('cudart-llama-bin-win-cuda-') &&
+            a.name.includes('-x64.zip') &&
+            new RegExp('win-cuda-' + cudaMajor + '\\.\\d+-x64\\.zip$').test(a.name)
+        ) || release.assets.find(a => a.name.startsWith('cudart-llama-bin-win-cuda-') && a.name.endsWith('-x64.zip'));
+    }
+
+    if (!mainAsset && !cudartAsset) {
+        throw new Error('Could not find any download assets for release ' + buildTag + '.');
+    }
+
+    // Only fetch the CUDA runtime archive when the request needs runtime DLLs (avoids a 373MB download otherwise).
+    const archives = [{ asset: mainAsset, needed: true }];
+    if (cudartAsset && wantsRuntime) {
+        archives.push({ asset: cudartAsset, needed: true });
+    } else if (cudartAsset && hasCudaDll && cudaMajor && requestedNames.length === 0) {
+        archives.push({ asset: cudartAsset, needed: true });
+    }
+
+    const extracted = [];
+    const missingNow = new Set(
+        listBinFiles().filter(f => !f.isDirectory).map(f => f.name.toLowerCase())
     );
 
-    if (!asset) {
-        throw new Error('Could not find a CUDA runtime download matching CUDA ' + cudaMajor + ' in release ' + release.tag_name + '.');
-    }
-
-    const tempZipPath = path.join(getDataDir(), 'temp_missing_' + Date.now() + '.zip');
-    const response = await axios({
-        url: asset.browser_download_url,
-        method: 'GET',
-        responseType: 'stream'
-    });
-
-    const writer = fs.createWriteStream(tempZipPath);
-    response.data.pipe(writer);
-
-    await new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', (err) => {
-            try { fs.unlinkSync(tempZipPath); } catch (e) {}
-            reject(err);
+    for (const { asset } of archives) {
+        if (!asset) continue;
+        const tempZipPath = path.join(getDataDir(), 'temp_missing_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '.zip');
+        const response = await axios({ url: asset.browser_download_url, method: 'GET', responseType: 'stream' });
+        const writer = fs.createWriteStream(tempZipPath);
+        response.data.pipe(writer);
+        await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', (err) => {
+                try { fs.unlinkSync(tempZipPath); } catch (e) {}
+                reject(err);
+            });
         });
-    });
 
-    try {
-        const zip = new AdmZip(tempZipPath);
-        const entries = zip.getEntries();
-        let extracted = [];
-
-        for (const entry of entries) {
-            const name = path.basename(entry.entryName);
-            if (!wanted.has(name.toLowerCase())) continue;
-            if (entry.isDirectory) continue;
-            const destPath = path.join(binDir, name);
-            const content = entry.getData();
-            fs.writeFileSync(destPath, content);
-            extracted.push(name);
+        try {
+            const zip = new AdmZip(tempZipPath);
+            for (const entry of zip.getEntries()) {
+                if (entry.isDirectory) continue;
+                const name = path.basename(entry.entryName);
+                const lower = name.toLowerCase();
+                // Only restore files that are currently missing from bin (never overwrite existing).
+                if (missingNow.has(lower)) continue;
+                const destPath = path.join(binDir, name);
+                fs.writeFileSync(destPath, entry.getData());
+                missingNow.add(lower);
+                extracted.push({ name, source: asset.name });
+            }
+        } finally {
+            try { fs.unlinkSync(tempZipPath); } catch (e) {}
         }
-
-        try { fs.unlinkSync(tempZipPath); } catch (e) {}
-
-        if (extracted.length === 0) {
-            throw new Error('The downloaded archive did not contain the requested files: ' + Array.from(wanted).join(', '));
-        }
-        return { extracted, source: release.tag_name + ' / ' + asset.name };
-    } catch (e) {
-        try { fs.unlinkSync(tempZipPath); } catch (err) {}
-        throw e;
     }
+
+    if (extracted.length === 0) {
+        const req = requestedNames.length ? requestedNames.join(', ') : '(no specific files)';
+        throw new Error('Nothing to restore from release ' + buildTag + ' — the requested files are either already present or not part of the llama.cpp release assets (' + req + ').');
+    }
+
+    return { extracted, release: buildTag };
 });
 
 ipcMain.handle('list-models', () => {
