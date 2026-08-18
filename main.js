@@ -167,6 +167,19 @@ const GGUF_TYPES = {
 };
 
 function readGgufContextLength(filePath) {
+    try {
+        const info = readGgufInfo(filePath);
+        return info ? info.ctxLength : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Reads GGUF metadata to detect context length and MTP (Multi-Token Prediction)
+// capability. MTP is present when the metadata contains a key like
+// "<arch>.nextn_predict_layers" with a positive value (set by convert_hf_to_gguf.py
+// for Qwen3.5/3.6 family models) or tensor names prefixed with "nextn".
+function readGgufInfo(filePath) {
     let fd;
     try {
         fd = fs.openSync(filePath, 'r');
@@ -220,15 +233,20 @@ function readGgufContextLength(filePath) {
         readBytes(8);
         const kvCount = Number(readBytes(8).readBigUInt64LE(0));
 
+        let ctxLength = null;
+        let mtp = false;
         for (let i = 0; i < kvCount; i++) {
             const key = readString();
             const type = readBytes(4).readUInt32LE(0);
             const value = readValue(type);
-            if (key === 'llama.context_length' || key === 'context_length') {
-                return Number(value) > 0 ? Number(value) : null;
+            if ((key === 'llama.context_length' || key === 'context_length') && Number(value) > 0) {
+                ctxLength = Number(value);
+            }
+            if (/nextn_predict_layers|mtp/i.test(key)) {
+                if (typeof value === 'number' && value > 0) mtp = true;
             }
         }
-        return null;
+        return { ctxLength, mtp };
     } catch (e) {
         return null;
     } finally {
@@ -475,6 +493,46 @@ ipcMain.handle('unlink-mmproj', (event, modelName) => {
     if (meta[modelName]) {
         delete meta[modelName].mmproj;
         delete meta[modelName].mmprojFullPath;
+        writeModelsMeta(meta);
+    }
+    return meta;
+});
+
+// ============ MTP (Multi-Token Prediction) Drafter IPC Handlers ============
+ipcMain.handle('link-mtp-dialog', async (event, modelName) => {
+    if (!modelName) throw new Error('No model name specified.');
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select MTP Drafter Model for ' + modelName,
+        properties: ['openFile'],
+        filters: [{ name: 'GGUF MTP Drafter', extensions: ['gguf'] }, { name: 'All Files', extensions: ['*'] }]
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+        const srcPath = result.filePaths[0];
+        const destPath = path.join(getModelsDir(), path.basename(srcPath));
+        if (srcPath !== destPath && !fs.existsSync(destPath)) {
+            try {
+                fs.symlinkSync(srcPath, destPath, 'file');
+            } catch (e) {
+                try { fs.copyFileSync(srcPath, destPath); } catch (err) {}
+            }
+        }
+        const meta = readModelsMeta();
+        meta[modelName] = meta[modelName] || {};
+        meta[modelName].mtpDrafter = path.basename(destPath);
+        meta[modelName].mtpDrafterFullPath = srcPath;
+        writeModelsMeta(meta);
+        return meta;
+    }
+    return null;
+});
+
+ipcMain.handle('unlink-mtp-drafter', (event, modelName) => {
+    if (!modelName) return;
+    const meta = readModelsMeta();
+    if (meta[modelName]) {
+        delete meta[modelName].mtpDrafter;
+        delete meta[modelName].mtpDrafterFullPath;
         writeModelsMeta(meta);
     }
     return meta;
@@ -998,14 +1056,44 @@ ipcMain.handle('get-model-ctx', (event, modelName) => {
     } catch (e) {}
     if (!fs.existsSync(modelPath)) return 40000;
     try {
-        const detected = readGgufContextLength(modelPath) || 40000;
+        const info = readGgufInfo(modelPath) || {};
+        const detected = info.ctxLength || 40000;
         meta[modelName] = meta[modelName] || {};
         meta[modelName].ctxLength = detected;
+        if (info.mtp) meta[modelName].mtp = true;
         writeModelsMeta(meta);
         return detected;
     } catch (e) {
         return 40000;
     }
+});
+
+// Scan every model in the models dir for MTP capability and cache it in models-meta.json.
+ipcMain.handle('scan-model-mtp', () => {
+    const meta = readModelsMeta();
+    let changed = false;
+    let files = [];
+    try {
+        files = fs.readdirSync(getModelsDir()).filter(f => f.toLowerCase().endsWith('.gguf'));
+    } catch (e) {}
+    for (const file of files) {
+        if (meta[file] && meta[file].mtp !== undefined) continue;
+        let modelPath = path.join(getModelsDir(), file);
+        try {
+            modelPath = fs.realpathSync(modelPath);
+        } catch (e) {}
+        if (!fs.existsSync(modelPath)) continue;
+        try {
+            const info = readGgufInfo(modelPath);
+            if (info && info.mtp) {
+                meta[file] = meta[file] || {};
+                meta[file].mtp = true;
+                changed = true;
+            }
+        } catch (e) {}
+    }
+    if (changed) writeModelsMeta(meta);
+    return meta;
 });
 
 ipcMain.handle('get-settings', () => getSettings());
@@ -1357,6 +1445,22 @@ ipcMain.handle('start-server', async (event, params) => {
     if (mmprojPath && fs.existsSync(mmprojPath)) {
         console.log('Loading vision projector (mmproj):', mmprojPath);
         args.push('--mmproj', mmprojPath);
+    }
+
+    // MTP (Multi-Token Prediction) drafter: a separately-linked MTP-head GGUF.
+    // Embedded MTP heads (in the main model file) are auto-detected by llama-server,
+    // so only a separate drafter needs explicit --spec-draft-model / --spec-type.
+    if (!routerMode && meta[modelName] && meta[modelName].mtpDrafter) {
+        let mtpDrafterPath = path.join(getModelsDir(), meta[modelName].mtpDrafter);
+        try { mtpDrafterPath = fs.realpathSync(mtpDrafterPath); } catch (e) {}
+        if (!fs.existsSync(mtpDrafterPath) && meta[modelName].mtpDrafterFullPath && fs.existsSync(meta[modelName].mtpDrafterFullPath)) {
+            mtpDrafterPath = meta[modelName].mtpDrafterFullPath;
+        }
+        if (fs.existsSync(mtpDrafterPath)) {
+            console.log('Loading MTP drafter:', mtpDrafterPath);
+            args.push('--spec-type', 'draft-mtp');
+            args.push('--spec-draft-model', mtpDrafterPath);
+        }
     }
 
     // LoRA Adapters loading

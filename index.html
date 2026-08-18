@@ -4749,6 +4749,9 @@
             } catch (e) {
                 modelsMeta = {};
             }
+            try {
+                modelsMeta = await ipcRenderer.invoke('scan-model-mtp');
+            } catch (e) {}
 
             serverModelSelect.innerHTML = '';
             dashModelSelect.innerHTML = '';
@@ -4761,14 +4764,17 @@
             } else {
                 models.forEach(m => {
                     const hasMmproj = modelsMeta[m] && modelsMeta[m].mmproj;
+                    const hasMtp = modelsMeta[m] && modelsMeta[m].mtp;
+                    const hasMtpDrafter = modelsMeta[m] && modelsMeta[m].mtpDrafter;
+                    const mtpLabel = hasMtp ? ' ⚡ MTP' : (hasMtpDrafter ? ' ⚡ MTP-Draft' : '');
                     const opt1 = document.createElement('option');
                     opt1.value = m;
-                    opt1.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '');
+                    opt1.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '') + mtpLabel;
                     serverModelSelect.appendChild(opt1);
 
                     const opt2 = document.createElement('option');
                     opt2.value = m;
-                    opt2.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '');
+                    opt2.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '') + mtpLabel;
                     dashModelSelect.appendChild(opt2);
 
                     const loras = (modelsMeta[m] && Array.isArray(modelsMeta[m].loras)) ? modelsMeta[m].loras : [];
@@ -4807,9 +4813,15 @@
                                     <i class="fa-solid fa-cube" style="color: var(--accent);"></i> ${escapeHtml(m)}
                                 </span>
                                 ${hasMmproj ? `<span class="vision-adapter-badge"><i class="fa-solid fa-eye"></i> Vision Adaptor: ${escapeHtml(modelsMeta[m].mmproj)}</span>` : ''}
+                                ${hasMtp ? '<span class="vision-adapter-badge" style="border-color: rgba(86, 211, 100, 0.4);"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> MTP Head (embedded, auto)</span>' : ''}
+                                ${hasMtpDrafter ? `<span class="vision-adapter-badge" style="border-color: rgba(86, 211, 100, 0.4);"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> MTP Drafter: ${escapeHtml(modelsMeta[m].mtpDrafter)}</span>` : ''}
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <button class="btn secondary btn-link-lora" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link LoRA adapter (.gguf)"><i class="fa-solid fa-bolt" style="color: #c084fc;"></i> + LoRA</button>
+                                ${hasMtpDrafter
+                                    ? `<button class="btn secondary btn-unlink-mtp" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Unlink MTP drafter"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> Unlink MTP</button>`
+                                    : `<button class="btn secondary btn-link-mtp" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link MTP drafter model (.gguf)"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> + MTP</button>`
+                                }
                                 ${hasMmproj
                                     ? `<button class="btn secondary btn-unlink-vision" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Unlink vision adaptor"><i class="fa-solid fa-eye-slash"></i> Unlink Vision</button>`
                                     : `<button class="btn secondary btn-link-vision" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link vision projector (mmproj) GGUF"><i class="fa-solid fa-eye"></i> + Vision</button>`
@@ -4884,6 +4896,28 @@
                         unlinkVisionBtn.addEventListener('click', async () => {
                             if (confirm('Unlink vision adaptor from ' + m + '?')) {
                                 await ipcRenderer.invoke('unlink-mmproj', m);
+                                loadModels();
+                            }
+                        });
+                    }
+
+                    const linkMtpBtn = row.querySelector('.btn-link-mtp');
+                    if (linkMtpBtn) {
+                        linkMtpBtn.addEventListener('click', async () => {
+                            try {
+                                const updated = await ipcRenderer.invoke('link-mtp-dialog', m);
+                                if (updated) loadModels();
+                            } catch (err) {
+                                alert('Error linking MTP drafter: ' + err.message);
+                            }
+                        });
+                    }
+
+                    const unlinkMtpBtn = row.querySelector('.btn-unlink-mtp');
+                    if (unlinkMtpBtn) {
+                        unlinkMtpBtn.addEventListener('click', async () => {
+                            if (confirm('Unlink MTP drafter from ' + m + '?')) {
+                                await ipcRenderer.invoke('unlink-mtp-drafter', m);
                                 loadModels();
                             }
                         });
