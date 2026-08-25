@@ -1464,21 +1464,27 @@ ipcMain.handle('start-server', async (event, params) => {
         }
     }
 
-    // LoRA Adapters loading
+    // LoRA Adapters loading — per llama.cpp docs, --lora-scaled accepts comma-separated FNAME:SCALE entries.
+    // We join all enabled adapters into a single flag to match the documented format: --lora-scaled a.gguf:1,b.gguf:0.8
     if (!routerMode && meta[modelName] && Array.isArray(meta[modelName].loras)) {
+        const loraParts = [];
         for (const lora of meta[modelName].loras) {
-            if (lora.enabled !== false) {
-                let loraPath = path.join(getModelsDir(), lora.file);
-                try { loraPath = fs.realpathSync(loraPath); } catch (e) {}
-                if (!fs.existsSync(loraPath) && lora.path && fs.existsSync(lora.path)) {
-                    loraPath = lora.path;
-                }
-                if (fs.existsSync(loraPath)) {
-                    const scale = (lora.scale !== undefined && !isNaN(parseFloat(lora.scale))) ? parseFloat(lora.scale) : 1.0;
-                    console.log('Loading LoRA adapter:', loraPath, 'with scale:', scale);
-                    args.push('--lora-scaled', `${loraPath}:${scale}`);
-                }
+            if (lora.enabled === false) continue;
+            let loraPath = path.join(getModelsDir(), lora.file);
+            try { loraPath = fs.realpathSync(loraPath); } catch (e) {}
+            if (!fs.existsSync(loraPath) && lora.path && fs.existsSync(lora.path)) {
+                loraPath = lora.path;
             }
+            if (!fs.existsSync(loraPath)) {
+                console.warn('LoRA file not found, skipping:', lora.file);
+                continue;
+            }
+            const scale = (lora.scale !== undefined && !isNaN(parseFloat(lora.scale))) ? parseFloat(lora.scale) : 1.0;
+            loraParts.push(`${loraPath}:${scale}`);
+        }
+        if (loraParts.length > 0) {
+            console.log('Loading LoRA adapters:', loraParts.join(','));
+            args.push('--lora-scaled', loraParts.join(','));
         }
     }
 
