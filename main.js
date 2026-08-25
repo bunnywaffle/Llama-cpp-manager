@@ -72,6 +72,7 @@ const DEFAULT_SETTINGS = {
     repeatPenalty: 1.1,
     minP: 0.05,
     reasoningEffort: 'medium',
+    reasoningCollapsed: true,
     autoStartServerOnGenerate: false,
     routerMode: false,
     parallelEnabled: false,
