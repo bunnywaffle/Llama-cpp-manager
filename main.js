@@ -660,12 +660,62 @@ ipcMain.handle('link-models-folder-dialog', async () => {
     return 0;
 });
 
+async function fetchLlamaReleases(perPage = 5) {
+    const urls = [
+        `https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=${perPage}`,
+        `https://api.github.com/repos/ggerganov/llama.cpp/releases?per_page=${perPage}`
+    ];
+    let lastErr = null;
+    for (const url of urls) {
+        try {
+            const response = await axios.get(url, { headers: { 'User-Agent': 'LlamaManager-Electron' } });
+            return response.data;
+        } catch (err) {
+            lastErr = err;
+        }
+    }
+    throw lastErr || new Error('Failed to fetch releases from both repos');
+}
+
+function selectBackendAsset(release, binDir) {
+    const hasCudaDll = fs.existsSync(path.join(binDir, 'ggml-cuda.dll'));
+    const cudaMajor = detectCudaVersion(binDir);
+    const assets = release.assets || [];
+    const lc = (s) => (s || '').toLowerCase();
+
+    // Helper: find asset by predicate that ends with target arch (x64 vs arm64)
+    const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+    const findAsset = (pred) => assets.find(a => pred(a) && lc(a.name).endsWith(`-${arch}.zip`));
+
+    // CUDA variant first: match win-cuda-<major> (covers both old cu12.4 and new 12.4 naming)
+    if (hasCudaDll && cudaMajor) {
+        const cudaAsset = findAsset(a => lc(a.name).startsWith('llama-') && lc(a.name).includes(`win-cuda-${cudaMajor}`))
+            || findAsset(a => lc(a.name).startsWith('llama-') && lc(a.name).includes(`cuda-${cudaMajor}`) && lc(a.name).includes('win'))
+            || findAsset(a => lc(a.name).startsWith('llama-') && lc(a.name).includes(`cu${cudaMajor}`));
+        if (cudaAsset) return cudaAsset;
+    }
+
+    // CPU variant: prefer explicit cpu, fallback to generic bin-win without cuda/vulkan/sycl/rocm/openvino
+    const cpuAsset = findAsset(a => lc(a.name).startsWith('llama-') && lc(a.name).includes('bin-win-cpu'))
+        || findAsset(a => lc(a.name).startsWith('llama-') && lc(a.name).includes('bin-win') && !lc(a.name).includes('cuda') && !lc(a.name).includes('vulkan') && !lc(a.name).includes('sycl') && !lc(a.name).includes('rocm') && !lc(a.name).includes('openvino'))
+        || assets.find(a => lc(a.name).startsWith('llama-') && lc(a.name).endsWith(`-${arch}.zip`));
+    return cpuAsset || null;
+}
+
+function selectCudartAsset(release, cudaMajor) {
+    if (!cudaMajor) return null;
+    const assets = release.assets || [];
+    const lc = (s) => (s || '').toLowerCase();
+    const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+    return assets.find(a => lc(a.name).startsWith('cudart-llama-bin-win-cuda-') && lc(a.name).includes(`-cuda-${cudaMajor}`) && lc(a.name).endsWith(`-${arch}.zip`))
+        || assets.find(a => lc(a.name).startsWith('cudart-llama-bin-win-cuda-') && lc(a.name).endsWith(`-${arch}.zip`))
+        || null;
+}
+
 ipcMain.handle('get-releases', async () => {
     try {
-        const response = await axios.get('https://api.github.com/repos/ggerganov/llama.cpp/releases?per_page=5', {
-            headers: { 'User-Agent': 'LlamaManager-Electron' }
-        });
-        return response.data.map(rel => ({
+        const data = await fetchLlamaReleases(5);
+        return data.map(rel => ({
             tag_name: rel.tag_name,
             name: rel.name,
             published_at: rel.published_at,
@@ -674,6 +724,65 @@ ipcMain.handle('get-releases', async () => {
     } catch (err) {
         throw new Error('Failed to fetch GitHub releases: ' + err.message);
     }
+});
+
+ipcMain.handle('check-backend-update', async () => {
+    const binDir = getBinDir();
+    const exePath = findExecutable(binDir);
+    const currentBuild = exePath ? getBackendBuildNumber(exePath) : null;
+    const data = await fetchLlamaReleases(10);
+    const latest = data.find(r => r.tag_name && r.tag_name.startsWith('b') && !r.draft && !r.prerelease)
+        || data.find(r => !r.draft && !r.prerelease);
+    if (!latest) throw new Error('No releases found');
+    const latestBuild = latest.tag_name.startsWith('b') ? parseInt(latest.tag_name.slice(1), 10) : null;
+    const hasUpdate = latestBuild && currentBuild ? (latestBuild > currentBuild) : (!currentBuild);
+    return {
+        currentBuild,
+        latestTag: latest.tag_name,
+        latestBuild,
+        hasUpdate,
+        release: {
+            tag_name: latest.tag_name,
+            name: latest.name,
+            published_at: latest.published_at,
+            assets: latest.assets.slice(0, 12).map(a => ({ name: a.name }))
+        }
+    };
+});
+
+ipcMain.handle('update-backend', async (event) => {
+    if (llamaProcess) throw new Error('Stop the server before updating the backend.');
+    const binDir = getBinDir();
+    const data = await fetchLlamaReleases(10);
+    const latest = data.find(r => r.tag_name && r.tag_name.startsWith('b') && !r.draft && !r.prerelease)
+        || data.find(r => !r.draft && !r.prerelease);
+    if (!latest) throw new Error('No suitable release found to update to.');
+
+    const mainAsset = selectBackendAsset(latest, binDir);
+    if (!mainAsset) throw new Error('Could not find a backend asset for this system in release ' + latest.tag_name + '.');
+
+    const cudaMajor = detectCudaVersion(binDir);
+    const cudartAsset = selectCudartAsset(latest, cudaMajor);
+
+    const archives = [{ asset: mainAsset }];
+    if (cudartAsset && cudaMajor) archives.push({ asset: cudartAsset });
+
+    for (const { asset } of archives) {
+        const tempZipPath = path.join(getDataDir(), 'temp_update_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '.zip');
+        const response = await axios({ url: asset.browser_download_url, method: 'GET', responseType: 'stream' });
+        const writer = fs.createWriteStream(tempZipPath);
+        response.data.pipe(writer);
+        await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+        });
+        // Only clean on first archive (main), second is additive
+        if (asset === mainAsset) cleanBinDir();
+        const zip = new AdmZip(tempZipPath);
+        zip.extractAllTo(getBinDir(), true);
+        try { fs.unlinkSync(tempZipPath); } catch (e) {}
+    }
+    return { tag: latest.tag_name, asset: mainAsset.name };
 });
 
 ipcMain.handle('download-release', async (event, downloadUrl, fileName) => {
@@ -903,45 +1012,29 @@ ipcMain.handle('download-missing-files', async (event, missingFiles) => {
     const requestedNames = (missingFiles || []).map(f => (f.name || '').toLowerCase()).filter(Boolean);
     const wantsRuntime = kinds.has('cuda_runtime') || requestedNames.some(n => n.startsWith('cublas') || n.startsWith('cudart'));
 
-    const releases = await axios.get('https://api.github.com/repositories/612354784/releases?per_page=30', {
-        headers: { 'User-Agent': 'LlamaManager-Electron' }
-    });
+    const releasesData = await fetchLlamaReleases(30);
 
     let release = null;
     if (buildNumber) {
-        release = releases.data.find(r => r.tag_name === ('b' + buildNumber));
+        release = releasesData.find(r => r.tag_name === ('b' + buildNumber));
     }
     if (!release) {
-        release = releases.data.find(r => !r.draft && !r.prerelease);
+        release = releasesData.find(r => !r.draft && !r.prerelease && r.tag_name && r.tag_name.startsWith('b'));
+    }
+    if (!release) {
+        release = releasesData.find(r => !r.draft && !r.prerelease);
     }
     if (!release) {
         throw new Error('Could not find a suitable llama.cpp release.');
     }
 
     const buildTag = release.tag_name;
-    const x64Asset = (prefix) => release.assets.find(a => a.name.startsWith(prefix) && a.name.endsWith('-x64.zip'));
 
-    // Main binaries archive — the one matching this backend (CUDA or CPU variant).
-    let mainAsset = null;
-    if (hasCudaDll && cudaMajor) {
-        mainAsset = release.assets.find(a => a.name.startsWith('llama-') && a.name.includes('win-cuda-' + cudaMajor) && a.name.endsWith('-x64.zip'));
-    }
-    if (!mainAsset) {
-        mainAsset = release.assets.find(a => a.name.startsWith('llama-') && a.name.includes('bin-win') && a.name.endsWith('-x64.zip') && !a.name.includes('cuda'));
-    }
-    if (!mainAsset) {
-        mainAsset = x64Asset('llama-');
-    }
-
-    // CUDA runtime archive (only exists for CUDA releases; contains cublas/cudart/cublasLt).
-    let cudartAsset = null;
-    if (cudaMajor) {
-        cudartAsset = release.assets.find(a =>
-            a.name.startsWith('cudart-llama-bin-win-cuda-') &&
-            a.name.includes('-x64.zip') &&
-            new RegExp('win-cuda-' + cudaMajor + '\\.\\d+-x64\\.zip$').test(a.name)
-        ) || release.assets.find(a => a.name.startsWith('cudart-llama-bin-win-cuda-') && a.name.endsWith('-x64.zip'));
-    }
+    // Robust asset selection that handles both old (ggerganov) and new (ggml-org) naming schemes:
+    //  - llama-b10629-bin-win-cpu-x64.zip / llama-b10629-bin-win-cuda-12.4-x64.zip
+    //  - cudart-llama-bin-win-cuda-12.4-x64.zip etc.
+    const mainAsset = selectBackendAsset(release, binDir);
+    const cudartAsset = selectCudartAsset(release, cudaMajor);
 
     if (!mainAsset && !cudartAsset) {
         throw new Error('Could not find any download assets for release ' + buildTag + '.');
