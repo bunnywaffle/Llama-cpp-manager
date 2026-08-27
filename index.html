@@ -2260,6 +2260,9 @@
                 <button class="nav-item" data-target="view-backends">
                     <i class="fa-solid fa-microchip" style="width: 16px;"></i> Backends
                 </button>
+                <button class="nav-item" id="nav-mcp-servers" data-target="view-settings" title="MCP Servers — stdio tools">
+                    <i class="fa-solid fa-plug" style="width: 16px;"></i> MCP Servers <span style="font-size:9px;background:var(--accent);color:var(--btn-primary-text,#fff);padding:1px 5px;border-radius:6px;margin-left:auto;">NEW</span>
+                </button>
             </div>
         </div>
         <div class="sidebar-bottom">
@@ -2577,7 +2580,7 @@
                     <span id="chat-server-status-pill" class="chat-status-pill offline" title="Server Status">
                         <span class="status-indicator-dot"></span> <span id="chat-server-status-text">Offline</span>
                     </span>
-                    <span id="chat-mcp-pill" class="mcp-pill off" title="MCP — click to view tools" style="display:none;"><i class="fa-solid fa-plug"></i> <span id="chat-mcp-text">MCP off</span></span>
+                    <span id="chat-mcp-pill" class="mcp-pill off" title="MCP — click to set up in Settings → MCP Servers" style="display:inline-flex;"><i class="fa-solid fa-plug"></i> <span id="chat-mcp-text">MCP</span></span>
                 </div>
                 <div class="chat-header-right">
                     <!-- Header Persona Switcher -->
@@ -2893,6 +2896,36 @@
                 </div>
             </div>
 
+            <!-- MCP Servers Card — minimal authentic llama.cpp stdio MCP per #26062 -->
+            <div class="card" id="mcp-card" style="padding: 24px; gap: 14px; border-color: color-mix(in srgb, var(--accent) 25%, var(--border));">
+                <div class="card-title" style="margin: 0;"><i class="fa-solid fa-plug" style="color: var(--accent);"></i> MCP Servers <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;">(experimental — llama.cpp stdio)</span> <span style="font-size:10px;background:var(--accent);color:var(--btn-primary-text, #fff);padding:2px 7px;border-radius:20px;margin-left:6px;">NEW</span></div>
+                <p style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5;">
+                    Expose local tools to the model via <code style="font-family:'JetBrains Mono',Consolas,monospace;">--mcp-servers-config</code> (Cursor-compatible <code>mcpServers</code> JSON, stdio transport). The server spawns each command on demand and exposes its tools as <code>server_tool</code> via <code>GET /tools</code>. <span style="color:#eab308;"><i class="fa-solid fa-triangle-exclamation"></i> Only declare servers you trust — they run with the same privileges as <code>llama-server</code> and will limit <code>--cors-origins</code> to <code>localhost</code>.</span>
+                </p>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--text-muted);">
+                    <span>Config file:</span> <code id="mcp-config-path" style="font-family:'JetBrains Mono',Consolas,monospace;background:var(--bg-base);border:1px solid var(--border);padding:2px 6px;border-radius:6px;">loading...</code>
+                    <button class="btn secondary" id="btn-mcp-open-folder" style="padding:4px 8px;font-size:11px;"><i class="fa-solid fa-folder-open"></i> Open</button>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:6px;">mcp.json — <code>mcpServers</code> (Cursor format)</label>
+                    <textarea id="mcp-json-editor" placeholder='{
+  "mcpServers": {
+    "filesystem": { "command": "npx", "args": ["-y","@modelcontextprotocol/server-filesystem","C:/allowed/dir"] }
+  }
+}' style="width:100%;min-height:140px;max-height:320px;font-family:'JetBrains Mono',Consolas,monospace;font-size:12px;line-height:1.5;background:var(--bg-base);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text-main);resize:vertical;outline:none;"></textarea>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Keys per server: <code>command</code> (required), <code>args</code>[], <code>env</code>{}, <code>cwd</code>, <code>timeout_ms</code>. Example uses <code>@modelcontextprotocol/server-filesystem</code> — change the allowed dir to a real path. On Windows use <code>cmd /c npx.cmd</code> for <code>npx</code>.</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button class="btn primary" id="btn-mcp-save" style="padding:7px 14px;"><i class="fa-solid fa-floppy-disk"></i> Save MCP Config</button>
+                    <button class="btn secondary" id="btn-mcp-validate" style="padding:7px 14px;"><i class="fa-solid fa-check"></i> Validate</button>
+                    <button class="btn secondary" id="btn-mcp-example" style="padding:7px 14px;"><i class="fa-solid fa-lightbulb"></i> Insert Example</button>
+                    <button class="btn secondary" id="btn-mcp-reset" style="padding:7px 14px;"><i class="fa-solid fa-rotate-left"></i> Clear</button>
+                    <span id="mcp-feedback" style="font-size:12px;color:var(--accent);display:none;"></span>
+                </div>
+                <div id="mcp-servers-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+                <div style="font-size:11px;color:var(--text-muted);">After saving, restart the server. MCP tools appear as <code>server_tool</code> (e.g. <code>filesystem_read_text_file</code>) alongside built-ins. Check <code>GET /tools</code> or the chat header badge. Requires build with <code>--mcp-servers-config</code> (b10142+). If your build is older, update via Backends.</div>
+            </div>
+
             <!-- Self-Contained Storage Card -->
             <div class="card" style="padding: 24px; gap: 14px;">
                 <div class="card-title" style="margin: 0;"><i class="fa-solid fa-folder-tree" style="color: var(--accent);"></i> Self-Contained App Storage & Data Directory</div>
@@ -2954,36 +2987,6 @@
                     <button class="btn secondary" id="btn-reset-settings" style="padding: 8px 16px;"><i class="fa-solid fa-rotate-left"></i> Reset to Defaults</button>
                 </div>
                 <p id="settings-feedback" style="margin: 0; color: var(--accent); font-size: 13px; display: none;"></p>
-            </div>
-
-            <!-- MCP Servers Card — minimal authentic llama.cpp stdio MCP per #26062 -->
-            <div class="card" style="padding: 24px; gap: 14px;">
-                <div class="card-title" style="margin: 0;"><i class="fa-solid fa-plug" style="color: var(--accent);"></i> MCP Servers <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;">(experimental — llama.cpp stdio)</span></div>
-                <p style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5;">
-                    Expose local tools to the model via <code style="font-family:'JetBrains Mono',Consolas,monospace;">--mcp-servers-config</code> (Cursor-compatible <code>mcpServers</code> JSON, stdio transport). The server spawns each command on demand and exposes its tools as <code>server_tool</code> via <code>GET /tools</code>. <span style="color:#eab308;"><i class="fa-solid fa-triangle-exclamation"></i> Only declare servers you trust — they run with the same privileges as <code>llama-server</code> and will limit <code>--cors-origins</code> to <code>localhost</code>.</span>
-                </p>
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--text-muted);">
-                    <span>Config file:</span> <code id="mcp-config-path" style="font-family:'JetBrains Mono',Consolas,monospace;background:var(--bg-base);border:1px solid var(--border);padding:2px 6px;border-radius:6px;">loading...</code>
-                    <button class="btn secondary" id="btn-mcp-open-folder" style="padding:4px 8px;font-size:11px;"><i class="fa-solid fa-folder-open"></i> Open</button>
-                </div>
-                <div>
-                    <label style="display:block;margin-bottom:6px;">mcp.json — <code>mcpServers</code> (Cursor format)</label>
-                    <textarea id="mcp-json-editor" placeholder='{
-  "mcpServers": {
-    "filesystem": { "command": "npx", "args": ["-y","@modelcontextprotocol/server-filesystem","C:/allowed/dir"] }
-  }
-}' style="width:100%;min-height:140px;max-height:320px;font-family:'JetBrains Mono',Consolas,monospace;font-size:12px;line-height:1.5;background:var(--bg-base);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text-main);resize:vertical;outline:none;"></textarea>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Keys per server: <code>command</code> (required), <code>args</code>[], <code>env</code>{}, <code>cwd</code>, <code>timeout_ms</code>. Example uses <code>@modelcontextprotocol/server-filesystem</code> — change the allowed dir to a real path. On Windows use <code>cmd /c npx.cmd</code> for <code>npx</code>.</div>
-                </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <button class="btn primary" id="btn-mcp-save" style="padding:7px 14px;"><i class="fa-solid fa-floppy-disk"></i> Save MCP Config</button>
-                    <button class="btn secondary" id="btn-mcp-validate" style="padding:7px 14px;"><i class="fa-solid fa-check"></i> Validate</button>
-                    <button class="btn secondary" id="btn-mcp-example" style="padding:7px 14px;"><i class="fa-solid fa-lightbulb"></i> Insert Example</button>
-                    <button class="btn secondary" id="btn-mcp-reset" style="padding:7px 14px;"><i class="fa-solid fa-rotate-left"></i> Clear</button>
-                    <span id="mcp-feedback" style="font-size:12px;color:var(--accent);display:none;"></span>
-                </div>
-                <div id="mcp-servers-list" style="display:flex;flex-direction:column;gap:6px;"></div>
-                <div style="font-size:11px;color:var(--text-muted);">After saving, restart the server. MCP tools appear as <code>server_tool</code> (e.g. <code>filesystem_read_text_file</code>) alongside built-ins. Check <code>GET /tools</code> or the chat header badge. Requires build with <code>--mcp-servers-config</code> (b10142+). If your build is older, update via Backends.</div>
             </div>
 
             <!-- Chat Behavior Card -->
@@ -3505,11 +3508,13 @@
             try {
                 const cfg = await ipcRenderer.invoke('get-mcp-config');
                 const count = Object.keys(cfg.mcpServers || {}).filter(k => cfg.mcpServers[k] && cfg.mcpServers[k].command).length;
+                chatMcpPill.style.display = 'inline-flex';
                 if (count === 0) {
-                    chatMcpPill.style.display = 'none';
+                    chatMcpPill.classList.add('off');
+                    chatMcpText.textContent = 'MCP';
+                    chatMcpPill.title = 'MCP not configured — click to set up in Settings → MCP Servers';
                     return;
                 }
-                chatMcpPill.style.display = 'inline-flex';
                 // check if server is online to show tool count
                 const port = parseInt(document.getElementById('inp-port')?.value, 10) || 8080;
                 let toolCount = '';
@@ -3519,7 +3524,6 @@
                         if (resp.ok) {
                             const j = await resp.json();
                             const tools = Array.isArray(j) ? j : (j.tools || []);
-                            // MCP tools are named server_tool, filter those
                             const mcpTools = tools.filter(t => t && t.name && t.name.includes('_'));
                             if (mcpTools.length) toolCount = ` · ${mcpTools.length} tools`;
                         }
@@ -3528,9 +3532,11 @@
                 const label = count === 1 ? '1 server' : count + ' servers';
                 chatMcpText.textContent = 'MCP: ' + label + toolCount;
                 chatMcpPill.classList.remove('off');
-                chatMcpPill.title = 'MCP servers: ' + Object.keys(cfg.mcpServers).join(', ') + ' — click to view /tools';
+                chatMcpPill.title = 'MCP servers: ' + Object.keys(cfg.mcpServers).join(', ') + ' — click to view /tools (restart server to apply changes)';
             } catch (e) {
-                chatMcpPill.style.display = 'none';
+                chatMcpPill.style.display = 'inline-flex';
+                chatMcpPill.classList.add('off');
+                chatMcpText.textContent = 'MCP';
             }
         }
 
@@ -3603,6 +3609,18 @@
         });
 
         if (chatMcpPill) chatMcpPill.addEventListener('click', async () => {
+            if (chatMcpPill.classList.contains('off')) {
+                // no config yet → jump to Settings → MCP card
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                document.querySelectorAll('.view-pane').forEach(p => p.classList.remove('active'));
+                const target = document.getElementById('view-settings');
+                if (target) target.classList.add('active');
+                const navSettings = document.querySelector('.nav-item[data-target="view-settings"]');
+                if (navSettings) navSettings.classList.add('active');
+                const mcpCard = document.getElementById('mcp-card');
+                if (mcpCard) { mcpCard.scrollIntoView({ behavior: 'smooth', block: 'start' }); mcpCard.style.outline = '2px solid var(--accent)'; setTimeout(() => mcpCard.style.outline = '', 1400); }
+                return;
+            }
             const port = parseInt(document.getElementById('inp-port')?.value, 10) || 8080;
             try {
                 const resp = await fetch(`http://127.0.0.1:${port}/tools`);
@@ -3614,6 +3632,14 @@
             } catch (e) {
                 alert('Could not fetch /tools (server offline or MCP disabled): ' + e.message);
             }
+        });
+
+        const navMcpBtn = document.getElementById('nav-mcp-servers');
+        if (navMcpBtn) navMcpBtn.addEventListener('click', () => {
+            setTimeout(() => {
+                const mcpCard = document.getElementById('mcp-card');
+                if (mcpCard) { mcpCard.scrollIntoView({ behavior: 'smooth', block: 'start' }); mcpCard.style.outline = '2px solid var(--accent)'; setTimeout(() => mcpCard.style.outline = '', 1400); }
+            }, 90);
         });
 
         // refresh MCP pill when server starts/stops or chat nav is opened
