@@ -1936,6 +1936,59 @@
             50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 0%, transparent); }
         }
 
+        /* MCP tool call */
+        .tool-call-card {
+            margin: 10px 0;
+            border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--bg-surface) 90%, var(--accent) 6%);
+            overflow: hidden;
+        }
+        .tool-call-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--accent);
+            background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+        }
+        .tool-call-header i { font-size: 11px; }
+        .tool-call-body {
+            padding: 8px 10px;
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 11.5px;
+            line-height: 1.5;
+            color: var(--text-muted);
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        .tool-call-card.collapsed .tool-call-body { display: none; }
+        .tool-call-card.collapsed .tool-call-header i.fa-chevron-down { transform: rotate(-90deg); }
+        .tool-call-header i.fa-chevron-down { transition: transform 0.18s; margin-left: auto; font-size: 9px; }
+
+        .mcp-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+            border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+            color: var(--accent);
+            cursor: pointer;
+            transition: all 0.14s;
+        }
+        .mcp-pill:hover { background: color-mix(in srgb, var(--accent) 18%, var(--bg-card)); }
+        .mcp-pill.off { opacity: 0.6; color: var(--text-muted); background: var(--bg-card); border-color: var(--border); }
+
         .chat-scroll-bottom-btn {
             position: absolute;
             bottom: 90px;
@@ -2524,6 +2577,7 @@
                     <span id="chat-server-status-pill" class="chat-status-pill offline" title="Server Status">
                         <span class="status-indicator-dot"></span> <span id="chat-server-status-text">Offline</span>
                     </span>
+                    <span id="chat-mcp-pill" class="mcp-pill off" title="MCP — click to view tools" style="display:none;"><i class="fa-solid fa-plug"></i> <span id="chat-mcp-text">MCP off</span></span>
                 </div>
                 <div class="chat-header-right">
                     <!-- Header Persona Switcher -->
@@ -2900,6 +2954,36 @@
                     <button class="btn secondary" id="btn-reset-settings" style="padding: 8px 16px;"><i class="fa-solid fa-rotate-left"></i> Reset to Defaults</button>
                 </div>
                 <p id="settings-feedback" style="margin: 0; color: var(--accent); font-size: 13px; display: none;"></p>
+            </div>
+
+            <!-- MCP Servers Card — minimal authentic llama.cpp stdio MCP per #26062 -->
+            <div class="card" style="padding: 24px; gap: 14px;">
+                <div class="card-title" style="margin: 0;"><i class="fa-solid fa-plug" style="color: var(--accent);"></i> MCP Servers <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;">(experimental — llama.cpp stdio)</span></div>
+                <p style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5;">
+                    Expose local tools to the model via <code style="font-family:'JetBrains Mono',Consolas,monospace;">--mcp-servers-config</code> (Cursor-compatible <code>mcpServers</code> JSON, stdio transport). The server spawns each command on demand and exposes its tools as <code>server_tool</code> via <code>GET /tools</code>. <span style="color:#eab308;"><i class="fa-solid fa-triangle-exclamation"></i> Only declare servers you trust — they run with the same privileges as <code>llama-server</code> and will limit <code>--cors-origins</code> to <code>localhost</code>.</span>
+                </p>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--text-muted);">
+                    <span>Config file:</span> <code id="mcp-config-path" style="font-family:'JetBrains Mono',Consolas,monospace;background:var(--bg-base);border:1px solid var(--border);padding:2px 6px;border-radius:6px;">loading...</code>
+                    <button class="btn secondary" id="btn-mcp-open-folder" style="padding:4px 8px;font-size:11px;"><i class="fa-solid fa-folder-open"></i> Open</button>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:6px;">mcp.json — <code>mcpServers</code> (Cursor format)</label>
+                    <textarea id="mcp-json-editor" placeholder='{
+  "mcpServers": {
+    "filesystem": { "command": "npx", "args": ["-y","@modelcontextprotocol/server-filesystem","C:/allowed/dir"] }
+  }
+}' style="width:100%;min-height:140px;max-height:320px;font-family:'JetBrains Mono',Consolas,monospace;font-size:12px;line-height:1.5;background:var(--bg-base);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text-main);resize:vertical;outline:none;"></textarea>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Keys per server: <code>command</code> (required), <code>args</code>[], <code>env</code>{}, <code>cwd</code>, <code>timeout_ms</code>. Example uses <code>@modelcontextprotocol/server-filesystem</code> — change the allowed dir to a real path. On Windows use <code>cmd /c npx.cmd</code> for <code>npx</code>.</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button class="btn primary" id="btn-mcp-save" style="padding:7px 14px;"><i class="fa-solid fa-floppy-disk"></i> Save MCP Config</button>
+                    <button class="btn secondary" id="btn-mcp-validate" style="padding:7px 14px;"><i class="fa-solid fa-check"></i> Validate</button>
+                    <button class="btn secondary" id="btn-mcp-example" style="padding:7px 14px;"><i class="fa-solid fa-lightbulb"></i> Insert Example</button>
+                    <button class="btn secondary" id="btn-mcp-reset" style="padding:7px 14px;"><i class="fa-solid fa-rotate-left"></i> Clear</button>
+                    <span id="mcp-feedback" style="font-size:12px;color:var(--accent);display:none;"></span>
+                </div>
+                <div id="mcp-servers-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+                <div style="font-size:11px;color:var(--text-muted);">After saving, restart the server. MCP tools appear as <code>server_tool</code> (e.g. <code>filesystem_read_text_file</code>) alongside built-ins. Check <code>GET /tools</code> or the chat header badge. Requires build with <code>--mcp-servers-config</code> (b10142+). If your build is older, update via Backends.</div>
             </div>
 
             <!-- Chat Behavior Card -->
@@ -3337,6 +3421,205 @@
         if (chatButtonColor) chatButtonColor.addEventListener('input', () => applyChatButtonColor(chatButtonColor.value));
         if (chatButtonHex) chatButtonHex.addEventListener('change', () => applyChatButtonColor(chatButtonHex.value));
         if (btnChatButtonReset) btnChatButtonReset.addEventListener('click', resetChatButtonColor);
+
+        // ── MCP Servers — minimal authentic llama.cpp stdio integration ──
+        const mcpJsonEditor = document.getElementById('mcp-json-editor');
+        const mcpConfigPathEl = document.getElementById('mcp-config-path');
+        const mcpFeedback = document.getElementById('mcp-feedback');
+        const mcpServersList = document.getElementById('mcp-servers-list');
+        const btnMcpSave = document.getElementById('btn-mcp-save');
+        const btnMcpValidate = document.getElementById('btn-mcp-validate');
+        const btnMcpExample = document.getElementById('btn-mcp-example');
+        const btnMcpReset = document.getElementById('btn-mcp-reset');
+        const btnMcpOpenFolder = document.getElementById('btn-mcp-open-folder');
+        const chatMcpPill = document.getElementById('chat-mcp-pill');
+        const chatMcpText = document.getElementById('chat-mcp-text');
+
+        function showMcpFeedback(msg, isError = false) {
+            if (!mcpFeedback) return;
+            mcpFeedback.textContent = msg;
+            mcpFeedback.style.color = isError ? '#ef4444' : 'var(--accent)';
+            mcpFeedback.style.display = 'block';
+            clearTimeout(showMcpFeedback._t);
+            showMcpFeedback._t = setTimeout(() => mcpFeedback.style.display = 'none', 3500);
+        }
+
+        function renderMcpServersList(cfg) {
+            if (!mcpServersList) return;
+            const servers = (cfg && cfg.mcpServers) ? cfg.mcpServers : {};
+            const names = Object.keys(servers);
+            if (names.length === 0) {
+                mcpServersList.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:6px 0;">No servers configured. Add one below or paste JSON.</div>';
+                return;
+            }
+            mcpServersList.innerHTML = '';
+            names.forEach(name => {
+                const srv = servers[name];
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-base);';
+                const hasCmd = srv && srv.command;
+                row.innerHTML = `
+                    <div style="min-width:0;flex:1;">
+                        <div style="font-size:12.5px;font-weight:600;color:var(--text-main);display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-plug" style="color:${hasCmd ? 'var(--accent)' : '#ef4444'};font-size:11px;"></i> ${escapeHtml(name)} ${hasCmd ? '' : '<span style="color:#ef4444;font-size:10px;">(missing command)</span>'}</div>
+                        <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:monospace;">${escapeHtml(srv.command || '')} ${(srv.args || []).map(a => escapeHtml(a)).join(' ')}</div>
+                    </div>
+                    <button class="btn danger" data-mcp-del="${escapeHtml(name)}" style="padding:4px 8px;font-size:11px;"><i class="fa-solid fa-trash"></i></button>
+                `;
+                const del = row.querySelector('[data-mcp-del]');
+                if (del) del.addEventListener('click', async () => {
+                    if (!confirm('Remove MCP server "' + name + '"?')) return;
+                    try {
+                        const cur = JSON.parse(mcpJsonEditor.value || '{}');
+                        const mcpServers = cur.mcpServers || cur;
+                        delete mcpServers[name];
+                        const newCfg = { mcpServers };
+                        mcpJsonEditor.value = JSON.stringify(newCfg, null, 2);
+                        await ipcRenderer.invoke('save-mcp-config', newCfg);
+                        showMcpFeedback('Removed "' + name + '" — restart server to apply');
+                        renderMcpServersList(newCfg);
+                        updateChatMcpPill();
+                    } catch (e) { showMcpFeedback(e.message, true); }
+                });
+                mcpServersList.appendChild(row);
+            });
+        }
+
+        async function loadMcpConfig() {
+            try {
+                const raw = await ipcRenderer.invoke('get-mcp-config-raw');
+                if (mcpJsonEditor) mcpJsonEditor.value = raw && raw.trim() ? raw : JSON.stringify({ mcpServers: {} }, null, 2);
+                const cfg = await ipcRenderer.invoke('get-mcp-config');
+                renderMcpServersList(cfg);
+            } catch (e) {
+                if (mcpJsonEditor) mcpJsonEditor.value = JSON.stringify({ mcpServers: {} }, null, 2);
+            }
+            try {
+                const p = await ipcRenderer.invoke('get-mcp-config-path');
+                if (mcpConfigPathEl) mcpConfigPathEl.textContent = p;
+            } catch (e) {}
+            updateChatMcpPill();
+        }
+
+        async function updateChatMcpPill() {
+            if (!chatMcpPill || !chatMcpText) return;
+            try {
+                const cfg = await ipcRenderer.invoke('get-mcp-config');
+                const count = Object.keys(cfg.mcpServers || {}).filter(k => cfg.mcpServers[k] && cfg.mcpServers[k].command).length;
+                if (count === 0) {
+                    chatMcpPill.style.display = 'none';
+                    return;
+                }
+                chatMcpPill.style.display = 'inline-flex';
+                // check if server is online to show tool count
+                const port = parseInt(document.getElementById('inp-port')?.value, 10) || 8080;
+                let toolCount = '';
+                if (isServerOnline) {
+                    try {
+                        const resp = await fetch(`http://127.0.0.1:${port}/tools`, { method: 'GET' });
+                        if (resp.ok) {
+                            const j = await resp.json();
+                            const tools = Array.isArray(j) ? j : (j.tools || []);
+                            // MCP tools are named server_tool, filter those
+                            const mcpTools = tools.filter(t => t && t.name && t.name.includes('_'));
+                            if (mcpTools.length) toolCount = ` · ${mcpTools.length} tools`;
+                        }
+                    } catch (e) {}
+                }
+                const label = count === 1 ? '1 server' : count + ' servers';
+                chatMcpText.textContent = 'MCP: ' + label + toolCount;
+                chatMcpPill.classList.remove('off');
+                chatMcpPill.title = 'MCP servers: ' + Object.keys(cfg.mcpServers).join(', ') + ' — click to view /tools';
+            } catch (e) {
+                chatMcpPill.style.display = 'none';
+            }
+        }
+
+        if (mcpJsonEditor) loadMcpConfig();
+
+        if (btnMcpSave) btnMcpSave.addEventListener('click', async () => {
+            try {
+                const txt = mcpJsonEditor.value.trim() || '{"mcpServers":{}}';
+                const parsed = JSON.parse(txt);
+                const saved = await ipcRenderer.invoke('save-mcp-config', parsed);
+                mcpJsonEditor.value = JSON.stringify(saved, null, 2);
+                renderMcpServersList(saved);
+                updateChatMcpPill();
+                showMcpFeedback('Saved to ' + (await ipcRenderer.invoke('get-mcp-config-path')) + ' — restart server to apply');
+            } catch (e) { showMcpFeedback(e.message, true); }
+        });
+
+        if (btnMcpValidate) btnMcpValidate.addEventListener('click', async () => {
+            try {
+                const txt = mcpJsonEditor.value.trim() || '{"mcpServers":{}}';
+                const parsed = JSON.parse(txt);
+                await ipcRenderer.invoke('save-mcp-config', parsed);
+                showMcpFeedback('Valid — ' + Object.keys((parsed.mcpServers || parsed) || {}).length + ' server(s)');
+                const cfg = await ipcRenderer.invoke('get-mcp-config');
+                renderMcpServersList(cfg);
+            } catch (e) { showMcpFeedback(e.message, true); }
+        });
+
+        if (btnMcpExample) btnMcpExample.addEventListener('click', () => {
+            const example = {
+                mcpServers: {
+                    filesystem: {
+                        command: "npx",
+                        args: ["-y", "@modelcontextprotocol/server-filesystem", "C:/mcp-test"],
+                        env: {},
+                        cwd: "",
+                        timeout_ms: 30000
+                    }
+                }
+            };
+            const curTxt = mcpJsonEditor.value.trim();
+            let cur = {};
+            try { cur = JSON.parse(curTxt || '{}'); } catch (e) {}
+            const servers = (cur.mcpServers || cur) || {};
+            // merge example without overwriting existing filesystem entry
+            if (!servers.filesystem) servers.filesystem = example.mcpServers.filesystem;
+            else Object.assign(servers, example.mcpServers);
+            const out = { mcpServers: servers };
+            mcpJsonEditor.value = JSON.stringify(out, null, 2);
+            showMcpFeedback('Inserted filesystem example — edit the allowed dir, then Save');
+        });
+
+        if (btnMcpReset) btnMcpReset.addEventListener('click', async () => {
+            if (!confirm('Clear all MCP servers?')) return;
+            const empty = { mcpServers: {} };
+            mcpJsonEditor.value = JSON.stringify(empty, null, 2);
+            try {
+                await ipcRenderer.invoke('save-mcp-config', empty);
+                renderMcpServersList(empty);
+                updateChatMcpPill();
+                showMcpFeedback('Cleared — restart server');
+            } catch (e) { showMcpFeedback(e.message, true); }
+        });
+
+        if (btnMcpOpenFolder) btnMcpOpenFolder.addEventListener('click', async () => {
+            try {
+                const p = await ipcRenderer.invoke('get-mcp-config-path');
+                await ipcRenderer.invoke('open-data-dir');
+            } catch (e) {}
+        });
+
+        if (chatMcpPill) chatMcpPill.addEventListener('click', async () => {
+            const port = parseInt(document.getElementById('inp-port')?.value, 10) || 8080;
+            try {
+                const resp = await fetch(`http://127.0.0.1:${port}/tools`);
+                if (!resp.ok) throw new Error(resp.statusText);
+                const j = await resp.json();
+                const tools = Array.isArray(j) ? j : (j.tools || j.data || []);
+                const names = tools.map(t => t.name || t.tool || JSON.stringify(t)).slice(0, 20).join('\n');
+                alert('Tools (' + tools.length + '):\n' + (names || '(none — server may need restart or build lacks MCP)'));
+            } catch (e) {
+                alert('Could not fetch /tools (server offline or MCP disabled): ' + e.message);
+            }
+        });
+
+        // refresh MCP pill when server starts/stops or chat nav is opened
+        const origCheckBackendForMcp = window.checkBackend;
+        // also hook into server status changes
+        setInterval(() => { if (isServerOnline) updateChatMcpPill(); }, 8000);
 
         // Settings persistence
         const btnSaveSettings = document.getElementById('btn-save-settings');
@@ -4292,6 +4575,7 @@
             if (chatServerOfflineBanner) {
                 chatServerOfflineBanner.style.display = online ? 'none' : 'flex';
             }
+            if (online && typeof updateChatMcpPill === 'function') setTimeout(updateChatMcpPill, 800);
         }
 
         // Floating Scroll Button & Composer
@@ -4420,12 +4704,31 @@
             </div>`;
         }
 
+        function toolCallsBlockHtmlGlobal(calls) {
+            if (!calls || !Array.isArray(calls) || calls.length === 0) return '';
+            let html = '';
+            calls.forEach((tc, idx) => {
+                const name = tc.function ? tc.function.name : (tc.name || 'tool');
+                const args = tc.function ? (tc.function.arguments || '') : JSON.stringify(tc);
+                const argsText = typeof args === 'string' ? args : JSON.stringify(args, null, 2);
+                html += `<div class="tool-call-card">
+                    <div class="tool-call-header" onclick="this.parentElement.classList.toggle('collapsed')"><i class="fa-solid fa-screwdriver-wrench"></i> ${escapeHtml(name)} <span style="font-weight:400;color:var(--text-muted);font-size:11px;">#${idx+1}</span><i class="fa-solid fa-chevron-down"></i></div>
+                    <div class="tool-call-body">${escapeHtml(argsText)}</div>
+                </div>`;
+            });
+            return html;
+        }
+
         function renderAssistantBubble(content, reasoning, opts = {}) {
             const streaming = !!opts.streaming;
             const reasoningTime = opts.reasoningTime;
+            const toolCalls = opts.toolCalls;
             let html = '';
             if (reasoning && reasoning.trim()) {
                 html += reasoningBlockHtml(reasoning, { streaming, reasoningTime });
+            }
+            if (toolCalls && Array.isArray(toolCalls) && toolCalls.length > 0) {
+                html += toolCallsBlockHtmlGlobal(toolCalls);
             }
             html += (renderMarkdown(content) || '<p></p>');
             return html;
@@ -4466,7 +4769,7 @@
                 userBubbleContent += `<p>${escapeHtml(activeVer.content || msg.content || '').replace(/\n/g, '<br>')}</p>`;
                 bubble.innerHTML = userBubbleContent;
             } else {
-                bubble.innerHTML = renderAssistantBubble(activeVer.content, activeVer.reasoning, { reasoningTime: activeVer.reasoningTime || msg.reasoningTime });
+                bubble.innerHTML = renderAssistantBubble(activeVer.content, activeVer.reasoning, { reasoningTime: activeVer.reasoningTime || msg.reasoningTime, toolCalls: activeVer.toolCalls || msg.toolCalls });
                 const hasAssistantBg = document.documentElement.style.getPropertyValue('--chat-assistant-bg').trim() || localStorage.getItem('llama-manager-chat-assistant');
                 if (hasAssistantBg) bubble.classList.add('has-bg');
             }
@@ -4687,6 +4990,23 @@
             let reasoningEndAt = null;
             let reasoningTimer = null;
             let reasoningTimeMs = null;
+            let toolCallsAcc = [];
+            let toolCallsEl = null;
+
+            function toolCallsBlockHtml(calls) {
+                if (!calls || calls.length === 0) return '';
+                let html = '';
+                calls.forEach((tc, idx) => {
+                    const name = tc.function ? tc.function.name : (tc.name || 'tool');
+                    const args = tc.function ? (tc.function.arguments || '') : JSON.stringify(tc);
+                    const argsText = typeof args === 'string' ? args : JSON.stringify(args, null, 2);
+                    html += `<div class="tool-call-card">
+                        <div class="tool-call-header" onclick="this.parentElement.classList.toggle('collapsed')"><i class="fa-solid fa-screwdriver-wrench"></i> ${escapeHtml(name)} <span style="font-weight:400;color:var(--text-muted);font-size:11px;">#${idx+1}</span><i class="fa-solid fa-chevron-down"></i></div>
+                        <div class="tool-call-body">${escapeHtml(argsText)}</div>
+                    </div>`;
+                });
+                return html;
+            }
 
             const updateReasoningTimerLabel = () => {
                 if (!reasoningEl || !reasoningStartAt) return;
@@ -4698,21 +5018,55 @@
 
             const ensureStreamingNodes = () => {
                 const hasReasoning = accReasoning && accReasoning.trim().length > 0;
+                const hasToolCalls = toolCallsAcc && toolCallsAcc.length > 0;
                 if (hasReasoning && !reasoningEl) {
                     const elapsed = reasoningStartAt ? (Date.now() - reasoningStartAt) : 0;
                     bubble.innerHTML = reasoningBlockHtml(accReasoning, { streaming: true, reasoningTime: reasoningStartAt ? elapsed : null });
                     reasoningEl = bubble.querySelector('.chat-reasoning');
                     reasoningBodyEl = reasoningEl.querySelector('.reasoning-body');
                     reasoningCopyBtn = reasoningEl.querySelector('.reasoning-copy-btn');
-                    contentEl = document.createElement('div');
-                    contentEl.className = 'streaming-content';
-                    bubble.appendChild(contentEl);
+                    // recreate toolCallsEl and contentEl after reasoning
+                    if (hasToolCalls && !toolCallsEl) {
+                        toolCallsEl = document.createElement('div');
+                        toolCallsEl.className = 'streaming-tool-calls';
+                        bubble.appendChild(toolCallsEl);
+                    }
+                    if (!contentEl) {
+                        contentEl = document.createElement('div');
+                        contentEl.className = 'streaming-content';
+                        bubble.appendChild(contentEl);
+                    }
                 } else if (!hasReasoning && reasoningEl) {
                     reasoningEl.remove();
                     reasoningEl = null;
                     reasoningBodyEl = null;
                     reasoningCopyBtn = null;
-                    contentEl = null;
+                    // keep toolCallsEl/contentEl if they exist
+                }
+                if (hasToolCalls && !toolCallsEl) {
+                    toolCallsEl = document.createElement('div');
+                    toolCallsEl.className = 'streaming-tool-calls';
+                    if (contentEl && contentEl.parentElement) bubble.insertBefore(toolCallsEl, contentEl);
+                    else bubble.appendChild(toolCallsEl);
+                } else if (!hasToolCalls && toolCallsEl) {
+                    toolCallsEl.remove();
+                    toolCallsEl = null;
+                }
+                if (hasReasoning || hasToolCalls) {
+                    if (!contentEl) {
+                        contentEl = document.createElement('div');
+                        contentEl.className = 'streaming-content';
+                        bubble.appendChild(contentEl);
+                    }
+                } else if (!hasReasoning && !hasToolCalls && contentEl && bubble.children.length === 1) {
+                    // keep contentEl for plain text
+                }
+                // if bubble was empty and we have no reasoning/tool, ensure contentEl exists for text
+                if (!contentEl && !hasReasoning && !hasToolCalls && bubble.innerHTML.trim() === '<p></p>') {
+                    contentEl = document.createElement('div');
+                    contentEl.className = 'streaming-content';
+                    bubble.innerHTML = '';
+                    bubble.appendChild(contentEl);
                 }
             };
 
@@ -4727,6 +5081,9 @@
                         reasoningBodyEl.textContent = accReasoning;
                         reasoningBodyEl.scrollTop = reasoningBodyEl.scrollHeight;
                     }
+                    if (toolCallsEl) {
+                        toolCallsEl.innerHTML = toolCallsBlockHtml(toolCallsAcc);
+                    }
                     if (contentEl) {
                         contentEl.innerHTML = renderMarkdown(acc) || '<p></p>';
                     }
@@ -4734,7 +5091,7 @@
                 });
             };
 
-            const chunkHandler = (event, { delta, reasoning }) => {
+            const chunkHandler = (event, { delta, reasoning, toolCalls }) => {
                 if (delta) {
                     acc += delta;
                     generatedTokenCount++;
@@ -4753,6 +5110,29 @@
                     reasoningEndAt = Date.now();
                     accReasoning += reasoning;
                     generatedTokenCount++;
+                }
+                if (toolCalls && Array.isArray(toolCalls) && toolCalls.length > 0) {
+                    toolCalls.forEach(tc => {
+                        const idx = tc.index != null ? tc.index : (tc.id ? toolCallsAcc.findIndex(x => x.id === tc.id) : toolCallsAcc.length);
+                        let targetIdx = idx;
+                        if (targetIdx < 0 || targetIdx >= toolCallsAcc.length) {
+                            // new tool call
+                            toolCallsAcc.push({
+                                id: tc.id || `call_${toolCallsAcc.length}`,
+                                type: tc.type || 'function',
+                                function: { name: tc.function?.name || tc.name || '', arguments: tc.function?.arguments || tc.arguments || '' }
+                            });
+                        } else {
+                            const existing = toolCallsAcc[targetIdx];
+                            if (!existing) {
+                                toolCallsAcc[targetIdx] = { id: tc.id || `call_${targetIdx}`, type: tc.type || 'function', function: { name: tc.function?.name || '', arguments: tc.function?.arguments || '' } };
+                            } else {
+                                if (tc.function?.name) existing.function.name = tc.function.name;
+                                if (tc.function?.arguments) existing.function.arguments = (existing.function.arguments || '') + tc.function.arguments;
+                                if (tc.id) existing.id = tc.id;
+                            }
+                        }
+                    });
                 }
                 if (tokenCountVal) tokenCountVal.textContent = generatedTokenCount;
                 scheduleStreamRender();
@@ -4773,8 +5153,9 @@
                         m.content = acc;
                         m.reasoning = accReasoning;
                         if (reasoningTimeMs != null) m.reasoningTime = reasoningTimeMs;
+                        if (toolCallsAcc.length) m.toolCalls = JSON.parse(JSON.stringify(toolCallsAcc));
                         m.versions = m.versions || [];
-                        m.versions.push({ content: acc, reasoning: accReasoning, reasoningTime: reasoningTimeMs, following: [] });
+                        m.versions.push({ content: acc, reasoning: accReasoning, reasoningTime: reasoningTimeMs, toolCalls: toolCallsAcc.length ? JSON.parse(JSON.stringify(toolCallsAcc)) : null, following: [] });
                         m.currentVersionIndex = m.versions.length - 1;
                     }
                 } else {
@@ -4784,7 +5165,8 @@
                         content: acc,
                         reasoning: accReasoning,
                         reasoningTime: reasoningTimeMs,
-                        versions: [{ content: acc, reasoning: accReasoning, reasoningTime: reasoningTimeMs, following: [] }],
+                        toolCalls: toolCallsAcc.length ? JSON.parse(JSON.stringify(toolCallsAcc)) : null,
+                        versions: [{ content: acc, reasoning: accReasoning, reasoningTime: reasoningTimeMs, toolCalls: toolCallsAcc.length ? JSON.parse(JSON.stringify(toolCallsAcc)) : null, following: [] }],
                         currentVersionIndex: 0
                     };
                     session.messages.push(msg);

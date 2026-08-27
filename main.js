@@ -162,6 +162,34 @@ function buildRouterPresetFile() {
     }
 }
 
+function getMcpConfigPath() { return path.join(getDataDir(), 'mcp.json'); }
+
+function readMcpConfig() {
+    try {
+        const raw = fs.readFileSync(getMcpConfigPath(), 'utf8');
+        const j = JSON.parse(raw);
+        if (j && typeof j === 'object' && j.mcpServers && typeof j.mcpServers === 'object') return j;
+        if (j && typeof j === 'object' && !j.mcpServers) {
+            // allow bare server map for convenience
+            return { mcpServers: j };
+        }
+        return { mcpServers: {} };
+    } catch (e) {
+        return { mcpServers: {} };
+    }
+}
+
+function writeMcpConfig(cfg) {
+    const out = { mcpServers: (cfg && cfg.mcpServers) ? cfg.mcpServers : {} };
+    fs.writeFileSync(getMcpConfigPath(), JSON.stringify(out, null, 2));
+}
+
+function hasUsableMcpServers() {
+    const cfg = readMcpConfig();
+    const servers = cfg.mcpServers || {};
+    return Object.values(servers).some(s => s && typeof s.command === 'string' && s.command.trim());
+}
+
 const GGUF_TYPES = {
     UINT8: 0, INT8: 1, UINT16: 2, INT16: 3, UINT32: 4, INT32: 5,
     FLOAT32: 6, BOOL: 7, STRING: 8, ARRAY: 9, UINT64: 10, INT64: 11, FLOAT64: 12
@@ -537,6 +565,41 @@ ipcMain.handle('unlink-mtp-drafter', (event, modelName) => {
         writeModelsMeta(meta);
     }
     return meta;
+});
+
+// ============ MCP Servers (llama.cpp --mcp-servers-config) ============
+ipcMain.handle('get-mcp-config', () => {
+    return readMcpConfig();
+});
+
+ipcMain.handle('save-mcp-config', (event, cfg) => {
+    // cfg is expected to be { mcpServers: { name: { command, args, env, cwd, timeout_ms } } } or raw JSON string
+    let obj = cfg;
+    if (typeof cfg === 'string') {
+        try { obj = JSON.parse(cfg); } catch (e) { throw new Error('Invalid JSON: ' + e.message); }
+    }
+    if (!obj || typeof obj !== 'object') throw new Error('MCP config must be an object');
+    // normalize: allow bare map or wrapped
+    let servers = obj.mcpServers || obj;
+    if (typeof servers !== 'object' || Array.isArray(servers)) throw new Error('mcpServers must be an object');
+    // validate each entry has command
+    for (const [name, srv] of Object.entries(servers)) {
+        if (!srv || typeof srv !== 'object') throw new Error(`Server "${name}" must be an object`);
+        if (!srv.command || typeof srv.command !== 'string' || !srv.command.trim()) {
+            throw new Error(`Server "${name}" is missing required "command"`);
+        }
+        if (srv.args && !Array.isArray(srv.args)) throw new Error(`Server "${name}" args must be an array`);
+        if (srv.env && (typeof srv.env !== 'object' || Array.isArray(srv.env))) throw new Error(`Server "${name}" env must be an object`);
+    }
+    const normalized = { mcpServers: servers };
+    writeMcpConfig(normalized);
+    return normalized;
+});
+
+ipcMain.handle('get-mcp-config-path', () => getMcpConfigPath());
+
+ipcMain.handle('get-mcp-config-raw', () => {
+    try { return fs.readFileSync(getMcpConfigPath(), 'utf8'); } catch (e) { return JSON.stringify({ mcpServers: {} }, null, 2); }
 });
 
 // ============ Backend & Models ============
@@ -1305,8 +1368,9 @@ ipcMain.on('chat-start', (event, payload) => {
                     if (!choice || event.sender.isDestroyed()) continue;
                     const delta = choice.content || '';
                     const reasoning = choice.reasoning_content || '';
-                    if (delta || reasoning) {
-                        event.sender.send('chat-chunk', { delta, reasoning });
+                    const toolCalls = choice.tool_calls || null;
+                    if (delta || reasoning || toolCalls) {
+                        event.sender.send('chat-chunk', { delta, reasoning, toolCalls });
                     }
                 } catch (e) {}
             }
@@ -1578,6 +1642,23 @@ ipcMain.handle('start-server', async (event, params) => {
         if (loraParts.length > 0) {
             console.log('Loading LoRA adapters:', loraParts.join(','));
             args.push('--lora-scaled', loraParts.join(','));
+        }
+    }
+
+    // MCP servers — minimal, authentic integration: Cursor-compatible JSON, stdio transport per ggml-org/llama.cpp#26062.
+    // When the user has at least one server with a command, pass the file via --mcp-servers-config.
+    // Note: enabling this limits --cors-origins to localhost by default and spawns child processes with server privileges.
+    if (hasUsableMcpServers()) {
+        const mcpPath = getMcpConfigPath();
+        // ensure file exists and is valid before passing
+        try {
+            const cfg = readMcpConfig();
+            if (cfg.mcpServers && Object.keys(cfg.mcpServers).length > 0) {
+                console.log('Using MCP servers config:', mcpPath, '(' + Object.keys(cfg.mcpServers).join(', ') + ')');
+                args.push('--mcp-servers-config', mcpPath);
+            }
+        } catch (e) {
+            console.warn('MCP config invalid, skipping:', e.message);
         }
     }
 
