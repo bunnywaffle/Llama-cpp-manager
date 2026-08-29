@@ -5811,21 +5811,23 @@
 
                     const linkLoraBtn = row.querySelector('.btn-link-lora');
                     if (linkLoraBtn) {
-                        const routerOn = document.getElementById('inp-router-mode')?.checked;
-                        if (routerOn) {
-                            linkLoraBtn.disabled = true;
-                            linkLoraBtn.style.opacity = '0.45';
-                            linkLoraBtn.style.cursor = 'not-allowed';
-                            linkLoraBtn.title = 'LoRA requires single-model mode — disable Router Mode in Settings → Server';
-                        } else {
-                            linkLoraBtn.addEventListener('click', async () => {
-                                try {
-                                    const updated = await ipcRenderer.invoke('link-lora-dialog', m);
-                                    if (updated) loadModels();
-                                } catch (err) {
-                                    alert('Error linking LoRA adapter: ' + err.message);
-                                }
-                            });
+                        linkLoraBtn.addEventListener('click', async () => {
+                            const routerOn = document.getElementById('inp-router-mode')?.checked;
+                            if (routerOn) {
+                                const proceed = confirm('Router Mode is enabled — llama.cpp applies --lora-scaled only in single-model mode (it is a global server flag, not per-model in router preset). The adapter will be saved but will only take effect after you disable Router Mode and restart the server. Continue adding?');
+                                if (!proceed) return;
+                            }
+                            try {
+                                const updated = await ipcRenderer.invoke('link-lora-dialog', m);
+                                if (updated) loadModels();
+                            } catch (err) {
+                                alert('Error linking LoRA adapter: ' + err.message);
+                            }
+                        });
+                        const routerOn2 = document.getElementById('inp-router-mode')?.checked;
+                        if (routerOn2) {
+                            linkLoraBtn.title = 'LoRA saved but requires single-model mode — disable Router Mode in Settings → Server to apply (llama.cpp limitation)';
+                            linkLoraBtn.style.opacity = '0.9';
                         }
                     }
                     // helper to show restart banner when server is online
