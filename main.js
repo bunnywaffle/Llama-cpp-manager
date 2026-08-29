@@ -394,6 +394,8 @@ function readGgufInfo(filePath) {
 
         let ctxLength = null;
         let mtp = false;
+        let arch = null;
+        let isLora = false;
         for (let i = 0; i < kvCount; i++) {
             const key = readString();
             const type = readBytes(4).readUInt32LE(0);
@@ -404,8 +406,11 @@ function readGgufInfo(filePath) {
             if (/nextn_predict_layers|mtp/i.test(key)) {
                 if (typeof value === 'number' && value > 0) mtp = true;
             }
+            if (key === 'general.architecture' && typeof value === 'string') arch = value;
+            if (key === 'general.type' && value === 'lora') isLora = true;
+            if (key.startsWith('adapter.') || key.startsWith('lora.')) isLora = true;
         }
-        return { ctxLength, mtp };
+        return { ctxLength, mtp, arch, isLora };
     } catch (e) {
         return null;
     } finally {
@@ -558,6 +563,35 @@ ipcMain.handle('link-lora-dialog', async (event, modelName) => {
     if (!result.canceled && result.filePaths.length > 0) {
         const srcPath = result.filePaths[0];
         const fileName = path.basename(srcPath);
+        // Validate that the selected file is actually a LoRA adapter
+        try {
+            const loraInfo = readGgufInfo(srcPath);
+            const basePath = path.join(getModelsDir(), modelName);
+            const baseInfo = fs.existsSync(basePath) ? readGgufInfo(basePath) : null;
+            if (loraInfo && !loraInfo.isLora) {
+                const choice = await dialog.showMessageBox(mainWindow, {
+                    type: 'warning',
+                    buttons: ['Cancel', 'Attach Anyway'],
+                    defaultId: 0,
+                    cancelId: 0,
+                    title: 'Not a LoRA adapter?',
+                    message: `"${fileName}" does not look like a LoRA adapter (no adapter/lora metadata). It may be a full model.`,
+                    detail: `Attaching a full model as LoRA will fail at startup with "LoRA tensor does not exist in base model".\n\nBase: ${baseInfo?.arch || 'unknown'} — Selected: ${loraInfo?.arch || 'unknown'}\n\nAttach anyway?`
+                });
+                if (choice.response === 0) return null;
+            } else if (loraInfo && baseInfo && loraInfo.arch && baseInfo.arch && loraInfo.arch !== baseInfo.arch) {
+                const choice = await dialog.showMessageBox(mainWindow, {
+                    type: 'warning',
+                    buttons: ['Cancel', 'Attach Anyway'],
+                    defaultId: 0,
+                    cancelId: 0,
+                    title: 'Architecture mismatch',
+                    message: `LoRA architecture "${loraInfo.arch}" does not match base model "${baseInfo.arch}".`,
+                    detail: 'This will likely fail with "LoRA tensor does not exist in base model" and the server will not start. Attach anyway?'
+                });
+                if (choice.response === 0) return null;
+            }
+        } catch (e) {}
         const destPath = path.join(getModelsDir(), fileName);
         if (srcPath !== destPath && !fs.existsSync(destPath)) {
             try {
@@ -1409,7 +1443,7 @@ ipcMain.handle('list-models', () => {
     }
 });
 
-ipcMain.handle('delete-model', (event, modelName) => {
+ipcMain.handle('delete-model', async (event, modelName) => {
     if (!modelName || path.basename(modelName) !== modelName) {
         throw new Error('Invalid model name.');
     }
@@ -1421,19 +1455,45 @@ ipcMain.handle('delete-model', (event, modelName) => {
         throw new Error('Stop the server before removing a model.');
     }
     try {
-        const st = fs.lstatSync(modelPath);
-        if (st.isSymbolicLink()) {
-            fs.unlinkSync(modelPath);
-        } else if (st.isFile()) {
-            fs.unlinkSync(modelPath);
+        const st = await fs.promises.lstat(modelPath);
+        if (st.isSymbolicLink() || st.isFile()) {
+            await fs.promises.unlink(modelPath);
         } else {
             throw new Error('Not a regular file.');
         }
+        // Also clean up any meta references to this file as an adapter
+        try {
+            const meta = readModelsMeta();
+            let changed = false;
+            for (const [base, info] of Object.entries(meta)) {
+                if (!info) continue;
+                if (info.mmproj === modelName) { delete info.mmproj; delete info.mmprojFullPath; changed = true; }
+                if (info.mtpDrafter === modelName) { delete info.mtpDrafter; delete info.mtpDrafterFullPath; changed = true; }
+                if (Array.isArray(info.loras)) {
+                    const before = info.loras.length;
+                    info.loras = info.loras.filter(l => l.file !== modelName);
+                    if (info.loras.length !== before) changed = true;
+                }
+            }
+            // If the deleted file was itself a base model with meta, remove its entry
+            if (meta[modelName]) { delete meta[modelName]; changed = true; }
+            if (changed) writeModelsMeta(meta);
+        } catch (e) {}
     } catch (e) {
         if (e.code === 'EPERM') throw new Error('Failed to remove model (permission denied).');
         throw new Error('Failed to remove model: ' + e.message);
     }
     return true;
+});
+
+ipcMain.handle('clear-loras', (event, modelName) => {
+    if (!modelName) throw new Error('No model specified');
+    const meta = readModelsMeta();
+    if (meta[modelName] && Array.isArray(meta[modelName].loras)) {
+        meta[modelName].loras = [];
+        writeModelsMeta(meta);
+    }
+    return meta;
 });
 
 ipcMain.handle('get-model-ctx', (event, modelName) => {
@@ -1865,6 +1925,12 @@ ipcMain.handle('start-server', async (event, params) => {
     if (!routerMode && meta[modelName] && Array.isArray(meta[modelName].loras)) {
         const loraParts = [];
         const binDirForLora = exePath ? path.dirname(exePath) : getBinDir();
+        let baseArch = null;
+        try {
+            const basePath = path.join(getModelsDir(), modelName);
+            const baseInfo = readGgufInfo(basePath);
+            baseArch = baseInfo?.arch || null;
+        } catch (e) {}
         for (const lora of meta[modelName].loras) {
             if (lora.enabled === false) continue;
             let loraPath = path.join(getModelsDir(), lora.file);
@@ -1884,6 +1950,23 @@ ipcMain.handle('start-server', async (event, params) => {
                 console.warn('LoRA file not found, skipping:', lora.file);
                 continue;
             }
+            // Validate that the file is actually a LoRA adapter and arch matches base
+            try {
+                const loraInfo = readGgufInfo(loraPath);
+                if (loraInfo && !loraInfo.isLora) {
+                    console.warn(`Skipping LoRA "${lora.file}" — not a LoRA adapter (general.type != lora, no adapter metadata). Appears to be a full model, not an adapter. Disabling for this run.`);
+                    // Auto-disable this entry to prevent repeated crash, but keep file for user to remove
+                    lora.enabled = false;
+                    writeModelsMeta(meta);
+                    continue;
+                }
+                if (loraInfo && baseArch && loraInfo.arch && loraInfo.arch !== baseArch) {
+                    console.warn(`Skipping LoRA "${lora.file}" — architecture mismatch: base "${baseArch}" vs LoRA "${loraInfo.arch}". This would fail with "LoRA tensor does not exist in base model". Disabling for this run.`);
+                    lora.enabled = false;
+                    writeModelsMeta(meta);
+                    continue;
+                }
+            } catch (e) {}
             const scale = (lora.scale !== undefined && !isNaN(parseFloat(lora.scale))) ? parseFloat(lora.scale) : 1.0;
             let fnameForArg = loraPath;
             try {
@@ -1903,6 +1986,8 @@ ipcMain.handle('start-server', async (event, params) => {
         if (loraParts.length > 0) {
             console.log('Loading LoRA adapters:', loraParts.join(','));
             args.push('--lora-scaled', loraParts.join(','));
+        } else if (meta[modelName].loras.some(l => l.enabled !== false)) {
+            console.log('All LoRAs for', modelName, 'were skipped due to validation (see warnings above) — starting with base model only');
         }
     }
 
