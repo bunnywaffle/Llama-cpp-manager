@@ -1833,8 +1833,12 @@ ipcMain.handle('start-server', async (event, params) => {
 
     // LoRA Adapters loading — per llama.cpp docs, --lora-scaled accepts comma-separated FNAME:SCALE entries.
     // We join all enabled adapters into a single flag to match the documented format: --lora-scaled a.gguf:1,b.gguf:0.8
+    // NOTE: On Windows, absolute paths contain a drive colon (C:\...) which confuses the FNAME:SCALE split
+    // (it splits on ':' and expects 2 parts). We work around by passing a relative path from the server's
+    // working directory (bin dir) so the only colon is the scale separator.
     if (!routerMode && meta[modelName] && Array.isArray(meta[modelName].loras)) {
         const loraParts = [];
+        const binDirForLora = exePath ? path.dirname(exePath) : getBinDir();
         for (const lora of meta[modelName].loras) {
             if (lora.enabled === false) continue;
             let loraPath = path.join(getModelsDir(), lora.file);
@@ -1847,7 +1851,15 @@ ipcMain.handle('start-server', async (event, params) => {
                 continue;
             }
             const scale = (lora.scale !== undefined && !isNaN(parseFloat(lora.scale))) ? parseFloat(lora.scale) : 1.0;
-            loraParts.push(`${loraPath}:${scale}`);
+            let fnameForArg = loraPath;
+            try {
+                const rel = path.relative(binDirForLora, loraPath);
+                // Use relative if it does not contain a drive colon and is not empty
+                if (rel && !rel.includes(':') && rel.length < loraPath.length) {
+                    fnameForArg = rel;
+                }
+            } catch (e) {}
+            loraParts.push(`${fnameForArg}:${scale}`);
         }
         if (loraParts.length > 0) {
             console.log('Loading LoRA adapters:', loraParts.join(','));
