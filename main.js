@@ -9,6 +9,31 @@ let mainWindow;
 let llamaProcess = null;
 let serverStarting = false;
 
+// Helper to gracefully stop any existing server process (idempotent, awaits exit)
+async function stopExistingServer() {
+    if (!llamaProcess && !serverStarting) return false;
+    const proc = llamaProcess;
+    llamaProcess = null;
+    serverStarting = false;
+    if (proc) {
+        try { proc.kill(); } catch (e) {}
+        // wait for close/exit with timeout to avoid hanging
+        await new Promise(resolve => {
+            let done = false;
+            const to = setTimeout(() => { if (!done) { done = true; resolve(); } }, 1800);
+            proc.on('close', () => { if (!done) { done = true; clearTimeout(to); resolve(); } });
+            proc.on('exit', () => { if (!done) { done = true; clearTimeout(to); resolve(); } });
+            proc.on('error', () => { if (!done) { done = true; clearTimeout(to); resolve(); } });
+        });
+        await new Promise(r => setTimeout(r, 300));
+        console.log('Previous server process stopped for restart');
+        return true;
+    }
+    // was in starting state but no process yet — just clear flag and small delay
+    await new Promise(r => setTimeout(r, 350));
+    return true;
+}
+
 // ============ Self-Contained Data Directory Resolver ============
 const configFilePath = path.join(app.getPath('appData'), 'llama-manager-location.json');
 
@@ -1711,7 +1736,8 @@ ipcMain.handle('start-server', async (event, params) => {
     let { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
 
     if (llamaProcess || serverStarting) {
-        throw new Error('Server is already running. Please stop it first.');
+        console.log('Server already running — auto-stopping before restart...');
+        await stopExistingServer();
     }
 
     port = parseInt(port, 10);
@@ -1978,12 +2004,9 @@ ipcMain.handle('start-server', async (event, params) => {
     }
 });
 
-ipcMain.handle('stop-server', () => {
-    if (llamaProcess) {
-        llamaProcess.kill();
-        llamaProcess = null;
-        serverStarting = false;
-        return true;
-    }
-    return false;
+ipcMain.handle('stop-server', async () => {
+    const didStop = await stopExistingServer();
+    // also ensure any lingering chat stream is cleaned
+    if (chatStream) { try { chatStream.destroy(); } catch (e) {} chatStream = null; }
+    return didStop;
 });

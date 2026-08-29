@@ -6262,6 +6262,9 @@
         }
 
         async function startServerFunc() {
+            if (window._serverStarting) return;
+            window._serverStarting = true;
+            try {
             const routerMode = document.getElementById('inp-router-mode') && document.getElementById('inp-router-mode').checked;
             const modelName = dashModelSelect.value || serverModelSelect.value;
             if (!routerMode && (!modelName || modelName.includes('No models'))) {
@@ -6400,6 +6403,9 @@
                         dashStatusText.style.color = 'var(--text-muted)';
                     }
                 }
+            }
+            } finally {
+                window._serverStarting = false;
             }
         }
 
