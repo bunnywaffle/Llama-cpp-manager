@@ -1868,9 +1868,17 @@ ipcMain.handle('start-server', async (event, params) => {
         for (const lora of meta[modelName].loras) {
             if (lora.enabled === false) continue;
             let loraPath = path.join(getModelsDir(), lora.file);
-            try { loraPath = fs.realpathSync(loraPath); } catch (e) {}
+            // Do NOT resolve symlink via realpathSync — that would point to the original drive (e.g. C:\)
+            // and reintroduce the drive colon bug. Keep the path inside getModelsDir() (same drive as bin)
+            // so path.relative() can produce a drive-free relative path for --lora-scaled.
             if (!fs.existsSync(loraPath) && lora.path && fs.existsSync(lora.path)) {
-                loraPath = lora.path;
+                // Original file exists but symlink is missing/broken — copy it into modelsDir to keep same drive
+                try {
+                    fs.copyFileSync(lora.path, loraPath);
+                    console.log('Copied LoRA to models dir for Windows drive fix:', loraPath);
+                } catch (e) {
+                    loraPath = lora.path;
+                }
             }
             if (!fs.existsSync(loraPath)) {
                 console.warn('LoRA file not found, skipping:', lora.file);
@@ -1883,6 +1891,11 @@ ipcMain.handle('start-server', async (event, params) => {
                 // Use relative if it does not contain a drive colon and is not empty
                 if (rel && !rel.includes(':') && rel.length < loraPath.length) {
                     fnameForArg = rel;
+                } else if (rel && rel.includes(':')) {
+                    // Different drive (symlink resolved to other drive) — fallback to just filename
+                    // File is already symlinked/copied into modelsDir, so basename should exist via relative from bin
+                    const rel2 = path.relative(binDirForLora, path.join(getModelsDir(), lora.file));
+                    if (rel2 && !rel2.includes(':')) fnameForArg = rel2;
                 }
             } catch (e) {}
             loraParts.push(`${fnameForArg}:${scale}`);
