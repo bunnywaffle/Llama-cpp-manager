@@ -1156,12 +1156,30 @@ ipcMain.handle('download-missing-files', async (event, missingFiles) => {
     return { extracted, release: buildTag };
 });
 
+function getExcludedAdapterFiles() {
+    try {
+        const meta = readModelsMeta();
+        const set = new Set();
+        for (const info of Object.values(meta)) {
+            if (!info) continue;
+            if (info.mmproj) set.add(info.mmproj.toLowerCase());
+            if (info.mtpDrafter) set.add(info.mtpDrafter.toLowerCase());
+            if (Array.isArray(info.loras)) {
+                for (const l of info.loras) if (l.file) set.add(l.file.toLowerCase());
+            }
+        }
+        return set;
+    } catch (e) { return new Set(); }
+}
+
 ipcMain.handle('list-models', () => {
     try {
         const modelsDir = getModelsDir();
         const files = fs.readdirSync(modelsDir);
+        const excluded = getExcludedAdapterFiles();
         return files.filter(f => {
             if (!f.toLowerCase().endsWith('.gguf')) return false;
+            if (excluded.has(f.toLowerCase())) return false;
             const fullPath = path.join(modelsDir, f);
             try {
                 return fs.existsSync(fullPath);
