@@ -3817,7 +3817,15 @@
         const btnOpenLogsModal = document.getElementById('btn-open-logs-modal');
         const btnCloseLogs = document.getElementById('btn-close-logs');
 
-        
+        if (btnOpenLogsModal && logsModal) {
+            btnOpenLogsModal.addEventListener('click', () => { logsModal.style.display = 'flex'; });
+        }
+        if (btnCloseLogs && logsModal) {
+            btnCloseLogs.addEventListener('click', () => { logsModal.style.display = 'none'; });
+        }
+        if (logsModal) {
+            logsModal.addEventListener('click', (e) => { if (e.target === logsModal) logsModal.style.display = 'none'; });
+        }
 
 // Pi Agent removed
 
