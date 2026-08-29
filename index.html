@@ -5841,7 +5841,7 @@
                     let lorasHtml = '';
                     if (loras.length > 0) {
                         lorasHtml = `<div class="lora-section">
-                            <div class="lora-section-header"><span><i class="fa-solid fa-layer-group"></i> LoRA Adapters</span><span class="lora-section-count">${loras.length}</span></div>`;
+                            <div class="lora-section-header"><span><i class="fa-solid fa-layer-group"></i> LoRA Adapters</span><div style="display:flex;gap:6px;align-items:center;"><span class="lora-section-count">${loras.length}</span><button class="btn secondary btn-disable-all-loras" data-model="${escapeHtml(m)}" style="padding:2px 7px;font-size:10px;" title="Disable all LoRAs for this model (keeps files, just disables)"><i class="fa-solid fa-pause"></i> Disable All</button><button class="btn secondary btn-clear-all-loras" data-model="${escapeHtml(m)}" style="padding:2px 7px;font-size:10px;" title="Remove all LoRAs from this model"><i class="fa-solid fa-trash-can"></i> Clear</button></div></div>`;
                         loras.forEach((lora, lIdx) => {
                             const shortName = escapeHtml(lora.file);
                             lorasHtml += `
@@ -5959,6 +5959,24 @@
                                 });
                                 loadModels();
                             }
+                        });
+                    });
+
+                    row.querySelectorAll('.btn-disable-all-loras').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            if (!confirm('Disable all LoRAs for ' + btn.dataset.model + '? (keeps files, just disables)')) return;
+                            const loras = (modelsMeta[btn.dataset.model]?.loras || []);
+                            for (const l of loras) {
+                                await ipcRenderer.invoke('update-lora-settings', { modelName: btn.dataset.model, loraFile: l.file, enabled: false });
+                            }
+                            loadModels();
+                        });
+                    });
+                    row.querySelectorAll('.btn-clear-all-loras').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            if (!confirm('Remove all LoRAs from ' + btn.dataset.model + '? (keeps files on disk)')) return;
+                            await ipcRenderer.invoke('clear-loras', btn.dataset.model);
+                            loadModels();
                         });
                     });
 

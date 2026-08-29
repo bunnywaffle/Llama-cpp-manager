@@ -396,6 +396,10 @@ function readGgufInfo(filePath) {
         let mtp = false;
         let arch = null;
         let isLora = false;
+        let blockCount = null;
+        let embeddingLength = null;
+        let baseModelName = null;
+        let loraBaseModel = null;
         for (let i = 0; i < kvCount; i++) {
             const key = readString();
             const type = readBytes(4).readUInt32LE(0);
@@ -407,10 +411,21 @@ function readGgufInfo(filePath) {
                 if (typeof value === 'number' && value > 0) mtp = true;
             }
             if (key === 'general.architecture' && typeof value === 'string') arch = value;
+            if (key === 'general.name' && typeof value === 'string') baseModelName = value;
             if (key === 'general.type' && value === 'lora') isLora = true;
             if (key.startsWith('adapter.') || key.startsWith('lora.')) isLora = true;
+            if (key.endsWith('.block_count') && typeof value === 'number') blockCount = Number(value);
+            if (key.endsWith('.embedding_length') && typeof value === 'number') embeddingLength = Number(value);
+            if (key.startsWith('general.base_model') && typeof value === 'string') loraBaseModel = value;
         }
-        return { ctxLength, mtp, arch, isLora };
+        // Fallback: gemma models use gemma4.block_count etc.
+        if (blockCount === null) {
+            try {
+                // Re-scan for arch-specific block_count if not found under llama.*
+                // Already covered by generic arch keys, but keep fallback
+            } catch (e) {}
+        }
+        return { ctxLength, mtp, arch, isLora, blockCount, embeddingLength, baseModelName, loraBaseModel };
     } catch (e) {
         return null;
     } finally {
@@ -1925,12 +1940,13 @@ ipcMain.handle('start-server', async (event, params) => {
     if (!routerMode && meta[modelName] && Array.isArray(meta[modelName].loras)) {
         const loraParts = [];
         const binDirForLora = exePath ? path.dirname(exePath) : getBinDir();
-        let baseArch = null;
+        let baseInfoForLora = null;
         try {
             const basePath = path.join(getModelsDir(), modelName);
-            const baseInfo = readGgufInfo(basePath);
-            baseArch = baseInfo?.arch || null;
+            baseInfoForLora = readGgufInfo(basePath);
         } catch (e) {}
+        const baseArch = baseInfoForLora?.arch || null;
+        const baseBlockCount = baseInfoForLora?.blockCount || null;
         for (const lora of meta[modelName].loras) {
             if (lora.enabled === false) continue;
             let loraPath = path.join(getModelsDir(), lora.file);
@@ -1950,7 +1966,7 @@ ipcMain.handle('start-server', async (event, params) => {
                 console.warn('LoRA file not found, skipping:', lora.file);
                 continue;
             }
-            // Validate that the file is actually a LoRA adapter and arch matches base
+            // Validate that the file is actually a LoRA adapter and arch/block_count matches base
             try {
                 const loraInfo = readGgufInfo(loraPath);
                 if (loraInfo && !loraInfo.isLora) {
@@ -1965,6 +1981,35 @@ ipcMain.handle('start-server', async (event, params) => {
                     lora.enabled = false;
                     writeModelsMeta(meta);
                     continue;
+                }
+                if (loraInfo && baseInfoForLora && loraInfo.blockCount && baseInfoForLora.blockCount && loraInfo.blockCount !== baseInfoForLora.blockCount) {
+                    console.warn(`Skipping LoRA "${lora.file}" — block_count mismatch: base ${baseInfoForLora.blockCount} vs LoRA ${loraInfo.blockCount}. Tensor blk.X would not exist. Disabling for this run.`);
+                    lora.enabled = false;
+                    writeModelsMeta(meta);
+                    continue;
+                }
+                if (loraInfo && baseInfoForLora && loraInfo.embeddingLength && baseInfoForLora.embeddingLength && loraInfo.embeddingLength !== baseInfoForLora.embeddingLength) {
+                    console.warn(`Skipping LoRA "${lora.file}" — embedding_length mismatch: base ${baseInfoForLora.embeddingLength} vs LoRA ${loraInfo.embeddingLength}. Disabling.`);
+                    lora.enabled = false;
+                    writeModelsMeta(meta);
+                    continue;
+                }
+                // Check if LoRA was trained for a different base variant (e.g., QAT vs BNB/Unsloth) — common cause of "LoRA tensor does not exist"
+                if (loraInfo && loraInfo.loraBaseModel && baseInfoForLora) {
+                    const loraBaseNorm = loraInfo.loraBaseModel.toLowerCase();
+                    const baseFileNorm = modelName.toLowerCase();
+                    const baseNameNorm = (baseInfoForLora.baseModelName || '').toLowerCase();
+                    const combinedBaseNorm = baseFileNorm + ' ' + baseNameNorm;
+                    const isLoraBnb = loraBaseNorm.includes('bnb') || loraBaseNorm.includes('unsloth');
+                    const isBaseQAT = combinedBaseNorm.includes('qat');
+                    const isLoraQAT = loraBaseNorm.includes('qat');
+                    const isBaseBnb = combinedBaseNorm.includes('bnb') || combinedBaseNorm.includes('unsloth');
+                    if ((isLoraBnb && isBaseQAT) || (isLoraQAT && isBaseBnb)) {
+                        console.warn(`Skipping LoRA "${lora.file}" — base variant mismatch: LoRA trained for "${loraInfo.loraBaseModel}" but base is "${modelName}" (${isBaseQAT ? 'QAT' : 'non-QAT'} vs ${isLoraBnb ? 'BNB/Unsloth' : 'QAT'}). This fails with "LoRA tensor does not exist". Disabling for this run.`);
+                        lora.enabled = false;
+                        writeModelsMeta(meta);
+                        continue;
+                    }
                 }
             } catch (e) {}
             const scale = (lora.scale !== undefined && !isNaN(parseFloat(lora.scale))) ? parseFloat(lora.scale) : 1.0;
