@@ -2826,9 +2826,26 @@
                 <div id="backend-recheck" style="margin-top: 14px; display: none;"></div>
                 <div id="backend-update-status" style="margin-top: 14px; display: none;"></div>
             </div>
+            <div class="card" id="backend-manager-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+                    <div class="card-title" style="margin:0;"><i class="fa-solid fa-layer-group" style="color: var(--accent);"></i> Backend Manager — multiple versions</div>
+                    <span style="font-size:11px;color:var(--text-muted);">Switch active without deleting, keep several CUDA/CPU builds side-by-side</span>
+                </div>
+                <div id="backends-list" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;"></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+                    <button class="btn secondary" id="btn-install-backend-zip"><i class="fa-solid fa-file-zipper"></i> Install Backend from Zip…</button>
+                    <button class="btn secondary" id="btn-clone-backend" style="display:none;"><i class="fa-solid fa-copy"></i> Clone Active</button>
+                    <span style="font-size:11px;color:var(--text-muted);">Each backend lives in <code>backends/&lt;name&gt;/</code> — switching updates the active pointer, no file copy.</span>
+                </div>
+            </div>
             <div class="card" id="releases-card" style="display: none;">
-                <div class="card-title">Available Releases</div>
-                <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">Showing latest 5 releases from <code>ggml-org/llama.cpp</code> (fallback <code>ggerganov/llama.cpp</code>). Assets adapt to new naming (<code>bin-win-cpu-x64</code> / <code>bin-win-cuda-12.4-x64</code>).</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div class="card-title" style="margin:0;">Available Releases</div>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn secondary" id="btn-install-release-as-backend" style="padding:4px 8px;font-size:11px;display:none;"><i class="fa-solid fa-plus"></i> Install as New Backend</button>
+                    </div>
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">Showing latest 5 releases from <code>ggml-org/llama.cpp</code> (fallback <code>ggerganov/llama.cpp</code>). Assets adapt to new naming (<code>bin-win-cpu-x64</code> / <code>bin-win-cuda-12.4-x64</code>). Use <strong>Update Backend</strong> to auto-install latest as a new version, or <strong>Browse Releases</strong> to pick a specific tag → <em>Install as New Backend</em>.</div>
                 <div id="releases-container"></div>
             </div>
         </div>
@@ -5588,6 +5605,62 @@
             }
         }
 
+        async function loadBackends() {
+            const container = document.getElementById('backends-list');
+            if (!container) return;
+            try {
+                const backends = await ipcRenderer.invoke('get-backends');
+                container.innerHTML = '';
+                if (!backends || backends.length === 0) {
+                    container.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-muted);border:1px dashed var(--border);border-radius:8px;">No backends installed yet — install from zip or browse releases.</div>';
+                    return;
+                }
+                backends.forEach(b => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:' + (b.isActive ? 'color-mix(in srgb, var(--accent) 10%, var(--bg-base))' : 'var(--bg-base)') + ';';
+                    const ver = b.build ? ('Build ' + b.build) : (b.version || 'unknown');
+                    row.innerHTML = `
+                        <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">
+                            <i class="fa-solid ${b.isActive ? 'fa-circle-check' : 'fa-cube'}" style="color:${b.isActive ? 'var(--accent)' : 'var(--text-muted)'};font-size:14px;"></i>
+                            <div style="min-width:0;flex:1;">
+                                <div style="font-size:13px;font-weight:600;color:var(--text-main);display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${escapeHtml(b.name)} ${b.isActive ? '<span style="font-size:10px;background:var(--accent);color:var(--btn-primary-text,#fff);padding:1px 6px;border-radius:20px;">ACTIVE</span>' : ''}</div>
+                                <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${b.exeName ? escapeHtml(b.exeName) + ' · ' + escapeHtml(ver) : 'No executable'} · ${b.fileCount} files</div>
+                                <div style="font-size:10.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:monospace;">${escapeHtml(b.dir)}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
+                            ${!b.isActive ? '<button class="btn primary btn-activate-backend" data-name="' + escapeHtml(b.name) + '" style="padding:4px 10px;font-size:11px;"><i class="fa-solid fa-power-off"></i> Activate</button>' : '<span style="font-size:11px;color:var(--accent);padding:4px 6px;"><i class="fa-solid fa-check"></i> Active</span>'}
+                            <button class="btn secondary btn-delete-backend-by-name" data-name="' + escapeHtml(b.name) + '" style="padding:4px 8px;font-size:11px;" ${b.isActive ? 'disabled title="Switch away before deleting"' : ''}><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+                container.querySelectorAll('.btn-activate-backend').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const orig = btn.innerHTML;
+                        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Switching...';
+                        btn.disabled = true;
+                        try {
+                            await ipcRenderer.invoke('set-active-backend', btn.dataset.name);
+                            await checkBackend();
+                            await loadBackends();
+                        } catch (e) { alert('Switch failed: ' + e.message); }
+                        btn.innerHTML = orig;
+                        btn.disabled = false;
+                    });
+                });
+                container.querySelectorAll('.btn-delete-backend-by-name').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        if (!confirm('Delete backend "' + btn.dataset.name + '"? This removes its folder.')) return;
+                        btn.disabled = true;
+                        try { await ipcRenderer.invoke('delete-backend-by-name', btn.dataset.name); await checkBackend(); await loadBackends(); } catch (e) { alert('Delete failed: ' + e.message); btn.disabled = false; }
+                    });
+                });
+            } catch (e) {
+                container.innerHTML = '<div style="color:#ef4444;font-size:12px;">Failed to load backends: ' + escapeHtml(e.message) + '</div>';
+            }
+        }
+
         async function checkBackend() {
             try {
                 const info = await ipcRenderer.invoke('get-backend-info');
@@ -5601,6 +5674,7 @@
                 backendStatusText.innerHTML = '<span style="color: #ef4444;">Error checking</span>';
                 backendDetails.style.display = 'none';
             }
+            try { await loadBackends(); } catch (e) {}
         }
 
         function formatBytes(bytes) {
@@ -6068,6 +6142,26 @@
             btnDeleteBackend.disabled = false;
         });
 
+        // Backends manager: new handlers
+        const btnInstallBackendZip = document.getElementById('btn-install-backend-zip');
+        if (btnInstallBackendZip) {
+            btnInstallBackendZip.addEventListener('click', async () => {
+                btnInstallBackendZip.disabled = true;
+                const orig = btnInstallBackendZip.innerHTML;
+                btnInstallBackendZip.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Selecting...';
+                try {
+                    const res = await ipcRenderer.invoke('install-backend-from-zip-dialog');
+                    if (res && res.name) {
+                        alert('Installed backend "' + res.name + '" (' + (res.version || 'unknown') + ') — it is now available in the manager. Activate it to use.');
+                        await checkBackend();
+                        await loadBackends();
+                    }
+                } catch (e) { alert('Install failed: ' + e.message); }
+                btnInstallBackendZip.innerHTML = orig;
+                btnInstallBackendZip.disabled = false;
+            });
+        }
+
         btnFetchReleases.addEventListener('click', async () => {
             btnFetchReleases.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Fetching...';
             try {
@@ -6080,31 +6174,42 @@
                     if (process.platform === 'darwin') platformKey = 'macos';
                     else if (process.platform === 'linux') platformKey = 'linux';
 
-                    const asset = rel.assets && rel.assets.find(a => a.name.toLowerCase().includes(platformKey) && a.name.endsWith('.zip'));
+                    // Prefer cpu for win, fallback to any win asset
+                    const zipAssets = (rel.assets || []).filter(a => a.name.toLowerCase().endsWith('.zip'));
+                    let asset = null;
+                    if (platformKey === 'win') {
+                        asset = zipAssets.find(a => a.name.toLowerCase().includes('bin-win-cpu')) || zipAssets.find(a => a.name.toLowerCase().includes('bin-win-cuda')) || zipAssets.find(a => a.name.toLowerCase().includes('win'));
+                    } else {
+                        asset = zipAssets.find(a => a.name.toLowerCase().includes(platformKey));
+                    }
                     if (asset) {
                         const div = document.createElement('div');
                         div.className = 'list-row';
                         div.innerHTML = `
-                            <span style="font-size: 13px;"><strong>${escapeHtml(rel.tag_name)}</strong> - ${escapeHtml(rel.name)}</span>
-                            <button class="btn primary" style="padding: 6px 12px; font-size: 12px;">Install</button>
+                            <span style="font-size: 13px; min-width:0; flex:1;"><strong>${escapeHtml(rel.tag_name)}</strong> - ${escapeHtml(rel.name)}<br><span style="font-size:11px;color:var(--text-muted);font-family:monospace;">${escapeHtml(asset.name)}</span></span>
+                            <button class="btn primary" style="padding: 6px 12px; font-size: 12px; white-space:nowrap;">Install as New Backend</button>
                         `;
                         const installBtn = div.querySelector('button');
                         installBtn.addEventListener('click', async () => {
                             installBtn.innerHTML = 'Installing...';
                             installBtn.disabled = true;
                             try {
-                                await ipcRenderer.invoke('download-release', asset.browser_download_url, asset.name);
-                                alert('Installed successfully!');
-                                checkBackend();
+                                const res = await ipcRenderer.invoke('install-backend-from-release', rel.tag_name, asset.name);
+                                alert('Installed backend "' + res.name + '" from ' + rel.tag_name + ' — activate it in Backend Manager.');
+                                await checkBackend();
+                                await loadBackends();
                             } catch (e) {
                                 alert('Failed: ' + e.message);
                             }
-                            installBtn.innerHTML = 'Install';
+                            installBtn.innerHTML = 'Install as New Backend';
                             installBtn.disabled = false;
                         });
                         releasesContainer.appendChild(div);
                     }
                 });
+                if (releasesContainer.children.length === 0) {
+                    releasesContainer.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:12px;">No matching zip assets for this platform found in the latest releases.</div>';
+                }
             } catch (e) {
                 alert('Failed to fetch releases: ' + e.message);
             }
@@ -6137,8 +6242,9 @@
                                 doBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Updating...';
                                 try {
                                     const res = await ipcRenderer.invoke('update-backend');
-                                    backendUpdateStatus.innerHTML = `<div style="padding:10px 12px;border-radius:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);font-size:12.5px;color:#22c55e;"><i class="fa-solid fa-circle-check"></i> Updated to <strong>${escapeHtml(res.tag)}</strong> (${escapeHtml(res.asset)}) — restart the server to use it.</div>`;
+                                    backendUpdateStatus.innerHTML = `<div style="padding:10px 12px;border-radius:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);font-size:12.5px;color:#22c55e;"><i class="fa-solid fa-circle-check"></i> Installed <strong>${escapeHtml(res.tag)}</strong> as new backend <strong>${escapeHtml(res.name || res.asset)}</strong> — activate it in Backend Manager, then restart the server.</div>`;
                                     await checkBackend();
+                                    await loadBackends();
                                 } catch (e) {
                                     backendUpdateStatus.innerHTML = `<div style="color:#ef4444;font-size:12px;"><i class="fa-solid fa-circle-xmark"></i> Update failed: ${escapeHtml(e.message)}</div>`;
                                     doBtn.disabled = false;

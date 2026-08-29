@@ -43,10 +43,115 @@ function getDataDir() {
     return activeDataDir;
 }
 
-function getBinDir() {
-    const dir = path.join(getDataDir(), 'bin');
+function getBackendsDir() {
+    const dir = path.join(getDataDir(), 'backends');
     if (!fs.existsSync(dir)) try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}
     return dir;
+}
+
+function getActiveBackendPath() {
+    try {
+        const raw = fs.readFileSync(path.join(getDataDir(), 'active-backend.json'), 'utf8');
+        const j = JSON.parse(raw);
+        if (j && j.active) return j.active;
+    } catch (e) {}
+    try {
+        const entries = fs.readdirSync(getBackendsDir(), { withFileTypes: true });
+        const dirs = entries.filter(d => d.isDirectory()).map(d => d.name);
+        if (dirs.length > 0) return dirs.sort()[0];
+    } catch (e) {}
+    return null;
+}
+
+function setActiveBackendPath(name) {
+    try { fs.writeFileSync(path.join(getDataDir(), 'active-backend.json'), JSON.stringify({ active: name }, null, 2)); } catch (e) {}
+}
+
+let _backendsMigrated = false;
+function ensureBackendsMigrated() {
+    if (_backendsMigrated) return;
+    _backendsMigrated = true;
+    try {
+        const legacyBin = path.join(getDataDir(), 'bin');
+        const backendsDir = getBackendsDir();
+        const active = getActiveBackendPath();
+        if (active) return;
+        if (!fs.existsSync(legacyBin)) return;
+        const exe = findExecutable(legacyBin);
+        if (!exe) return;
+        const defaultName = 'default';
+        const defaultDir = path.join(backendsDir, defaultName);
+        if (!fs.existsSync(defaultDir)) {
+            try { fs.mkdirSync(defaultDir, { recursive: true }); } catch (e) {}
+            const entries = fs.readdirSync(legacyBin);
+            for (const ent of entries) {
+                const src = path.join(legacyBin, ent);
+                const dst = path.join(defaultDir, ent);
+                try {
+                    const st = fs.lstatSync(src);
+                    if (st.isDirectory()) {
+                        fs.cpSync(src, dst, { recursive: true, force: true });
+                    } else {
+                        fs.copyFileSync(src, dst);
+                    }
+                } catch (e) {}
+            }
+            // keep backend.json metadata
+            try {
+                const ver = getBackendVersion(exe) || '';
+                const build = getBackendBuildNumber(exe);
+                fs.writeFileSync(path.join(defaultDir, 'backend.json'), JSON.stringify({ name: defaultName, tag: build ? ('b' + build) : ver, installedAt: new Date().toISOString(), migratedFrom: 'bin' }, null, 2));
+            } catch (e) {}
+        }
+        setActiveBackendPath(defaultName);
+    } catch (e) {}
+}
+
+function getBinDir() {
+    ensureBackendsMigrated();
+    const active = getActiveBackendPath();
+    if (active) {
+        const p = path.join(getBackendsDir(), active);
+        if (fs.existsSync(p)) return p;
+    }
+    // fallback to legacy bin for fresh installs / migration not yet done
+    const legacy = path.join(getDataDir(), 'bin');
+    if (!fs.existsSync(legacy)) try { fs.mkdirSync(legacy, { recursive: true }); } catch (e) {}
+    return legacy;
+}
+
+function getAllBackends() {
+    ensureBackendsMigrated();
+    const backendsDir = getBackendsDir();
+    let dirs = [];
+    try { dirs = fs.readdirSync(backendsDir, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name); } catch (e) {}
+    // also include legacy bin if it has exe and not yet migrated or as fallback
+    const legacy = path.join(getDataDir(), 'bin');
+    try {
+        if (fs.existsSync(legacy) && findExecutable(legacy) && !dirs.includes('legacy-bin')) {
+            // treat legacy as virtual backend if no migrated default
+            if (!dirs.includes('default')) dirs.push('legacy-bin');
+        }
+    } catch (e) {}
+    const active = getActiveBackendPath();
+    return dirs.map(name => {
+        const dir = name === 'legacy-bin' ? path.join(getDataDir(), 'bin') : path.join(backendsDir, name);
+        const exe = findExecutable(dir);
+        let meta = {};
+        try { meta = JSON.parse(fs.readFileSync(path.join(dir, 'backend.json'), 'utf8')); } catch (e) {}
+        const files = (() => { try { return fs.readdirSync(dir); } catch (e) { return []; } })();
+        return {
+            name,
+            dir,
+            exePath: exe,
+            exeName: exe ? path.basename(exe) : null,
+            version: exe ? getBackendVersion(exe) : null,
+            build: exe ? getBackendBuildNumber(exe) : null,
+            fileCount: files.length,
+            isActive: name === active || (name === 'legacy-bin' && !active),
+            meta
+        };
+    }).sort((a,b) => (b.isActive?1:0)-(a.isActive?1:0) || a.name.localeCompare(b.name));
 }
 
 function getModelsDir() {
@@ -960,6 +1065,93 @@ ipcMain.handle('get-backend-info', () => {
         fileCount: files.length,
         dirSize: files.reduce((sum, f) => sum + (f.size || 0), 0)
     };
+});
+
+ipcMain.handle('get-backends', () => {
+    return getAllBackends();
+});
+
+ipcMain.handle('set-active-backend', (event, name) => {
+    if (llamaProcess) throw new Error('Stop the server before switching backends.');
+    if (!name || typeof name !== 'string') throw new Error('Invalid backend name');
+    const backends = getAllBackends().map(b => b.name);
+    if (!backends.includes(name)) throw new Error('Backend not found: ' + name);
+    setActiveBackendPath(name);
+    return getAllBackends();
+});
+
+ipcMain.handle('delete-backend-by-name', (event, name) => {
+    if (llamaProcess) throw new Error('Stop the server before deleting.');
+    if (!name) throw new Error('Invalid name');
+    const dir = path.join(getBackendsDir(), name);
+    const legacyBin = path.join(getDataDir(), 'bin');
+    const target = name === 'legacy-bin' ? legacyBin : dir;
+    if (!fs.existsSync(target)) throw new Error('Backend folder not found');
+    const active = getActiveBackendPath();
+    if (active === name) throw new Error('Cannot delete the active backend — switch to another first.');
+    try { fs.rmSync(target, { recursive: true, force: true }); } catch (e) { throw new Error('Failed to delete: ' + e.message); }
+    return getAllBackends();
+});
+
+ipcMain.handle('install-backend-from-zip-dialog', async (event, customName) => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select llama.cpp release zip to install as new backend',
+        properties: ['openFile'],
+        filters: [{ name: 'Zip archive', extensions: ['zip'] }]
+    });
+    if (result.canceled || result.filePaths.length === 0) return false;
+    const zipPath = result.filePaths[0];
+    if (!fs.existsSync(zipPath)) throw new Error('Zip file not found.');
+    const zip = new AdmZip(zipPath);
+    const entries = zip.getEntries().map(e => e.entryName.replace(/\\/g, '/'));
+    const hasExe = entries.some(n => /llama-server\.exe$|server\.exe$|llama-server$|server$/i.test(n));
+    if (!hasExe) throw new Error('Selected zip does not appear to contain llama-server/server executable.');
+    let name = (customName && typeof customName === 'string' && customName.trim()) ? customName.trim().replace(/[^a-zA-Z0-9._-]/g, '_') : path.basename(zipPath, '.zip').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 40);
+    if (!name) name = 'backend-' + Date.now().toString(36);
+    let dir = path.join(getBackendsDir(), name);
+    let suffix = 1;
+    while (fs.existsSync(dir)) { dir = path.join(getBackendsDir(), name + '-' + suffix); suffix++; name = path.basename(dir); }
+    fs.mkdirSync(dir, { recursive: true });
+    zip.extractAllTo(dir, true);
+    const exe = findExecutable(dir);
+    const ver = exe ? (getBackendVersion(exe) || '') : '';
+    const build = exe ? getBackendBuildNumber(exe) : null;
+    try { fs.writeFileSync(path.join(dir, 'backend.json'), JSON.stringify({ name, tag: build ? ('b' + build) : ver, version: ver, installedAt: new Date().toISOString(), sourceZip: path.basename(zipPath) }, null, 2)); } catch (e) {}
+    // auto-switch to new backend if none active
+    if (!getActiveBackendPath()) setActiveBackendPath(name);
+    return { name, dir, version: ver };
+});
+
+ipcMain.handle('install-backend-from-release', async (event, tag, assetName) => {
+    if (llamaProcess) throw new Error('Stop the server before installing.');
+    const data = await fetchLlamaReleases(30);
+    const rel = data.find(r => r.tag_name === tag);
+    if (!rel) throw new Error('Release not found: ' + tag);
+    let asset = null;
+    if (assetName) asset = rel.assets.find(a => a.name === assetName);
+    if (!asset) {
+        // auto-pick best asset for this system
+        asset = selectBackendAsset(rel, getBinDir());
+        if (!asset) throw new Error('No suitable asset for this system in ' + tag);
+    }
+    let name = tag.replace(/^b/, 'b') + '-' + asset.name.replace(/\.zip$/,'').slice(0, 30);
+    name = name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 48);
+    let dir = path.join(getBackendsDir(), name);
+    let suffix = 1;
+    while (fs.existsSync(dir)) { dir = path.join(getBackendsDir(), name + '-' + suffix); suffix++; }
+    fs.mkdirSync(dir, { recursive: true });
+    const tempZipPath = path.join(getDataDir(), 'temp_backend_' + Date.now() + '.zip');
+    const response = await axios({ url: asset.browser_download_url, method: 'GET', responseType: 'stream' });
+    const writer = fs.createWriteStream(tempZipPath);
+    response.data.pipe(writer);
+    await new Promise((resolve, reject) => { writer.on('finish', resolve); writer.on('error', reject); });
+    const zip = new AdmZip(tempZipPath);
+    zip.extractAllTo(dir, true);
+    try { fs.unlinkSync(tempZipPath); } catch (e) {}
+    const exe = findExecutable(dir);
+    const ver = exe ? (getBackendVersion(exe) || '') : '';
+    try { fs.writeFileSync(path.join(dir, 'backend.json'), JSON.stringify({ name: path.basename(dir), tag, asset: asset.name, version: ver, installedAt: new Date().toISOString() }, null, 2)); } catch (e) {}
+    return { name: path.basename(dir), dir, version: ver, asset: asset.name };
 });
 
 ipcMain.handle('delete-backend', () => {
