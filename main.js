@@ -2093,6 +2093,38 @@ ipcMain.handle('start-server', async (event, params) => {
         serverStarting = false;
         return { url: 'http://127.0.0.1:' + port };
     } catch (error) {
+        const logText = recentLogLines.join('');
+        // Detect LoRA incompatibility: llama.cpp prints "failed to apply lora adapter: LoRA tensor ... does not exist in base model"
+        // and "failed to load lora adapter '...\\models\\xxx.gguf'". Auto-disable the offending LoRA for next attempt.
+        const isLoraFailure = /failed to (apply|load) lora adapter/i.test(logText) || /LoRA tensor .* does not exist/i.test(logText);
+        if (isLoraFailure && modelName) {
+            try {
+                // Try to extract the failing LoRA filename from log
+                let failedLoraFile = null;
+                const m1 = logText.match(/failed to load lora adapter\s*'([^']+)'/i);
+                const m2 = logText.match(/failed to apply lora adapter[^:]*:\s*([^\n]+)/i);
+                if (m1 && m1[1]) failedLoraFile = path.basename(m1[1].trim().replace(/^['"]|['"]$/g, ''));
+                // Also try to find any enabled LoRA for this model that matches the log's tensor hint
+                const meta = readModelsMeta();
+                const modelLoras = meta[modelName]?.loras || [];
+                let target = null;
+                if (failedLoraFile) {
+                    target = modelLoras.find(l => l.file.toLowerCase() === failedLoraFile.toLowerCase() || failedLoraFile.toLowerCase().includes(l.file.toLowerCase()));
+                }
+                // Fallback: if we can't parse filename, disable the first enabled LoRA (most likely culprit)
+                if (!target) target = modelLoras.find(l => l.enabled !== false);
+                if (target) {
+                    console.warn(`Auto-disabling incompatible LoRA "${target.file}" for model "${modelName}" due to load failure:`, logText.slice(-300));
+                    target.enabled = false;
+                    writeModelsMeta(meta);
+                    // Append helpful hint to error
+                    const hint = `\n\nLoRA "${target.file}" was automatically DISABLED because it is incompatible with base model "${modelName}" (tensor mismatch: ${ (m2 && m2[1].trim().slice(0,120)) || 'LoRA tensor does not exist in base'}).\nThis LoRA was likely trained for a different base architecture/quantization (e.g., QAT vs non-QAT, or different hidden size). The server will now start with the base model only. Remove or replace the LoRA in Models → LoRA Adapters.`;
+                    error.message = (error.message || 'Model loading error') + hint;
+                    // Also include log snippet for debugging
+                    error.message += '\n\nLog:\n' + logText.slice(-800);
+                }
+            } catch (e) {}
+        }
         if (llamaProcess === child) {
             try { child.kill(); } catch (e) {}
             llamaProcess = null;
