@@ -4431,6 +4431,10 @@
                     personaPersonality.value = p.personality || '';
                     personaAppearance.value = p.appearance || '';
                     personaBackground.value = p.background || '';
+                    if (typeof personaGreeting !== 'undefined' && personaGreeting) personaGreeting.value = p.greeting || p.startMessage || '';
+                    if (typeof personaDialogueExample !== 'undefined' && personaDialogueExample) personaDialogueExample.value = p.dialogueExample || p.exampleDialogue || '';
+                    lorebookEntries = Array.isArray(p.lorebook) ? JSON.parse(JSON.stringify(p.lorebook)) : (Array.isArray(p.loreBook) ? JSON.parse(JSON.stringify(p.loreBook)) : []);
+                    if (typeof renderLorebook === 'function') renderLorebook();
                     if (btnDeletePersona) btnDeletePersona.style.display = 'inline-flex';
                     renderPersonaList();
                 });
@@ -4450,6 +4454,10 @@
                 personaPersonality.value = '';
                 personaAppearance.value = '';
                 personaBackground.value = '';
+                if (typeof personaGreeting !== 'undefined' && personaGreeting) personaGreeting.value = '';
+                if (typeof personaDialogueExample !== 'undefined' && personaDialogueExample) personaDialogueExample.value = '';
+                lorebookEntries = [];
+                if (typeof renderLorebook === 'function') renderLorebook();
                 if (btnDeletePersona) btnDeletePersona.style.display = 'none';
                 renderPersonaList();
                 personaName.focus();
@@ -4465,17 +4473,87 @@
             });
         }
 
+        // — Roleplay Extras: Greeting, Dialogue Example, Lorebook —
+        const personaGreeting = document.getElementById('persona-greeting');
+        const personaDialogueExample = document.getElementById('persona-dialogue-example');
+        const btnToggleRp = document.getElementById('btn-toggle-rp');
+        const personaRp = document.getElementById('persona-rp');
+        const lorebookList = document.getElementById('lorebook-list');
+        const btnAddLorebook = document.getElementById('btn-add-lorebook');
+        let lorebookEntries = [];
+
+        function renderLorebook() {
+            if (!lorebookList) return;
+            lorebookList.innerHTML = '';
+            if (lorebookEntries.length === 0) {
+                lorebookList.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:6px;border:1px dashed var(--border);border-radius:8px;text-align:center;">No lorebook entries yet. Add keys like <code>castle, kingdom</code> that trigger when mentioned.</div>';
+                return;
+            }
+            lorebookEntries.forEach((entry, idx) => {
+                const div = document.createElement('div');
+                div.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-base);';
+                div.innerHTML = `
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <input type="text" placeholder="Keys, comma-separated (e.g. castle, kingdom) or leave empty for constant" value="${escapeHtml(entry.keys || '')}" data-lore-keys="${idx}" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text-main);font-size:12px;">
+                        <label style="display:flex;align-items:center;gap:4px;font-size:11px;white-space:nowrap;cursor:pointer;"><input type="checkbox" data-lore-enabled="${idx}" ${entry.enabled !== false ? 'checked' : ''} style="width:auto;"> Enabled</label>
+                        <label style="display:flex;align-items:center;gap:4px;font-size:11px;white-space:nowrap;cursor:pointer;" title="Always inject, ignore keys"><input type="checkbox" data-lore-constant="${idx}" ${entry.constant ? 'checked' : ''} style="width:auto;"> Constant</label>
+                        <button type="button" class="btn danger" data-lore-del="${idx}" style="padding:4px 8px;font-size:11px;"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <textarea placeholder="Lore content — injected when keys match..." data-lore-content="${idx}" style="min-height:60px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text-main);font-size:12px;resize:vertical;">${escapeHtml(entry.content || '')}</textarea>
+                `;
+                lorebookList.appendChild(div);
+            });
+            lorebookList.querySelectorAll('[data-lore-keys]').forEach(inp => {
+                inp.addEventListener('input', e => { const i = parseInt(e.target.dataset.loreKeys,10); if (!isNaN(i) && lorebookEntries[i]) lorebookEntries[i].keys = e.target.value; });
+            });
+            lorebookList.querySelectorAll('[data-lore-enabled]').forEach(chk => {
+                chk.addEventListener('change', e => { const i = parseInt(e.target.dataset.loreEnabled,10); if (!isNaN(i) && lorebookEntries[i]) lorebookEntries[i].enabled = e.target.checked; });
+            });
+            lorebookList.querySelectorAll('[data-lore-constant]').forEach(chk => {
+                chk.addEventListener('change', e => { const i = parseInt(e.target.dataset.loreConstant,10); if (!isNaN(i) && lorebookEntries[i]) lorebookEntries[i].constant = e.target.checked; });
+            });
+            lorebookList.querySelectorAll('[data-lore-content]').forEach(ta => {
+                ta.addEventListener('input', e => { const i = parseInt(e.target.dataset.loreContent,10); if (!isNaN(i) && lorebookEntries[i]) lorebookEntries[i].content = e.target.value; });
+            });
+            lorebookList.querySelectorAll('[data-lore-del]').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    const i = parseInt(e.currentTarget.dataset.loreDel,10);
+                    if (!isNaN(i)) { lorebookEntries.splice(i,1); renderLorebook(); }
+                });
+            });
+        }
+
+        if (btnToggleRp && personaRp) {
+            btnToggleRp.addEventListener('click', () => {
+                const open = personaRp.style.display === 'flex';
+                personaRp.style.display = open ? 'none' : 'flex';
+                const icon = btnToggleRp.querySelector('.rp-chevron');
+                if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
+            });
+        }
+        if (btnAddLorebook) {
+            btnAddLorebook.addEventListener('click', () => {
+                lorebookEntries.push({ keys: '', content: '', enabled: true, constant: false });
+                renderLorebook();
+            });
+        }
+
         if (btnSavePersona) {
             btnSavePersona.addEventListener('click', async () => {
                 const name = personaName.value.trim();
                 if (!name) { alert('Please enter a persona name.'); return; }
+                // collect lorebook from entries (filter empty content)
+                const collectedLorebook = (typeof lorebookEntries !== 'undefined' ? lorebookEntries : []).filter(e => e.content && e.content.trim()).map(e => ({ keys: (e.keys || '').trim(), content: e.content.trim(), enabled: e.enabled !== false, constant: !!e.constant }));
                 const persona = {
                     id: editingPersonaId || undefined,
                     name,
                     systemPrompt: personaPrompt.value.trim(),
                     personality: personaPersonality.value.trim(),
                     appearance: personaAppearance.value.trim(),
-                    background: personaBackground.value.trim()
+                    background: personaBackground.value.trim(),
+                    greeting: (typeof personaGreeting !== 'undefined' && personaGreeting) ? personaGreeting.value.trim() : '',
+                    dialogueExample: (typeof personaDialogueExample !== 'undefined' && personaDialogueExample) ? personaDialogueExample.value.trim() : '',
+                    lorebook: collectedLorebook
                 };
                 try {
                     const list = await ipcRenderer.invoke('save-persona', persona);
@@ -4508,6 +4586,10 @@
                     personaPersonality.value = '';
                     personaAppearance.value = '';
                     personaBackground.value = '';
+                    if (typeof personaGreeting !== 'undefined' && personaGreeting) personaGreeting.value = '';
+                    if (typeof personaDialogueExample !== 'undefined' && personaDialogueExample) personaDialogueExample.value = '';
+                    lorebookEntries = [];
+                    if (typeof renderLorebook === 'function') renderLorebook();
                     btnDeletePersona.style.display = 'none';
                     await loadPersonas();
                     renderPersonaList();
@@ -4554,13 +4636,29 @@
         }
 
         function createNewChatSession(title = 'New Chat', shouldRender = true) {
+            const persona = getActivePersona();
+            const greetingRaw = persona ? (persona.greeting || persona.startMessage || '') : '';
+            const greeting = greetingRaw.trim();
+            const initialMessages = [];
+            if (greeting) {
+                const charName = persona.name || 'Assistant';
+                const renderedGreeting = greeting.replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, 'User');
+                initialMessages.push({
+                    id: 'msg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                    role: 'assistant',
+                    content: renderedGreeting,
+                    reasoning: '',
+                    versions: [{ content: renderedGreeting, reasoning: '', following: [] }],
+                    currentVersionIndex: 0
+                });
+            }
             const newSession = {
                 id: 'chat_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
                 title: title,
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
                 personaId: activePersonaId,
-                messages: []
+                messages: initialMessages
             };
             chatSessions.unshift(newSession);
             currentSessionId = newSession.id;
@@ -5071,6 +5169,23 @@
                 if (persona.personality) sysParts.push('Personality: ' + persona.personality);
                 if (persona.appearance) sysParts.push('Appearance: ' + persona.appearance);
                 if (persona.background) sysParts.push('Background: ' + persona.background);
+                if (persona.dialogueExample && persona.dialogueExample.trim()) {
+                    sysParts.push('Example Dialogue:\n' + persona.dialogueExample.trim());
+                }
+                // Lorebook: inject relevant entries based on recent history keywords
+                if (persona.lorebook && Array.isArray(persona.lorebook) && persona.lorebook.length > 0) {
+                    const session = getCurrentSession();
+                    const histText = (session && session.messages ? session.messages.slice(-6).map(m => m.content || '').join(' ') : '').toLowerCase();
+                    const relevant = persona.lorebook.filter(e => e.enabled !== false && e.content && e.content.trim() && (
+                        e.constant || !e.keys || !e.keys.trim() || e.keys.split(',').some(k => k.trim() && histText.includes(k.trim().toLowerCase()))
+                    ));
+                    // Also include constant entries and entries with empty keys as always-active
+                    const constantEntries = persona.lorebook.filter(e => e.enabled !== false && e.constant && e.content && e.content.trim());
+                    const toInject = [...new Set([...relevant, ...constantEntries])];
+                    if (toInject.length > 0) {
+                        sysParts.push('Lorebook:\n' + toInject.map(e => e.content.trim()).join('\n\n'));
+                    }
+                }
                 if (sysParts.length > 0) {
                     messages.push({ role: 'system', content: sysParts.join('\n\n') });
                 }
