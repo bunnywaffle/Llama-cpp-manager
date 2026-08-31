@@ -4256,7 +4256,22 @@
                             const session = getCurrentSession();
                             if (session) {
                                 session.personaId = activePersonaId;
+                                // if chat is empty and new persona has a greeting, inject it
+                                if ((!session.messages || session.messages.length === 0) && p.greeting && p.greeting.trim()) {
+                                    const charName = p.name || 'Assistant';
+                                    const renderedGreeting = p.greeting.trim().replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, 'User');
+                                    session.messages.push({
+                                        id: 'msg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                                        role: 'assistant',
+                                        content: renderedGreeting,
+                                        reasoning: '',
+                                        versions: [{ content: renderedGreeting, reasoning: '', following: [] }],
+                                        currentVersionIndex: 0
+                                    });
+                                    session.updatedAt = Date.now();
+                                }
                                 saveSessions();
+                                renderChat();
                             }
                             renderPersonaDropdowns();
                             closeAllDropdowns();
@@ -4580,6 +4595,31 @@
                     if (savedItem) {
                         editingPersonaId = savedItem.id;
                         activePersonaId = savedItem.id;
+                        // update current session's persona and inject greeting if chat is empty
+                        const curSession = getCurrentSession();
+                        if (curSession) {
+                            curSession.personaId = savedItem.id;
+                            saveSessions();
+                            renderPersonaDropdowns();
+                            // if chat is empty and greeting exists, inject it as first assistant message
+                            if ((!curSession.messages || curSession.messages.length === 0) && savedItem.greeting && savedItem.greeting.trim()) {
+                                const charName = savedItem.name || 'Assistant';
+                                const renderedGreeting = savedItem.greeting.trim().replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, 'User');
+                                curSession.messages.push({
+                                    id: 'msg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                                    role: 'assistant',
+                                    content: renderedGreeting,
+                                    reasoning: '',
+                                    versions: [{ content: renderedGreeting, reasoning: '', following: [] }],
+                                    currentVersionIndex: 0
+                                });
+                                curSession.updatedAt = Date.now();
+                                saveSessions();
+                                renderChat();
+                            } else if (curSession.messages && curSession.messages.length === 0) {
+                                renderChat();
+                            }
+                        }
                     }
                     await loadPersonas();
                     renderPersonaList();
