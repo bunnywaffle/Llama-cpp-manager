@@ -2688,6 +2688,7 @@
                             <button type="button" class="dropdown-item" id="btn-menu-export-json"><i class="fa-solid fa-code"></i> Export JSON</button>
                             <div style="height: 1px; background: var(--border); margin: 4px 0;"></div>
                             <button type="button" class="dropdown-item danger" id="btn-menu-clear-chat"><i class="fa-solid fa-trash"></i> Clear Messages</button>
+                            <button type="button" class="dropdown-item danger" id="btn-menu-delete-all-chats"><i class="fa-solid fa-trash-can"></i> Delete All Chats</button>
                         </div>
                     </div>
                 </div>
@@ -2711,6 +2712,7 @@
                             <button class="btn secondary btn-icon" id="btn-close-sessions-drawer" style="padding: 2px 6px; font-size: 11px;"><i class="fa-solid fa-xmark"></i></button>
                         </div>
                         <input type="text" id="chat-search-input" placeholder="Search chats..." style="margin-top: 8px; font-size: 12px; padding: 6px 10px; border-radius: 8px;">
+                        <button class="btn danger" id="btn-delete-all-chats-drawer" style="width: 100%; margin-top: 8px; padding: 6px; font-size: 12px; justify-content: center;"><i class="fa-solid fa-trash-can"></i> Delete All Chats</button>
                     </div>
                     <div class="chat-sessions-list" id="chat-sessions-list"></div>
                 </div>
@@ -4090,6 +4092,8 @@
         const btnMenuExportMd = document.getElementById('btn-menu-export-md');
         const btnMenuExportJson = document.getElementById('btn-menu-export-json');
         const btnMenuClearChat = document.getElementById('btn-menu-clear-chat');
+        const btnMenuDeleteAllChats = document.getElementById('btn-menu-delete-all-chats');
+        const btnDeleteAllChatsDrawer = document.getElementById('btn-delete-all-chats-drawer');
 
         // Toggle Sidebar in Chat
         const btnToggleSidebarChat = document.getElementById('btn-toggle-sidebar-chat');
@@ -4256,8 +4260,26 @@
                             const session = getCurrentSession();
                             if (session) {
                                 session.personaId = activePersonaId;
-                                // if chat is empty and new persona has a greeting, inject it
-                                if ((!session.messages || session.messages.length === 0) && p.greeting && p.greeting.trim()) {
+                                const msgs = session.messages || [];
+                                const isGreetingOnly = msgs.length === 1 && msgs[0].role === 'assistant';
+                                if (isGreetingOnly) {
+                                    if (p.greeting && p.greeting.trim()) {
+                                        const charName = p.name || 'Assistant';
+                                        const renderedGreeting = p.greeting.trim().replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, 'User');
+                                        session.messages = [{
+                                            id: 'msg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                                            role: 'assistant',
+                                            content: renderedGreeting,
+                                            reasoning: '',
+                                            versions: [{ content: renderedGreeting, reasoning: '', following: [] }],
+                                            currentVersionIndex: 0
+                                        }];
+                                        session.updatedAt = Date.now();
+                                    } else {
+                                        session.messages = [];
+                                        session.updatedAt = Date.now();
+                                    }
+                                } else if ((!session.messages || session.messages.length === 0) && p.greeting && p.greeting.trim()) {
                                     const charName = p.name || 'Assistant';
                                     const renderedGreeting = p.greeting.trim().replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, 'User');
                                     session.messages.push({
@@ -4595,14 +4617,36 @@
                     if (savedItem) {
                         editingPersonaId = savedItem.id;
                         activePersonaId = savedItem.id;
-                        // update current session's persona and inject greeting if chat is empty
+                        // update current session's persona and inject/replace greeting
                         const curSession = getCurrentSession();
                         if (curSession) {
                             curSession.personaId = savedItem.id;
                             saveSessions();
                             renderPersonaDropdowns();
-                            // if chat is empty and greeting exists, inject it as first assistant message
-                            if ((!curSession.messages || curSession.messages.length === 0) && savedItem.greeting && savedItem.greeting.trim()) {
+                            const curMsgs = curSession.messages || [];
+                            const isGreetingOnly = curMsgs.length === 1 && curMsgs[0].role === 'assistant';
+                            if (isGreetingOnly) {
+                                if (savedItem.greeting && savedItem.greeting.trim()) {
+                                    const charName = savedItem.name || 'Assistant';
+                                    const renderedGreeting = savedItem.greeting.trim().replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, 'User');
+                                    curSession.messages = [{
+                                        id: 'msg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                                        role: 'assistant',
+                                        content: renderedGreeting,
+                                        reasoning: '',
+                                        versions: [{ content: renderedGreeting, reasoning: '', following: [] }],
+                                        currentVersionIndex: 0
+                                    }];
+                                    curSession.updatedAt = Date.now();
+                                    saveSessions();
+                                    renderChat();
+                                } else {
+                                    curSession.messages = [];
+                                    curSession.updatedAt = Date.now();
+                                    saveSessions();
+                                    renderChat();
+                                }
+                            } else if ((!curSession.messages || curSession.messages.length === 0) && savedItem.greeting && savedItem.greeting.trim()) {
                                 const charName = savedItem.name || 'Assistant';
                                 const renderedGreeting = savedItem.greeting.trim().replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, 'User');
                                 curSession.messages.push({
@@ -4874,6 +4918,35 @@
                     updateChatComposerState();
                     renderChat();
                 }
+            });
+        }
+
+        function deleteAllChatSessions() {
+            if (chatSessions.length === 0) { alert('No chat history to delete.'); return; }
+            const count = chatSessions.length;
+            if (!confirm('Delete ALL ' + count + ' conversation(s)? This cannot be undone.')) return;
+            try { if (ipcRenderer) ipcRenderer.send('chat-stop'); } catch(e) {}
+            chatStreaming = false;
+            try { updateChatComposerState(); } catch(e) {}
+            // clear all and create fresh empty session with current persona greeting
+            chatSessions = [];
+            localStorage.removeItem('llama-manager-chat-sessions');
+            createNewChatSession('New Chat', false);
+            saveSessions();
+            renderSessionsList(chatSearchInput ? chatSearchInput.value : '');
+            renderChat();
+            if (chatMoreDropdown) chatMoreDropdown.classList.remove('open');
+        }
+
+        if (btnMenuDeleteAllChats) {
+            btnMenuDeleteAllChats.addEventListener('click', () => {
+                if (chatMoreDropdown) chatMoreDropdown.classList.remove('open');
+                deleteAllChatSessions();
+            });
+        }
+        if (btnDeleteAllChatsDrawer) {
+            btnDeleteAllChatsDrawer.addEventListener('click', () => {
+                deleteAllChatSessions();
             });
         }
 
