@@ -781,17 +781,35 @@
             align-items: center;
             justify-content: center;
             z-index: 100;
+            padding: 16px;
+            overflow-y: auto;
+        }
+        .modal-overlay[style*="flex"] {
+            display: flex !important;
         }
         .modal {
             background: var(--bg-surface);
             border: 1px solid var(--border);
             border-radius: 16px;
             width: 700px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            overscroll-behavior: contain;
             padding: 24px;
             display: flex;
             flex-direction: column;
             gap: 16px;
             box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+        #personas-modal .modal {
+            width: 780px;
+            max-height: 88vh;
+        }
+        #personas-modal .persona-editor {
+            max-height: none;
         }
 
         .console {
