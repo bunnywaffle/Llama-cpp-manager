@@ -3167,6 +3167,25 @@
                             <textarea id="persona-background" style="min-height: 70px;" placeholder="e.g. Created in a research lab, you have worked as a guide for over a decade..."></textarea>
                         </div>
                     </div>
+                    <button type="button" class="btn secondary" id="btn-toggle-rp" style="justify-content: flex-start; width: 100%;"><i class="fa-solid fa-book-open"></i> Roleplay Extras — Lorebook, Dialogue Example, Greeting <i class="fa-solid fa-chevron-down rp-chevron" style="margin-left: auto; font-size: 10px; transition: transform 0.18s;"></i></button>
+                    <div id="persona-rp" style="display: none; flex-direction: column; gap: 14px; padding: 12px; background: color-mix(in srgb, var(--bg-card) 60%, transparent); border: 1px solid var(--border); border-radius: 10px;">
+                        <div>
+                            <label>Start Message / Greeting <span style="font-weight: 400; color: var(--text-muted);">(optional — first assistant message)</span></label>
+                            <textarea id="persona-greeting" style="min-height: 70px;" placeholder="e.g. *The tavern door creaks...* Welcome, traveler! What brings you here?"></textarea>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Shown as the first message when you start a new chat with this persona (if chat is empty).</div>
+                        </div>
+                        <div>
+                            <label>Dialogue Example <span style="font-weight: 400; color: var(--text-muted);">(optional — few-shot example)</span></label>
+                            <textarea id="persona-dialogue-example" style="min-height: 110px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px;" placeholder="e.g. {{user}}: Hello, who are you?&#10;{{char}}: *smiles warmly* I'm Elara, keeper of the old library. How may I help you today?&#10;&#10;Use {{user}} and {{char}} as placeholders."></textarea>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Added to system context as an example — helps the model mimic the persona's style.</div>
+                        </div>
+                        <div>
+                            <label>Lorebook <span style="font-weight: 400; color: var(--text-muted);">(optional — keyword-triggered world info)</span></label>
+                            <div id="lorebook-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;"></div>
+                            <button type="button" class="btn secondary" id="btn-add-lorebook" style="margin-top: 8px; width: 100%;"><i class="fa-solid fa-plus"></i> Add Lorebook Entry</button>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Each entry triggers when its <b>keys</b> appear in recent chat. Use <code>constant</code> to always inject. Keep entries focused and concise.</div>
+                        </div>
+                    </div>
                     <div style="display: flex; justify-content: flex-end; gap: 10px;">
                         <button class="btn danger" id="btn-delete-persona" style="display: none;"><i class="fa-solid fa-trash"></i> Delete</button>
                         <button class="btn primary" id="btn-save-persona"><i class="fa-solid fa-floppy-disk"></i> Save Persona</button>

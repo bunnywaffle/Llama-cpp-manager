@@ -257,6 +257,22 @@ function writeModelsMeta(meta) {
     fs.writeFileSync(getModelsMetaPath(), JSON.stringify(meta || {}, null, 2));
 }
 
+function getExcludedAdapterFiles() {
+    try {
+        const meta = readModelsMeta();
+        const set = new Set();
+        for (const info of Object.values(meta)) {
+            if (!info) continue;
+            if (info.mmproj) set.add(info.mmproj.toLowerCase());
+            if (info.mtpDrafter) set.add(info.mtpDrafter.toLowerCase());
+            if (Array.isArray(info.loras)) {
+                for (const l of info.loras) if (l.file) set.add(l.file.toLowerCase());
+            }
+        }
+        return set;
+    } catch (e) { return new Set(); }
+}
+
 // Router mode: llama-server only auto-discovers an mmproj when the model and its
 // mmproj*.gguf sit together in a subdirectory of --models-dir. For top-level models
 // (which is how the app stores them) it never attaches a projector, so vision models
