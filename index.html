@@ -2228,8 +2228,12 @@
         .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
         @keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
     
+        .sampling-tag { display:inline-flex;align-items:center;gap:4px;background:var(--bg-card);border:1px solid var(--border);padding:3px 8px;border-radius:12px;font-size:10.5px;color:var(--text-muted);transition:all 0.12s; }
+        .sampling-tag strong { color:var(--accent); font-weight:700; }
+        .sampling-tag.active { background:var(--accent);color:#fff;border-color:var(--accent); }
+        .sampling-tag.active strong { color:#fff; }
         
-
+ 
     </style>
 </head>
 <body>
@@ -2667,8 +2671,9 @@
                     </button>
 
                     <!-- Modern Centered Composer -->
-                    <div class="chat-composer-container">
-                        <div class="chat-composer-box">
+                            <div id="chat-sampling-tags" style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 4px 8px;max-width:820px;width:100%;margin:0 auto;align-items:center;font-size:10.5px;min-height:22px;"></div>
+                            <div class="chat-composer-container">
+                                <div class="chat-composer-box">
                             <!-- Image Previews Container -->
                             <div id="chat-composer-image-previews" class="chat-image-preview-bar" style="display: none;"></div>
 
@@ -2723,12 +2728,12 @@
                                             <i class="fa-solid fa-sliders" style="color: var(--accent);"></i>
                                             <span>Params</span>
                                         </button>
-                                        <div class="dropdown-menu dropdown-menu-up" id="composer-params-card" style="width: 290px; padding: 14px; display: none;">
+                                        <div class="dropdown-menu dropdown-menu-up" id="composer-params-card" style="width: 340px; padding: 14px; display: none;">
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                                 <span style="font-weight: 600; font-size: 12.5px;"><i class="fa-solid fa-sliders" style="color: var(--accent);"></i> Sampling & Samplers</span>
                                                 <button type="button" class="btn-icon" id="btn-close-composer-params" style="font-size: 11px; padding: 2px 6px; background: none; border: none; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
                                             </div>
-                                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11.5px; max-height: 280px; overflow-y: auto; padding-right: 2px;">
+                                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11.5px; max-height: 420px; overflow-y: auto; padding-right: 4px;">
                                                 <div>
                                                     <div style="display: flex; justify-content: space-between;">
                                                         <span>Temperature</span>
@@ -2781,6 +2786,34 @@
                                                         <span id="quick-cfg-scale-val" style="color: var(--accent); font-weight: 600;">1.0</span>
                                                     </div>
                                                     <input type="range" id="quick-inp-cfg-scale" min="1" max="3" step="0.1" value="1.0" style="width: 100%;">
+                                                </div>
+                                                <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                                    <div><label style="font-size:10px;color:var(--text-muted);">Seed (-1=random)</label><input type="number" id="quick-inp-seed" value="-1" min="-1" step="1" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:11px;"></div>
+                                                    <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;padding-top:14px;"><input type="checkbox" id="quick-inp-ignore-eos" style="width:auto;"> Ignore EOS</label>
+                                                </div>
+                                                <div><label style="font-size:10px;color:var(--text-muted);">Samplers (e.g. penalties;dry;top_n_sigma;...)</label><input type="text" id="quick-inp-samplers" placeholder="penalties;dry;top_n_sigma;top_k;typ_p;top_p;min_p;xtc;temperature" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:10.5px;"></div>
+                                                <div><label style="font-size:10px;color:var(--text-muted);">Sampler Seq</label><input type="text" id="quick-inp-sampler-seq" placeholder="edskypmxt" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:10.5px;"></div>
+                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                                    <div><div style="display:flex;justify-content:space-between;"><span>Top N Sigma</span><span id="quick-top-nsigma-val" style="color:var(--accent);font-weight:600;">-1.0</span></div><input type="range" id="quick-inp-top-nsigma" min="-1" max="5" step="0.1" value="-1" style="width:100%;"></div>
+                                                    <div><div style="display:flex;justify-content:space-between;"><span>Typical P</span><span id="quick-typical-p-val" style="color:var(--accent);font-weight:600;">1.0</span></div><input type="range" id="quick-inp-typical-p" min="0.1" max="1" step="0.05" value="1" style="width:100%;"></div>
+                                                </div>
+                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                                    <div><label style="font-size:10px;color:var(--text-muted);">Repeat Last N</label><input type="number" id="quick-inp-repeat-last-n" value="64" min="0" step="1" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:11px;"></div>
+                                                    <div><label style="font-size:10px;color:var(--text-muted);">DRY Seq Breakers</label><input type="text" id="quick-inp-dry-seq-breakers" placeholder="\n,:&quot;* or none" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:11px;"></div>
+                                                </div>
+                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                                    <div><div style="display:flex;justify-content:space-between;"><span>Presence Penalty</span><span id="quick-presence-penalty-val" style="color:var(--accent);font-weight:600;">0.00</span></div><input type="range" id="quick-inp-presence-penalty" min="-2" max="2" step="0.05" value="0" style="width:100%;"></div>
+                                                    <div><div style="display:flex;justify-content:space-between;"><span>Frequency Penalty</span><span id="quick-frequency-penalty-val" style="color:var(--accent);font-weight:600;">0.00</span></div><input type="range" id="quick-inp-frequency-penalty" min="-2" max="2" step="0.05" value="0" style="width:100%;"></div>
+                                                </div>
+                                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                                                    <div><label style="font-size:10px;color:var(--text-muted);">Mirostat</label><select id="quick-inp-mirostat" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:11px;"><option value="0">0=Off</option><option value="1">1=Mirostat</option><option value="2">2=Mirostat 2.0</option></select></div>
+                                                    <div><label style="font-size:10px;color:var(--text-muted);">Mirostat Tau</label><input type="number" id="quick-inp-mirostat-tau" value="5" min="0" step="0.1" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:11px;"></div>
+                                                    <div><label style="font-size:10px;color:var(--text-muted);">Mirostat Eta</label><input type="number" id="quick-inp-mirostat-eta" value="0.1" min="0" step="0.01" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:11px;"></div>
+                                                </div>
+                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                                    <div><div style="display:flex;justify-content:space-between;"><span>Dynatemp Range</span><span id="quick-dynatemp-range-val" style="color:var(--accent);font-weight:600;">0.00</span></div><input type="range" id="quick-inp-dynatemp-range" min="0" max="1" step="0.05" value="0" style="width:100%;"></div>
+                                                    <div><div style="display:flex;justify-content:space-between;"><span>Dynatemp Exp</span><span id="quick-dynatemp-exp-val" style="color:var(--accent);font-weight:600;">1.00</span></div><input type="range" id="quick-inp-dynatemp-exp" min="0.1" max="3" step="0.1" value="1" style="width:100%;"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -2913,6 +2946,29 @@
                         </div>
                     </div>
                     <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.4;">User & assistant bubbles and primary buttons can be colored independently. Leave assistant empty for transparent (ChatGPT-style). Changes apply instantly.</div>
+                </div>
+            </div>
+
+            <!-- Full Sampling Params (all llama.cpp --help) -->
+            <div class="card" style="padding: 24px; gap: 14px;">
+                <div class="card-title" style="margin: 0;"><i class="fa-solid fa-sliders" style="color: var(--accent);"></i> Full Sampling Parameters <span style="font-size:11px;font-weight:400;color:var(--text-muted);">— all <code>llama.cpp</code> samplers, visible in chat tag</span></div>
+                <p style="margin:0;color:var(--text-muted);font-size:12px;line-height:1.4;">All <code>--help</code> sampling flags are now exposed. Values are sent per-request via the chat API (seed, samplers order, penalties, Mirostat, Dynatemp, etc.). Leave sampler texts empty for server defaults. Chat tag above the composer shows the active set.</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div><label>Seed (-1 = random)</label><input type="number" id="inp-seed" value="-1" min="-1" step="1" style="width:100%;"></div>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding-top:18px;"><input type="checkbox" id="inp-ignore-eos" style="width:auto;"> Ignore EOS</label>
+                    <div style="grid-column:1/-1;"><label>Samplers (e.g. penalties;dry;top_n_sigma;top_k;typ_p;top_p;min_p;xtc;temperature)</label><input type="text" id="inp-samplers" placeholder="penalties;dry;top_n_sigma;top_k;typ_p;top_p;min_p;xtc;temperature" style="width:100%;"></div>
+                    <div style="grid-column:1/-1;"><label>Sampler Seq (simplified)</label><input type="text" id="inp-sampler-seq" placeholder="edskypmxt" style="width:100%;"></div>
+                    <div><label>Top N Sigma (<span id="val-top-nsigma">-1.0</span>)</label><input type="range" id="inp-top-nsigma" min="-1" max="5" step="0.1" value="-1" style="width:100%;"></div>
+                    <div><label>Typical P (<span id="val-typical-p">1.00</span>)</label><input type="range" id="inp-typical-p" min="0.1" max="1" step="0.05" value="1" style="width:100%;"></div>
+                    <div><label>Repeat Last N</label><input type="number" id="inp-repeat-last-n" value="64" min="0" step="1" style="width:100%;"></div>
+                    <div><label>DRY Seq Breakers</label><input type="text" id="inp-dry-seq-breakers" placeholder="\n,:&quot;* or none" style="width:100%;"></div>
+                    <div><label>Presence Penalty (<span id="val-presence-penalty">0.00</span>)</label><input type="range" id="inp-presence-penalty" min="-2" max="2" step="0.05" value="0" style="width:100%;"></div>
+                    <div><label>Frequency Penalty (<span id="val-frequency-penalty">0.00</span>)</label><input type="range" id="inp-frequency-penalty" min="-2" max="2" step="0.05" value="0" style="width:100%;"></div>
+                    <div><label>Mirostat (0/1/2)</label><select id="inp-mirostat" style="width:100%;"><option value="0" selected>0 = Disabled</option><option value="1">1 = Mirostat</option><option value="2">2 = Mirostat 2.0</option></select></div>
+                    <div><label>Mirostat Tau (<span id="val-mirostat-tau">5.00</span>)</label><input type="range" id="inp-mirostat-tau" min="0" max="10" step="0.1" value="5" style="width:100%;"></div>
+                    <div><label>Mirostat Eta (<span id="val-mirostat-eta">0.10</span>)</label><input type="range" id="inp-mirostat-eta" min="0" max="1" step="0.01" value="0.1" style="width:100%;"></div>
+                    <div><label>Dynatemp Range (<span id="val-dynatemp-range">0.00</span>)</label><input type="range" id="inp-dynatemp-range" min="0" max="1" step="0.05" value="0" style="width:100%;"></div>
+                    <div><label>Dynatemp Exp (<span id="val-dynatemp-exp">1.00</span>)</label><input type="range" id="inp-dynatemp-exp" min="0.1" max="3" step="0.1" value="1" style="width:100%;"></div>
                 </div>
             </div>
 
@@ -3692,7 +3748,22 @@
                 autoStartServerOnGenerate: document.getElementById('inp-auto-start-server').checked,
                 routerMode: document.getElementById('inp-router-mode').checked,
                 parallelEnabled: document.getElementById('inp-parallel-enabled').checked,
-                parallelSlots: parseInt(document.getElementById('inp-parallel-slots').value, 10) || 1
+                parallelSlots: parseInt(document.getElementById('inp-parallel-slots').value, 10) || 1,
+                seed: parseInt(document.getElementById('inp-seed')?.value, 10) || -1,
+                ignoreEOS: document.getElementById('inp-ignore-eos')?.checked || false,
+                samplers: document.getElementById('inp-samplers')?.value || '',
+                samplerSeq: document.getElementById('inp-sampler-seq')?.value || '',
+                topNSigma: parseFloat(document.getElementById('inp-top-nsigma')?.value) || -1,
+                typicalP: parseFloat(document.getElementById('inp-typical-p')?.value) || 1.0,
+                repeatLastN: parseInt(document.getElementById('inp-repeat-last-n')?.value, 10) || 64,
+                presencePenalty: parseFloat(document.getElementById('inp-presence-penalty')?.value) || 0,
+                frequencyPenalty: parseFloat(document.getElementById('inp-frequency-penalty')?.value) || 0,
+                drySequenceBreakers: document.getElementById('inp-dry-seq-breakers')?.value || '',
+                mirostat: parseInt(document.getElementById('inp-mirostat')?.value, 10) || 0,
+                mirostatTau: parseFloat(document.getElementById('inp-mirostat-tau')?.value) || 5.0,
+                mirostatEta: parseFloat(document.getElementById('inp-mirostat-eta')?.value) || 0.1,
+                dynatempRange: parseFloat(document.getElementById('inp-dynatemp-range')?.value) || 0,
+                dynatempExp: parseFloat(document.getElementById('inp-dynatemp-exp')?.value) || 1.0
             };
         }
 
@@ -3715,6 +3786,21 @@
             }
             if (s.reasoningEffort !== undefined) document.getElementById('inp-reasoning').value = s.reasoningEffort;
             if (s.reasoningCollapsed !== undefined && document.getElementById('inp-reasoning-collapsed')) document.getElementById('inp-reasoning-collapsed').checked = !!s.reasoningCollapsed;
+            if (s.seed !== undefined && document.getElementById('inp-seed')) document.getElementById('inp-seed').value = s.seed;
+            if (s.ignoreEOS !== undefined && document.getElementById('inp-ignore-eos')) document.getElementById('inp-ignore-eos').checked = !!s.ignoreEOS;
+            if (s.samplers !== undefined && document.getElementById('inp-samplers')) document.getElementById('inp-samplers').value = s.samplers;
+            if (s.samplerSeq !== undefined && document.getElementById('inp-sampler-seq')) document.getElementById('inp-sampler-seq').value = s.samplerSeq;
+            if (s.topNSigma !== undefined && document.getElementById('inp-top-nsigma')) { document.getElementById('inp-top-nsigma').value = s.topNSigma; const v=document.getElementById('val-top-nsigma'); if(v) v.textContent=Number(s.topNSigma).toFixed(1); }
+            if (s.typicalP !== undefined && document.getElementById('inp-typical-p')) { document.getElementById('inp-typical-p').value = s.typicalP; const v=document.getElementById('val-typical-p'); if(v) v.textContent=Number(s.typicalP).toFixed(2); }
+            if (s.repeatLastN !== undefined && document.getElementById('inp-repeat-last-n')) document.getElementById('inp-repeat-last-n').value = s.repeatLastN;
+            if (s.drySequenceBreakers !== undefined && document.getElementById('inp-dry-seq-breakers')) document.getElementById('inp-dry-seq-breakers').value = s.drySequenceBreakers;
+            if (s.presencePenalty !== undefined && document.getElementById('inp-presence-penalty')) { document.getElementById('inp-presence-penalty').value = s.presencePenalty; const v=document.getElementById('val-presence-penalty'); if(v) v.textContent=Number(s.presencePenalty).toFixed(2); }
+            if (s.frequencyPenalty !== undefined && document.getElementById('inp-frequency-penalty')) { document.getElementById('inp-frequency-penalty').value = s.frequencyPenalty; const v=document.getElementById('val-frequency-penalty'); if(v) v.textContent=Number(s.frequencyPenalty).toFixed(2); }
+            if (s.mirostat !== undefined && document.getElementById('inp-mirostat')) document.getElementById('inp-mirostat').value = s.mirostat;
+            if (s.mirostatTau !== undefined && document.getElementById('inp-mirostat-tau')) { document.getElementById('inp-mirostat-tau').value = s.mirostatTau; const v=document.getElementById('val-mirostat-tau'); if(v) v.textContent=Number(s.mirostatTau).toFixed(2); }
+            if (s.mirostatEta !== undefined && document.getElementById('inp-mirostat-eta')) { document.getElementById('inp-mirostat-eta').value = s.mirostatEta; const v=document.getElementById('val-mirostat-eta'); if(v) v.textContent=Number(s.mirostatEta).toFixed(2); }
+            if (s.dynatempRange !== undefined && document.getElementById('inp-dynatemp-range')) { document.getElementById('inp-dynatemp-range').value = s.dynatempRange; const v=document.getElementById('val-dynatemp-range'); if(v) v.textContent=Number(s.dynatempRange).toFixed(2); }
+            if (s.dynatempExp !== undefined && document.getElementById('inp-dynatemp-exp')) { document.getElementById('inp-dynatemp-exp').value = s.dynatempExp; const v=document.getElementById('val-dynatemp-exp'); if(v) v.textContent=Number(s.dynatempExp).toFixed(2); }
             if (s.autoStartServerOnGenerate !== undefined) document.getElementById('inp-auto-start-server').checked = s.autoStartServerOnGenerate;
             if (s.routerMode !== undefined) document.getElementById('inp-router-mode').checked = s.routerMode;
             if (s.parallelEnabled !== undefined) document.getElementById('inp-parallel-enabled').checked = s.parallelEnabled;
@@ -3727,6 +3813,7 @@
                 document.documentElement.setAttribute('data-theme', s.theme);
                 localStorage.setItem('llama-manager-theme', s.theme);
             }
+            setTimeout(updateChatSamplingTags, 150);
         }
 
         function showSettingsFeedback(msg) {
@@ -3754,6 +3841,7 @@
                 maxTokens: 2048, maxTokensUnlimited: true,
                 reasoningEffort: 'medium',
                 reasoningCollapsed: true,
+                seed: -1, ignoreEOS: false, samplers: '', samplerSeq: '', topNSigma: -1, typicalP: 1.0, repeatLastN: 64, presencePenalty: 0, frequencyPenalty: 0, drySequenceBreakers: '', mirostat: 0, mirostatTau: 5.0, mirostatEta: 0.1, dynatempRange: 0, dynatempExp: 1.0,
                 autoStartServerOnGenerate: false,
                 routerMode: false,
                 parallelEnabled: false,
@@ -4971,7 +5059,20 @@
         }
 
         function currentChatParams() {
-            const val = (id) => document.getElementById(id) ? document.getElementById(id).value : '';
+            const val = (id) => {
+                const el = document.getElementById(id);
+                if (el && el.value !== undefined && el.value !== '') return el.value;
+                // fallback to quick-* counterpart
+                const qid = id.replace(/^inp-/, 'quick-inp-');
+                const qel = document.getElementById(qid);
+                return qel ? qel.value : '';
+            };
+            const chk = (id) => {
+                const el = document.getElementById(id);
+                if (el) return el.checked;
+                const qel = document.getElementById(id.replace(/^inp-/, 'quick-inp-'));
+                return qel ? qel.checked : false;
+            };
             return {
                 temperature: parseFloat(val('inp-temp')) || 0.8,
                 topP: parseFloat(val('inp-topp')) || 0.95,
@@ -4989,9 +5090,98 @@
                 dryAllowedLength: parseInt(val('inp-dry-allowed-length'), 10) || 2,
                 dryPenaltyLastN: parseInt(val('inp-dry-penalty-last-n'), 10) || 64,
                 cfgScale: parseFloat(val('inp-cfg-scale')) || 1.0,
-                cfgNegativePrompt: val('inp-cfg-negative-prompt') || ''
+                cfgNegativePrompt: val('inp-cfg-negative-prompt') || '',
+                // All llama.cpp sampling params (chat tag) — expanded per --help
+                seed: parseInt(val('inp-seed') || '-1', 10),
+                ignoreEOS: chk('inp-ignore-eos'),
+                samplers: val('inp-samplers') || '',
+                samplerSeq: val('inp-sampler-seq') || '',
+                topNSigma: parseFloat(val('inp-top-nsigma')) || -1,
+                typicalP: parseFloat(val('inp-typical-p')) || 1.0,
+                repeatLastN: parseInt(val('inp-repeat-last-n') || '64', 10),
+                presencePenalty: parseFloat(val('inp-presence-penalty')) || 0,
+                frequencyPenalty: parseFloat(val('inp-frequency-penalty')) || 0,
+                drySequenceBreakers: val('inp-dry-seq-breakers') || '',
+                mirostat: parseInt(val('inp-mirostat') || '0', 10),
+                mirostatTau: parseFloat(val('inp-mirostat-tau')) || 5.0,
+                mirostatEta: parseFloat(val('inp-mirostat-eta')) || 0.1,
+                dynatempRange: parseFloat(val('inp-dynatemp-range')) || 0,
+                dynatempExp: parseFloat(val('inp-dynatemp-exp')) || 1.0
             };
         }
+
+        function updateChatSamplingTags() {
+            const el = document.getElementById('chat-sampling-tags');
+            if (!el) return;
+            const p = currentChatParams();
+            const tags = [];
+            const add = (label, value, active) => {
+                if (value === undefined || value === null || value === '' || value === false) return;
+                if (typeof value === 'number' && isNaN(value)) return;
+                tags.push(`<span class="sampling-tag ${active ? 'active' : ''}">${label} <strong>${escapeHtml(String(value))}</strong></span>`);
+            };
+            add('Temp', p.temperature);
+            add('TopP', p.topP);
+            add('TopK', p.topK);
+            add('MinP', p.minP);
+            add('TopNσ', p.topNSigma, p.topNSigma >= 0);
+            add('TypP', p.typicalP, p.typicalP < 1);
+            add('Seed', p.seed, p.seed >= 0);
+            add('Presence', p.presencePenalty, p.presencePenalty !== 0);
+            add('Freq', p.frequencyPenalty, p.frequencyPenalty !== 0);
+            add('Miro', p.mirostat, p.mirostat !== 0);
+            add('DynR', p.dynatempRange, p.dynatempRange > 0);
+            if (p.ignoreEOS) tags.push('<span class="sampling-tag active">Ignore EOS</span>');
+            if (tags.length === 0) {
+                el.innerHTML = '<span style="color:var(--text-muted);font-size:10.5px;">Sampling: defaults <span style="opacity:0.6;">— click Params to tune</span></span>';
+            } else {
+                el.innerHTML = tags.join('') + '<span style="margin-left:4px;color:var(--text-muted);font-size:10px;">— sampling</span>';
+            }
+        }
+
+        setTimeout(() => {
+            updateChatSamplingTags();
+            const allIds = ['inp-temp','inp-topp','inp-topk','inp-minp','inp-repeat','inp-seed','inp-ignore-eos','inp-samplers','inp-sampler-seq','inp-top-nsigma','inp-typical-p','inp-repeat-last-n','inp-presence-penalty','inp-frequency-penalty','inp-dry-seq-breakers','inp-mirostat','inp-mirostat-tau','inp-mirostat-eta','inp-dynatemp-range','inp-dynatemp-exp','quick-inp-temp','quick-inp-topp','quick-inp-topk','quick-inp-repeat','quick-inp-seed','quick-inp-ignore-eos','quick-inp-samplers','quick-inp-sampler-seq','quick-inp-top-nsigma','quick-inp-typical-p','quick-inp-repeat-last-n','quick-inp-presence-penalty','quick-inp-frequency-penalty','quick-inp-dry-seq-breakers','quick-inp-mirostat','quick-inp-mirostat-tau','quick-inp-mirostat-eta','quick-inp-dynatemp-range','quick-inp-dynatemp-exp'];
+            allIds.forEach(id => {
+                const e = document.getElementById(id);
+                if (e) { e.addEventListener('input', updateChatSamplingTags); e.addEventListener('change', updateChatSamplingTags); }
+            });
+            // sync main <-> quick pairs and live value displays
+            const pairs = [
+                ['inp-temp','quick-inp-temp','quick-temp-val'],
+                ['inp-topp','quick-inp-topp','quick-topp-val'],
+                ['inp-topk','quick-inp-topk','quick-topk-val'],
+                ['inp-repeat','quick-inp-repeat','quick-repeat-val'],
+                ['inp-top-nsigma','quick-inp-top-nsigma','quick-top-nsigma-val'],
+                ['inp-typical-p','quick-inp-typical-p','quick-typical-p-val'],
+                ['inp-presence-penalty','quick-inp-presence-penalty','quick-presence-penalty-val'],
+                ['inp-frequency-penalty','quick-inp-frequency-penalty','quick-frequency-penalty-val'],
+                ['inp-dynatemp-range','quick-inp-dynatemp-range','quick-dynatemp-range-val'],
+                ['inp-dynatemp-exp','quick-inp-dynatemp-exp','quick-dynatemp-exp-val']
+            ];
+            pairs.forEach(([a,b,lab]) => {
+                const ea = document.getElementById(a), eb = document.getElementById(b);
+                const lbl = document.getElementById(lab);
+                const upd = (src, dst) => {
+                    if (!src || !dst) return;
+                    dst.value = src.value;
+                    if (lbl) lbl.textContent = parseFloat(src.value).toFixed(src.step && src.step.includes('.') ? 2 : 0);
+                };
+                if (ea && eb) {
+                    ea.addEventListener('input', () => { upd(ea, eb); });
+                    eb.addEventListener('input', () => { upd(eb, ea); updateChatSamplingTags(); });
+                }
+                // quick-only value labels
+                if (eb && lbl && !ea) {
+                    eb.addEventListener('input', () => { lbl.textContent = parseFloat(eb.value).toFixed(2); });
+                }
+            });
+            // mirostat and other selects need tag refresh
+            ['inp-mirostat','quick-inp-mirostat','inp-seed','quick-inp-seed','inp-ignore-eos','quick-inp-ignore-eos'].forEach(id=>{
+                const e=document.getElementById(id);
+                if(e) e.addEventListener('change', updateChatSamplingTags);
+            });
+        }, 900);
 
         async function generateReply(opts = {}) {
             if (chatStreaming) return;

@@ -1647,7 +1647,23 @@ ipcMain.on('chat-start', (event, payload) => {
         dry_allowed_length: (params && params.dryAllowedLength !== undefined) ? parseInt(params.dryAllowedLength, 10) : undefined,
         dry_penalty_last_n: (params && params.dryPenaltyLastN !== undefined) ? parseInt(params.dryPenaltyLastN, 10) : undefined,
         cfg_scale: (params && params.cfgScale !== undefined && parseFloat(params.cfgScale) > 1.0) ? parseFloat(params.cfgScale) : undefined,
-        negative_prompt: (params && params.cfgNegativePrompt) ? params.cfgNegativePrompt : undefined
+        negative_prompt: (params && params.cfgNegativePrompt) ? params.cfgNegativePrompt : undefined,
+        // All llama.cpp sampling params (chat tag) — expanded per --help sampling params
+        seed: (params && params.seed !== undefined && params.seed !== null && params.seed !== '' && parseInt(params.seed, 10) >= 0) ? parseInt(params.seed, 10) : undefined,
+        ignore_eos: (params && params.ignoreEOS) ? true : undefined,
+        samplers: (params && params.samplers && params.samplers.trim()) ? params.samplers.trim() : undefined,
+        sampler_seq: (params && params.samplerSeq && params.samplerSeq.trim()) ? params.samplerSeq.trim() : undefined,
+        top_n_sigma: (params && params.topNSigma !== undefined && params.topNSigma !== null && params.topNSigma !== '' && !isNaN(parseFloat(params.topNSigma)) && parseFloat(params.topNSigma) >= 0) ? parseFloat(params.topNSigma) : undefined,
+        typical_p: (params && params.typicalP !== undefined && params.typicalP !== null && params.typicalP !== '' && !isNaN(parseFloat(params.typicalP)) && parseFloat(params.typicalP) < 1.0 && parseFloat(params.typicalP) > 0) ? parseFloat(params.typicalP) : undefined,
+        repeat_last_n: (params && params.repeatLastN !== undefined && params.repeatLastN !== null && params.repeatLastN !== '' && !isNaN(parseInt(params.repeatLastN, 10))) ? parseInt(params.repeatLastN, 10) : undefined,
+        presence_penalty: (params && params.presencePenalty !== undefined && params.presencePenalty !== null && params.presencePenalty !== '' && !isNaN(parseFloat(params.presencePenalty)) && parseFloat(params.presencePenalty) !== 0) ? parseFloat(params.presencePenalty) : undefined,
+        frequency_penalty: (params && params.frequencyPenalty !== undefined && params.frequencyPenalty !== null && params.frequencyPenalty !== '' && !isNaN(parseFloat(params.frequencyPenalty)) && parseFloat(params.frequencyPenalty) !== 0) ? parseFloat(params.frequencyPenalty) : undefined,
+        dry_sequence_breakers: (params && params.drySequenceBreakers && params.drySequenceBreakers.trim() && params.drySequenceBreakers !== 'none') ? params.drySequenceBreakers : undefined,
+        mirostat: (params && params.mirostat !== undefined && params.mirostat !== null && parseInt(params.mirostat, 10) !== 0) ? parseInt(params.mirostat, 10) : undefined,
+        mirostat_tau: (params && params.mirostatTau !== undefined && params.mirostatTau !== null && params.mirostatTau !== '' && !isNaN(parseFloat(params.mirostatTau))) ? parseFloat(params.mirostatTau) : undefined,
+        mirostat_eta: (params && params.mirostatEta !== undefined && params.mirostatEta !== null && params.mirostatEta !== '' && !isNaN(parseFloat(params.mirostatEta))) ? parseFloat(params.mirostatEta) : undefined,
+        dynatemp_range: (params && params.dynatempRange !== undefined && params.dynatempRange !== null && params.dynatempRange !== '' && !isNaN(parseFloat(params.dynatempRange)) && parseFloat(params.dynatempRange) > 0) ? parseFloat(params.dynatempRange) : undefined,
+        dynatemp_exponent: (params && params.dynatempExp !== undefined && params.dynatempExp !== null && params.dynatempExp !== '' && !isNaN(parseFloat(params.dynatempExp))) ? parseFloat(params.dynatempExp) : undefined
     };
 
     axios.post(url, body, {
