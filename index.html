@@ -2322,9 +2322,6 @@
                 <button class="nav-item" data-target="view-backends">
                     <i class="fa-solid fa-microchip" style="width: 16px;"></i> Backends
                 </button>
-                <button class="nav-item" id="nav-mcp-servers" data-target="view-settings" title="MCP Servers — stdio tools">
-                    <i class="fa-solid fa-plug" style="width: 16px;"></i> MCP Servers <span style="font-size:9px;background:var(--accent);color:var(--btn-primary-text,#fff);padding:1px 5px;border-radius:6px;margin-left:auto;">NEW</span>
-                </button>
             </div>
         </div>
         <div class="sidebar-bottom">
@@ -2978,34 +2975,58 @@
                     </div>
                 </div>
                 <div style="margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--border);">
-                    <label style="display: block; margin-bottom: 10px; font-weight: 600;"><i class="fa-solid fa-comments" style="color: var(--accent);"></i> Chat Colors — separate controls</label>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;"><i class="fa-solid fa-comments" style="color: var(--accent);"></i> Chat Colors — bubbles & buttons</label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
                         <div>
-                            <label style="display: block; margin-bottom: 6px; font-size: 12px;">User Bubble</label>
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight:600;">User Bubble BG</label>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <input type="color" id="chat-user-color" value="#e4e4e7" style="width: 42px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-base); cursor: pointer;">
                                 <input type="text" id="chat-user-color-hex" value="#e4e4e7" maxlength="7" style="max-width: 90px; padding: 8px 10px; border-radius: 8px; font-size: 12px;">
-                                <button class="btn secondary" id="btn-chat-user-reset" style="padding: 6px 10px;" title="Reset user bubble"><i class="fa-solid fa-rotate-left"></i></button>
+                                <button class="btn secondary" id="btn-chat-user-reset" style="padding: 6px 10px;" title="Reset"><i class="fa-solid fa-rotate-left"></i></button>
                             </div>
                         </div>
                         <div>
-                            <label style="display: block; margin-bottom: 6px; font-size: 12px;">Assistant Bubble</label>
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight:600;">User Text</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="color" id="chat-user-text-color" value="#ffffff" style="width: 42px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-base); cursor: pointer;">
+                                <input type="text" id="chat-user-text-hex" value="#ffffff" maxlength="7" style="max-width: 90px; padding: 8px 10px; border-radius: 8px; font-size: 12px;">
+                                <button class="btn secondary" id="btn-chat-user-text-reset" style="padding: 6px 10px;" title="Reset"><i class="fa-solid fa-rotate-left"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight:600;">Assistant Bubble BG</label>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <input type="color" id="chat-assistant-color" value="#1a1a1c" style="width: 42px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-base); cursor: pointer;">
                                 <input type="text" id="chat-assistant-color-hex" value="" placeholder="transparent" maxlength="7" style="max-width: 90px; padding: 8px 10px; border-radius: 8px; font-size: 12px;">
-                                <button class="btn secondary" id="btn-chat-assistant-reset" style="padding: 6px 10px;" title="Reset assistant bubble"><i class="fa-solid fa-rotate-left"></i></button>
+                                <button class="btn secondary" id="btn-chat-assistant-reset" style="padding: 6px 10px;" title="Reset"><i class="fa-solid fa-rotate-left"></i></button>
                             </div>
                         </div>
                         <div>
-                            <label style="display: block; margin-bottom: 6px; font-size: 12px;">Primary Button</label>
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight:600;">Assistant Text</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="color" id="chat-assistant-text-color" value="#ececec" style="width: 42px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-base); cursor: pointer;">
+                                <input type="text" id="chat-assistant-text-hex" value="#ececec" maxlength="7" style="max-width: 90px; padding: 8px 10px; border-radius: 8px; font-size: 12px;">
+                                <button class="btn secondary" id="btn-chat-assistant-text-reset" style="padding: 6px 10px;" title="Reset"><i class="fa-solid fa-rotate-left"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight:600;">Primary Button BG</label>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <input type="color" id="chat-button-color" value="#e4e4e7" style="width: 42px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-base); cursor: pointer;">
                                 <input type="text" id="chat-button-color-hex" value="#e4e4e7" maxlength="7" style="max-width: 90px; padding: 8px 10px; border-radius: 8px; font-size: 12px;">
-                                <button class="btn secondary" id="btn-chat-button-reset" style="padding: 6px 10px;" title="Reset button color"><i class="fa-solid fa-rotate-left"></i></button>
+                                <button class="btn secondary" id="btn-chat-button-reset" style="padding: 6px 10px;" title="Reset"><i class="fa-solid fa-rotate-left"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight:600;">Button Text</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="color" id="chat-button-text-color" value="#0a0a0a" style="width: 42px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-base); cursor: pointer;">
+                                <input type="text" id="chat-button-text-hex" value="#0a0a0a" maxlength="7" style="max-width: 90px; padding: 8px 10px; border-radius: 8px; font-size: 12px;">
+                                <button class="btn secondary" id="btn-chat-button-text-reset" style="padding: 6px 10px;" title="Reset"><i class="fa-solid fa-rotate-left"></i></button>
                             </div>
                         </div>
                     </div>
-                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.4;">User & assistant bubbles and primary buttons can be colored independently. Leave assistant empty for transparent (ChatGPT-style). Changes apply instantly.</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.4;">Bubbles & buttons: pick background + text separately. Assistant BG empty = transparent (ChatGPT-style). Changes apply instantly and persist.</div>
                 </div>
             </div>
 
@@ -3034,7 +3055,7 @@
 
             <!-- MCP Servers Card — minimal authentic llama.cpp stdio MCP per #26062 -->
             <div class="card" id="mcp-card" style="padding: 24px; gap: 14px; border-color: color-mix(in srgb, var(--accent) 25%, var(--border));">
-                <div class="card-title" style="margin: 0;"><i class="fa-solid fa-plug" style="color: var(--accent);"></i> MCP Servers <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;">(experimental — llama.cpp stdio)</span> <span style="font-size:10px;background:var(--accent);color:var(--btn-primary-text, #fff);padding:2px 7px;border-radius:20px;margin-left:6px;">NEW</span></div>
+                <div class="card-title" style="margin: 0;"><i class="fa-solid fa-plug" style="color: var(--accent);"></i> MCP Servers <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;">(experimental — llama.cpp stdio)</span></div>
                 <p style="margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.5;">
                     Expose local tools to the model via <code style="font-family:'JetBrains Mono',Consolas,monospace;">--mcp-servers-config</code> (Cursor-compatible <code>mcpServers</code> JSON, stdio transport). The server spawns each command on demand and exposes its tools as <code>server_tool</code> via <code>GET /tools</code>. <span style="color:#eab308;"><i class="fa-solid fa-triangle-exclamation"></i> Only declare servers you trust — they run with the same privileges as <code>llama-server</code> and will limit <code>--cors-origins</code> to <code>localhost</code>.</span>
                 </p>
@@ -3476,47 +3497,90 @@
         });
         btnAccentReset.addEventListener('click', resetAccent);
 
-        // Chat Colors — separate controls for user / assistant / button
+        // Chat Colors — bubbles & buttons (bg + text separate, advanced)
         const chatUserColor = document.getElementById('chat-user-color');
         const chatUserHex = document.getElementById('chat-user-color-hex');
         const btnChatUserReset = document.getElementById('btn-chat-user-reset');
+        const chatUserTextColor = document.getElementById('chat-user-text-color');
+        const chatUserTextHex = document.getElementById('chat-user-text-hex');
+        const btnChatUserTextReset = document.getElementById('btn-chat-user-text-reset');
         const chatAssistantColor = document.getElementById('chat-assistant-color');
         const chatAssistantHex = document.getElementById('chat-assistant-color-hex');
         const btnChatAssistantReset = document.getElementById('btn-chat-assistant-reset');
+        const chatAssistantTextColor = document.getElementById('chat-assistant-text-color');
+        const chatAssistantTextHex = document.getElementById('chat-assistant-text-hex');
+        const btnChatAssistantTextReset = document.getElementById('btn-chat-assistant-text-reset');
         const chatButtonColor = document.getElementById('chat-button-color');
         const chatButtonHex = document.getElementById('chat-button-color-hex');
         const btnChatButtonReset = document.getElementById('btn-chat-button-reset');
+        const chatButtonTextColor = document.getElementById('chat-button-text-color');
+        const chatButtonTextHex = document.getElementById('chat-button-text-hex');
+        const btnChatButtonTextReset = document.getElementById('btn-chat-button-text-reset');
 
+        function lumText(hex){
+            const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+            const lum=(0.299*r+0.587*g+0.114*b);
+            return lum>160;
+        }
         function applyChatUserColor(hex, persist = true) {
             hex = hex.trim();
             if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return false;
             document.documentElement.style.setProperty('--chat-user-bg', hex);
-            // auto text color: use white for dark bg, dark for light bg (simple luminance check)
-            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-            const lum = (0.299*r + 0.587*g + 0.114*b);
-            document.documentElement.style.setProperty('--chat-user-text', lum > 160 ? '#0a0a0a' : '#ffffff');
+            // only auto-set text if user hasn't manually set a text color
+            if (!localStorage.getItem('llama-manager-chat-user-text')) {
+                const txt = lumText(hex) ? '#0a0a0a' : '#ffffff';
+                document.documentElement.style.setProperty('--chat-user-text', txt);
+                if (chatUserTextColor) chatUserTextColor.value = txt;
+                if (chatUserTextHex) chatUserTextHex.value = txt;
+            }
             if (chatUserColor) chatUserColor.value = hex;
             if (chatUserHex) chatUserHex.value = hex;
             if (persist) localStorage.setItem('llama-manager-chat-user', hex);
             return true;
         }
+        function applyChatUserTextColor(hex, persist = true){
+            hex = hex.trim();
+            if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return false;
+            document.documentElement.style.setProperty('--chat-user-text', hex);
+            if (chatUserTextColor) chatUserTextColor.value = hex;
+            if (chatUserTextHex) chatUserTextHex.value = hex;
+            if (persist) localStorage.setItem('llama-manager-chat-user-text', hex);
+            return true;
+        }
         function resetChatUserColor() {
             document.documentElement.style.removeProperty('--chat-user-bg');
-            document.documentElement.style.removeProperty('--chat-user-text');
             localStorage.removeItem('llama-manager-chat-user');
-            const cur = getComputedStyle(document.documentElement).getPropertyValue('--chat-user-bg').trim() || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e4e4e7';
+            const cur = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e4e4e7';
             if (chatUserHex) chatUserHex.value = cur;
             if (chatUserColor) chatUserColor.value = cur;
+            // if no manual text, reset text to default white logic
+            if (!localStorage.getItem('llama-manager-chat-user-text')) {
+                document.documentElement.style.removeProperty('--chat-user-text');
+            }
+        }
+        function resetChatUserTextColor(){
+            document.documentElement.style.removeProperty('--chat-user-text');
+            localStorage.removeItem('llama-manager-chat-user-text');
+            // restore auto based on current bg
+            const bg = localStorage.getItem('llama-manager-chat-user') || getComputedStyle(document.documentElement).getPropertyValue('--chat-user-bg').trim() || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e4e4e7';
+            const isLight = lumText(bg.startsWith('#')?bg:'#e4e4e7');
+            const txt = isLight ? '#0a0a0a' : '#ffffff';
+            document.documentElement.style.setProperty('--chat-user-text', txt);
+            if (chatUserTextColor) chatUserTextColor.value = txt;
+            if (chatUserTextHex) chatUserTextHex.value = txt;
         }
         function applyChatAssistantColor(hex, persist = true) {
             hex = hex.trim();
             if (hex === '') {
                 document.documentElement.style.removeProperty('--chat-assistant-bg');
                 document.documentElement.style.removeProperty('--chat-assistant-border');
-                document.documentElement.style.removeProperty('--chat-assistant-text');
                 document.documentElement.style.removeProperty('--chat-assistant-padding');
                 document.documentElement.style.removeProperty('--chat-assistant-radius');
                 document.documentElement.style.removeProperty('--chat-assistant-shadow');
+                // keep text color if manually set, else leave as is
+                if (!localStorage.getItem('llama-manager-chat-assistant-text')) {
+                    document.documentElement.style.removeProperty('--chat-assistant-text');
+                }
                 if (chatAssistantHex) chatAssistantHex.value = '';
                 if (persist) localStorage.removeItem('llama-manager-chat-assistant');
                 document.querySelectorAll('.chat-msg.assistant .chat-bubble').forEach(b => b.classList.remove('has-bg'));
@@ -3525,9 +3589,12 @@
             if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return false;
             document.documentElement.style.setProperty('--chat-assistant-bg', hex);
             document.documentElement.style.setProperty('--chat-assistant-border', '1px solid ' + hex);
-            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-            const lum = (0.299*r + 0.587*g + 0.114*b);
-            document.documentElement.style.setProperty('--chat-assistant-text', lum > 160 ? '#0a0a0a' : '#ececec');
+            if (!localStorage.getItem('llama-manager-chat-assistant-text')) {
+                const txt = lumText(hex) ? '#0a0a0a' : '#ececec';
+                document.documentElement.style.setProperty('--chat-assistant-text', txt);
+                if (chatAssistantTextColor) chatAssistantTextColor.value = txt;
+                if (chatAssistantTextHex) chatAssistantTextHex.value = txt;
+            }
             document.documentElement.style.setProperty('--chat-assistant-padding', '12px 16px');
             document.documentElement.style.setProperty('--chat-assistant-radius', '14px');
             document.documentElement.style.setProperty('--chat-assistant-shadow', '0 2px 8px rgba(0,0,0,0.12)');
@@ -3537,48 +3604,112 @@
             document.querySelectorAll('.chat-msg.assistant .chat-bubble').forEach(b => b.classList.add('has-bg'));
             return true;
         }
+        function applyChatAssistantTextColor(hex, persist=true){
+            hex=hex.trim();
+            if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return false;
+            document.documentElement.style.setProperty('--chat-assistant-text', hex);
+            if (chatAssistantTextColor) chatAssistantTextColor.value = hex;
+            if (chatAssistantTextHex) chatAssistantTextHex.value = hex;
+            if (persist) localStorage.setItem('llama-manager-chat-assistant-text', hex);
+            return true;
+        }
         function resetChatAssistantColor() {
             applyChatAssistantColor('', true);
             if (chatAssistantColor) chatAssistantColor.value = '#1a1a1c';
+        }
+        function resetChatAssistantTextColor(){
+            document.documentElement.style.removeProperty('--chat-assistant-text');
+            localStorage.removeItem('llama-manager-chat-assistant-text');
+            const bg = localStorage.getItem('llama-manager-chat-assistant');
+            if (bg && /^#[0-9a-fA-F]{6}$/.test(bg)) {
+                const txt = lumText(bg) ? '#0a0a0a' : '#ececec';
+                document.documentElement.style.setProperty('--chat-assistant-text', txt);
+                if (chatAssistantTextColor) chatAssistantTextColor.value = txt;
+                if (chatAssistantTextHex) chatAssistantTextHex.value = txt;
+            } else {
+                // fallback to theme text
+                document.documentElement.style.removeProperty('--chat-assistant-text');
+                if (chatAssistantTextColor) chatAssistantTextColor.value = '#ececec';
+                if (chatAssistantTextHex) chatAssistantTextHex.value = '#ececec';
+            }
         }
         function applyChatButtonColor(hex, persist = true) {
             hex = hex.trim();
             if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return false;
             document.documentElement.style.setProperty('--btn-primary-bg', hex);
-            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-            const lum = (0.299*r + 0.587*g + 0.114*b);
-            document.documentElement.style.setProperty('--btn-primary-text', lum > 160 ? '#0a0a0a' : '#ffffff');
+            if (!localStorage.getItem('llama-manager-chat-button-text')) {
+                const txt = lumText(hex) ? '#0a0a0a' : '#ffffff';
+                document.documentElement.style.setProperty('--btn-primary-text', txt);
+                if (chatButtonTextColor) chatButtonTextColor.value = txt;
+                if (chatButtonTextHex) chatButtonTextHex.value = txt;
+            }
             if (chatButtonColor) chatButtonColor.value = hex;
             if (chatButtonHex) chatButtonHex.value = hex;
             if (persist) localStorage.setItem('llama-manager-chat-button', hex);
             return true;
         }
+        function applyChatButtonTextColor(hex, persist=true){
+            hex=hex.trim();
+            if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return false;
+            document.documentElement.style.setProperty('--btn-primary-text', hex);
+            if (chatButtonTextColor) chatButtonTextColor.value = hex;
+            if (chatButtonTextHex) chatButtonTextHex.value = hex;
+            if (persist) localStorage.setItem('llama-manager-chat-button-text', hex);
+            return true;
+        }
         function resetChatButtonColor() {
             document.documentElement.style.removeProperty('--btn-primary-bg');
-            document.documentElement.style.removeProperty('--btn-primary-text');
             localStorage.removeItem('llama-manager-chat-button');
-            const cur = getComputedStyle(document.documentElement).getPropertyValue('--btn-primary-bg').trim() || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e4e4e7';
+            const cur = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e4e4e7';
             if (chatButtonHex) chatButtonHex.value = cur;
             if (chatButtonColor) chatButtonColor.value = cur;
+            if (!localStorage.getItem('llama-manager-chat-button-text')) {
+                document.documentElement.style.removeProperty('--btn-primary-text');
+            }
+        }
+        function resetChatButtonTextColor(){
+            document.documentElement.style.removeProperty('--btn-primary-text');
+            localStorage.removeItem('llama-manager-chat-button-text');
+            const bg = localStorage.getItem('llama-manager-chat-button') || getComputedStyle(document.documentElement).getPropertyValue('--btn-primary-bg').trim() || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e4e4e7';
+            const isLight = lumText(bg.startsWith('#')?bg:'#e4e4e7');
+            const txt = isLight ? '#0a0a0a' : '#ffffff';
+            document.documentElement.style.setProperty('--btn-primary-text', txt);
+            if (chatButtonTextColor) chatButtonTextColor.value = txt;
+            if (chatButtonTextHex) chatButtonTextHex.value = txt;
         }
 
         const savedChatUser = localStorage.getItem('llama-manager-chat-user');
         if (savedChatUser) applyChatUserColor(savedChatUser, false);
+        const savedChatUserText = localStorage.getItem('llama-manager-chat-user-text');
+        if (savedChatUserText) applyChatUserTextColor(savedChatUserText, false);
         const savedChatAssistant = localStorage.getItem('llama-manager-chat-assistant');
         if (savedChatAssistant) applyChatAssistantColor(savedChatAssistant, false);
         else if (chatAssistantHex) chatAssistantHex.value = '';
+        const savedChatAssistantText = localStorage.getItem('llama-manager-chat-assistant-text');
+        if (savedChatAssistantText) applyChatAssistantTextColor(savedChatAssistantText, false);
         const savedChatButton = localStorage.getItem('llama-manager-chat-button');
         if (savedChatButton) applyChatButtonColor(savedChatButton, false);
+        const savedChatButtonText = localStorage.getItem('llama-manager-chat-button-text');
+        if (savedChatButtonText) applyChatButtonTextColor(savedChatButtonText, false);
 
         if (chatUserColor) chatUserColor.addEventListener('input', () => applyChatUserColor(chatUserColor.value));
         if (chatUserHex) chatUserHex.addEventListener('change', () => applyChatUserColor(chatUserHex.value));
         if (btnChatUserReset) btnChatUserReset.addEventListener('click', resetChatUserColor);
+        if (chatUserTextColor) chatUserTextColor.addEventListener('input', () => applyChatUserTextColor(chatUserTextColor.value));
+        if (chatUserTextHex) chatUserTextHex.addEventListener('change', () => applyChatUserTextColor(chatUserTextHex.value));
+        if (btnChatUserTextReset) btnChatUserTextReset.addEventListener('click', resetChatUserTextColor);
         if (chatAssistantColor) chatAssistantColor.addEventListener('input', () => applyChatAssistantColor(chatAssistantColor.value));
         if (chatAssistantHex) chatAssistantHex.addEventListener('change', () => { if (chatAssistantHex.value.trim() === '') resetChatAssistantColor(); else applyChatAssistantColor(chatAssistantHex.value); });
         if (btnChatAssistantReset) btnChatAssistantReset.addEventListener('click', resetChatAssistantColor);
+        if (chatAssistantTextColor) chatAssistantTextColor.addEventListener('input', () => applyChatAssistantTextColor(chatAssistantTextColor.value));
+        if (chatAssistantTextHex) chatAssistantTextHex.addEventListener('change', () => applyChatAssistantTextColor(chatAssistantTextHex.value));
+        if (btnChatAssistantTextReset) btnChatAssistantTextReset.addEventListener('click', resetChatAssistantTextColor);
         if (chatButtonColor) chatButtonColor.addEventListener('input', () => applyChatButtonColor(chatButtonColor.value));
         if (chatButtonHex) chatButtonHex.addEventListener('change', () => applyChatButtonColor(chatButtonHex.value));
         if (btnChatButtonReset) btnChatButtonReset.addEventListener('click', resetChatButtonColor);
+        if (chatButtonTextColor) chatButtonTextColor.addEventListener('input', () => applyChatButtonTextColor(chatButtonTextColor.value));
+        if (chatButtonTextHex) chatButtonTextHex.addEventListener('change', () => applyChatButtonTextColor(chatButtonTextHex.value));
+        if (btnChatButtonTextReset) btnChatButtonTextReset.addEventListener('click', resetChatButtonTextColor);
 
         // ── MCP Servers — minimal authentic llama.cpp stdio integration ──
         const mcpJsonEditor = document.getElementById('mcp-json-editor');
