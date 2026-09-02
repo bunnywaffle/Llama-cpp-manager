@@ -1879,7 +1879,11 @@ async function waitForServer(port, child, getRecentLogs, timeoutMs = 45000) {
     while (Date.now() - startedAt < timeoutMs) {
         if (!child || child.exitCode !== null || child.killed) {
             const logs = getRecentLogs ? getRecentLogs() : '';
-            const errorDetail = logs ? '\n\nLog output:\n' + logs : '';
+            let hint = '';
+            if (logs.includes('GGML_ASSERT(ggml_can_repeat') || logs.includes('failed to measure the memory of the extra model')) {
+                hint = '\n\n💡 Tip: This crash is caused by linking an incompatible speculative drafter (e.g. an LFM drafter on a Nanbeige model). Speculative drafters (DSpark/MTP/DFlash) must match the exact base model architecture and vocabulary.';
+            }
+            const errorDetail = logs ? '\n\nLog output:\n' + logs + hint : '';
             throw new Error((lastError || 'llama-server exited unexpectedly before becoming ready.') + errorDetail);
         }
         try {
@@ -2013,7 +2017,6 @@ ipcMain.handle('start-server', async (event, params) => {
     }
 
     // Speculative Decoding Drafter (DSpark, MTP, DFlash, EAGLE3, Simple):
-    // Detects whether linked drafter is DSpark (draft-dspark), MTP (draft-mtp), DFlash (draft-dflash), etc.
     if (!routerMode && meta[modelName] && (meta[modelName].mtpDrafter || (meta[modelName].drafter && meta[modelName].drafter.file))) {
         const drafterFileName = (meta[modelName].drafter && meta[modelName].drafter.file) || meta[modelName].mtpDrafter;
         let drafterPath = path.join(getModelsDir(), drafterFileName);
@@ -2023,18 +2026,35 @@ ipcMain.handle('start-server', async (event, params) => {
             drafterPath = drafterFullPath;
         }
         if (fs.existsSync(drafterPath)) {
-            let specType = (meta[modelName].drafter && meta[modelName].drafter.specType) || meta[modelName].drafterSpecType;
-            if (!specType) {
-                const drafterInfo = readGgufInfo(drafterPath) || {};
-                if (drafterInfo.isDspark || /dspark/i.test(drafterFileName)) specType = 'draft-dspark';
-                else if (drafterInfo.isDflash || /dflash/i.test(drafterFileName)) specType = 'draft-dflash';
-                else if (drafterInfo.isEagle || /eagle/i.test(drafterFileName)) specType = 'draft-eagle3';
-                else if (drafterInfo.mtp || /mtp/i.test(drafterFileName)) specType = 'draft-mtp';
-                else specType = 'draft-simple';
+            // Guard against family mismatch (e.g. LFM drafter on Nanbeige base model)
+            const baseNorm = modelName.toLowerCase();
+            const draftNorm = drafterFileName.toLowerCase();
+            const knownFamilies = ['nanbeige', 'lfm', 'qwen', 'gemma', 'llama', 'deepseek', 'mistral', 'phi', 'yi', 'claude', 'command'];
+            const baseFam = knownFamilies.find(f => baseNorm.includes(f));
+            const draftFam = knownFamilies.find(f => draftNorm.includes(f));
+
+            if (baseFam && draftFam && baseFam !== draftFam) {
+                console.warn(`[Drafter Warning] Mismatch detected: Base model is "${modelName}" (${baseFam}) but drafter is "${drafterFileName}" (${draftFam}). Speculative drafters require the exact same base model architecture. Auto-disabling mismatched drafter to prevent GGML_ASSERT crash.`);
+                delete meta[modelName].mtpDrafter;
+                delete meta[modelName].mtpDrafterFullPath;
+                delete meta[modelName].drafter;
+                delete meta[modelName].drafterSpecType;
+                delete meta[modelName].drafterLabel;
+                writeModelsMeta(meta);
+            } else {
+                let specType = (meta[modelName].drafter && meta[modelName].drafter.specType) || meta[modelName].drafterSpecType;
+                if (!specType) {
+                    const drafterInfo = readGgufInfo(drafterPath) || {};
+                    if (drafterInfo.isDspark || /dspark/i.test(drafterFileName)) specType = 'draft-dspark';
+                    else if (drafterInfo.isDflash || /dflash/i.test(drafterFileName)) specType = 'draft-dflash';
+                    else if (drafterInfo.isEagle || /eagle/i.test(drafterFileName)) specType = 'draft-eagle3';
+                    else if (drafterInfo.mtp || /mtp/i.test(drafterFileName)) specType = 'draft-mtp';
+                    else specType = 'draft-simple';
+                }
+                console.log(`Loading Speculative Drafter (${specType}):`, drafterPath);
+                args.push('--spec-type', specType);
+                args.push('--spec-draft-model', drafterPath);
             }
-            console.log(`Loading Speculative Drafter (${specType}):`, drafterPath);
-            args.push('--spec-type', specType);
-            args.push('--spec-draft-model', drafterPath);
         }
     }
 
