@@ -2,14 +2,15 @@
 
 # Llama.cpp Manager
 
-**A cross-platform desktop app for downloading, configuring, and running [llama.cpp](https://github.com/ggerganov/llama.cpp) locally — no terminal required.**
+**A high-performance cross-platform desktop GUI for downloading, configuring, and running [llama.cpp](https://github.com/ggml-org/llama.cpp) locally — no terminal required.**
 
 Built with Electron, works on **Windows** and **Linux**.
 
-<img src="screenshots/dashboard.png" alt="Llama.cpp Manager dashboard" width="820"/>
+<img src="screenshots/dashboard.png" alt="Llama.cpp Manager Dashboard" width="860"/>
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
+[![Latest Release](https://img.shields.io/github/v/release/bunnywaffle/Llama-cpp-manager)](https://github.com/bunnywaffle/Llama-cpp-manager/releases/latest)
 [![Electron](https://img.shields.io/badge/Electron-43-blue)](https://www.electronjs.org/)
 
 </div>
@@ -18,61 +19,58 @@ Built with Electron, works on **Windows** and **Linux**.
 
 ## 🚀 What is it?
 
-Llama.cpp Manager is a cross-platform desktop GUI that takes the pain out of running [llama.cpp](https://github.com/ggerganov/llama.cpp) and its bundled `llama-server` web UI. It handles everything through a clean interface:
+Llama.cpp Manager is a sleek, modern desktop workstation for local LLM inference powered by [llama.cpp](https://github.com/ggml-org/llama.cpp) and `llama-server`. It eliminates command-line complexity while providing deep control over hardware, speculative decoding, and sampling architectures:
 
-- Downloads and installs llama.cpp releases automatically
-- Links to an existing llama.cpp installation
-- Import GGUF models or link a whole models folder
-- Configures ports, context size, GPU layers, and extra server arguments
-- Starts and stops the server from a live dashboard
-- Streams server logs and status in real time
-- Opens the built-in llama.cpp Web UI inside the app
-- Light, dark, midnight, and glass themes
-
----
-
-## ✨ Features
-
-- 🛒 **One-click install** — pulls the latest llama.cpp release from GitHub
-- 📦 **Link existing builds** — point the app at a folder containing `llama-server`
-- 🧠 **Model manager** — import GGUF files or symlink an entire models directory
-- 🎛️ **Full server config** — port, context size (`-c`), GPU layers (`-ngl`), and extra args
-- ▶️ **Run/stop** — start and stop `llama-server` from the dashboard
-- 🖥️ **Built-in Web UI** — chat with your model inside the app
-- 🎨 **4 themes** — light, dark, midnight, and glass
-- 🪟 **Cross-platform** — Windows 10+ and Linux
+- **Automated Backend Setup**: One-click install and update of official llama.cpp releases (CUDA, Vulkan, CPU) or link any existing build.
+- **Speculative Decoding Suite**: Full native support for **DSpark**, **MTP**, **DFlash**, and **EAGLE3** drafters with GGUF architecture validation.
+- **CPU & GPU Performance Tuning**: Hardware controls for CPU threads (`-t`), GPU layer offloading (`-ngl`), context length (`-c`), and flash attention (`-fa`).
+- **Integrated Chat Studio**: Beautiful streaming chat with message branch editing, persona roleplay systems (lorebooks, greetings), and multimodal image vision.
+- **Full Sampling Suite**: Real-time sliders for Min P, Top P, Top K, Temperature, XTC probability, DRY sequence breakers, Mirostat, and Dynatemp.
+- **LoRA Adapter Management**: Dynamic LoRA scaling sliders, multi-adapter chaining, and base model compatibility protection.
+- **MCP Tool Integration**: Authentic Cursor-compatible stdio `mcp.json` tool execution with real-time chat widget rendering.
 
 ---
 
 ## 📸 Screenshots
 
-| | |
-|---|---|
-| ![](screenshots/dashboard.png) | ![](screenshots/backends.png) |
-| *Dashboard & live server status* | *Backends & updates* |
-| ![](screenshots/models.png) | ![](screenshots/webui.png) |
-| *GGUF model manager* | *Embedded llama.cpp Web UI* |
+| Dashboard & Hardware Controls | Integrated Chat & Sampling Popover |
+|:---:|:---:|
+| <img src="screenshots/dashboard.png" alt="Dashboard & Live Server Status" width="460"/> | <img src="screenshots/chat.png" alt="Integrated Chat & Sampling" width="460"/> |
+| *Live server metrics, CPU threads (-t), context, and quick controls* | *Streaming chat, branching edits, and live Min P sampling popover* |
+
+| Models & Speculative Drafters | Server & Hardware Configuration |
+|:---:|:---:|
+| <img src="screenshots/models.png" alt="GGUF Models & Drafters" width="460"/> | <img src="screenshots/server.png" alt="Server Configuration" width="460"/> |
+| *GGUF library with DSpark, MTP, DFlash drafters, and LoRAs* | *CPU threads (-t), GPU layers (-ngl), context size, and samplers* |
+
+| Backend Manager & Release Switcher |
+|:---:|
+| <img src="screenshots/backends.png" alt="Backend Manager & Updates" width="700"/> |
+| *Multiple installed backends with 1-click switching and automatic missing-file repair* |
+
+---
+
+## ✨ Key Features
+
+- ⚡ **Speculative Decoding with DSpark & MTP** — Link companion drafter models with automatic GGUF architecture inspection and family mismatch safety guards.
+- 🧵 **CPU Threads Control (`-t` / `--threads`)** — Tune generation threads on both the Dashboard and Server settings to prevent CPU oversaturation and boost token generation speed by **2x–4x** per official llama.cpp performance guidelines.
+- 🎛️ **Quick Chat Sampler Popover** — Instantly adjust Min P, Temperature, Top P, Top K, Repeat Penalty, XTC, and DRY multiplier directly from the chat input bar.
+- 🧠 **Dynamic LoRA Adapters** — Add, scale, enable, or disable LoRA adapters on the fly with base variant mismatch protection.
+- 🎭 **Persona & Roleplay Engine** — Create custom personas with starting greetings, dialogue examples, and keyword-triggered lorebook injection.
+- 🛠️ **MCP (Model Context Protocol)** — Run stdio MCP servers with automatic parameter exposure and chat tool call visualizers.
+- 🎨 **Modern Themes** — Super Dark Mono, Midnight, Slate, Dark, and Light themes with customizable accent colors.
+- 🪟 **Self-Contained & Portable** — Standalone Windows executable with portable data storage options.
 
 ---
 
 ## ⬇️ Installation
 
-Get the latest portable executable from the **[Releases](https://github.com/bunnywaffle/Llama-cpp-manager/releases)** page.
+Download the latest portable executable from the **[Releases](https://github.com/bunnywaffle/Llama-cpp-manager/releases)** page:
 
-> **Tip:** The app can download a compatible llama.cpp release for you — or you can link an
-> existing installation from the **Backends** section.
-
----
-
-## 🚦 Getting Started
-
-1. Download the portable executable from [Releases](https://github.com/bunnywaffle/Llama-cpp-manager/releases).
-2. Launch **Llama.cpp Manager**.
-3. Open **Backends** → install llama.cpp, or link an existing folder.
-4. Open **Models** → add a GGUF model (or link a models folder).
-5. Select the model and adjust the server settings.
-6. Start the server from the **Dashboard** or **Server** section.
-7. Open **Web UI** to use the embedded chat interface.
+1. Download **`Llama.cpp.Manager.1.0.3.exe`** from [Latest Release](https://github.com/bunnywaffle/Llama-cpp-manager/releases/latest).
+2. Run the executable anywhere — no setup wizard or registry modifications required.
+3. Open **Backends** to install the latest llama.cpp build (or link your existing installation).
+4. Point the app to your GGUF models folder in **Models** and start generating!
 
 ---
 
@@ -90,42 +88,13 @@ npm install
 npm start
 ```
 
-### Build a release
+### Build portable package
 
 ```bash
-npm run build        # installer / packaged app
-npm run build-portable   # standalone portable executable
+npm run build-portable
 ```
 
-Generated files go into the `dist/` directory. Build output and `node_modules/` are kept out
-of the source repository; the portable executable is attached to each GitHub release.
-
 ---
-
-## 📁 Project structure
-
-| File | Purpose |
-|------|---------|
-| `main.js` | Electron main process — IPC handlers, `llama-server` process management, downloads, and file operations |
-| `index.html` | Application interface and renderer-side logic |
-| `package.json` | Project metadata, dependencies, and build configuration |
-| `screenshots/` | App screenshots used in this README |
-| `LICENSE` | MIT license |
-
----
-
-## 💬 Feedback & Support
-
-Open an [issue](https://github.com/bunnywaffle/Llama-cpp-manager/issues) for bug reports,
-feature requests, or questions.
-
----
-
-## ⚠️ Third-party software
-
-Llama.cpp Manager manages and runs [llama.cpp](https://github.com/ggerganov/llama.cpp). llama.cpp
-and any downloaded model (GGUF) files are subject to their own licenses and terms — always check
-the license of a model before using or distributing it.
 
 ## 📄 License
 
