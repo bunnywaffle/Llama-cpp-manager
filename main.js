@@ -1908,7 +1908,7 @@ async function waitForServer(port, child, getRecentLogs, timeoutMs = 45000) {
 }
 
 ipcMain.handle('start-server', async (event, params) => {
-    let { modelName, port, ctxSize, gpuLayers, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
+    let { modelName, port, ctxSize, gpuLayers, threads, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
 
     if (llamaProcess || serverStarting) {
         console.log('Server already running — auto-stopping before restart...');
@@ -1967,6 +1967,14 @@ ipcMain.handle('start-server', async (event, params) => {
         '-ngl', gpuLayers.toString(),
         '-fa', 'auto'
     ];
+
+    // CPU Threads (-t / -tb) per llama.cpp token generation performance tips
+    const parsedThreads = (threads !== undefined && threads !== null) ? parseInt(threads, 10) : -1;
+    if (!isNaN(parsedThreads) && parsedThreads > 0) {
+        console.log(`Setting CPU generation threads: -t ${parsedThreads} -tb ${parsedThreads}`);
+        args.push('-t', parsedThreads.toString());
+        args.push('-tb', parsedThreads.toString());
+    }
 
     if (routerMode) {
         args.push('--models-dir', getModelsDir());

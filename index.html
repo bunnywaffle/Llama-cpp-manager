@@ -2354,6 +2354,8 @@
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <label for="dash-ctx" style="margin: 0; white-space: nowrap; font-size: 12px;">Context</label>
                         <input type="number" id="dash-ctx" value="8192" min="1" step="1" title="Auto-detected from the model. Falls back to 8192 when unknown." style="width: 92px; padding: 10px 8px;">
+                        <label for="dash-threads" style="margin: 0; white-space: nowrap; font-size: 12px;">Threads</label>
+                        <input type="number" id="dash-threads" value="-1" min="-1" step="1" title="CPU threads (-t). Set to physical cores (e.g. 4 or 6) to avoid oversaturation. -1 = Auto" style="width: 75px; padding: 10px 8px;">
                     </div>
                     <div style="width: 220px;">
                         <select id="dash-model-select" style="padding: 10px 14px; font-size: 13px;"></select>
@@ -2413,10 +2415,10 @@
                         </div>
                     </div>
                     <div class="metric-card">
-                        <i class="fa-solid fa-wave-square"></i>
+                        <i class="fa-solid fa-microchip"></i>
                         <div>
-                            <div class="metric-label">Threads</div>
-                            <div class="metric-val">16</div>
+                            <div class="metric-label">CPU Threads</div>
+                            <div class="metric-val" id="metric-threads">Auto</div>
                         </div>
                     </div>
                     <div class="metric-card">
@@ -2496,7 +2498,7 @@
                         <input type="number" id="inp-port" value="8080">
                     </div>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
                     <div>
                         <label>Context Size (-c)</label>
                         <input type="number" id="inp-ctx" value="8192" min="1" step="1">
@@ -2504,6 +2506,10 @@
                     <div>
                         <label>GPU Layers (-ngl)</label>
                         <input type="number" id="inp-ngl" value="99">
+                    </div>
+                    <div>
+                        <label>CPU Threads (-t) <span style="font-size:10.5px;color:var(--text-muted);font-weight:normal;">(-1 = Auto)</span></label>
+                        <input type="number" id="inp-threads" value="-1" min="-1" step="1" title="Number of CPU threads to use (-t). Setting to physical core count (e.g. 4 or 6) avoids oversaturation and can boost speed significantly per llama.cpp performance tips.">
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;">
@@ -2811,6 +2817,13 @@
                                                         <span id="quick-topk-val" style="color: var(--accent); font-weight: 600;">40</span>
                                                     </div>
                                                     <input type="range" id="quick-inp-topk" min="1" max="100" step="1" value="40" style="width: 100%;">
+                                                </div>
+                                                <div>
+                                                    <div style="display: flex; justify-content: space-between;">
+                                                        <span>Min P</span>
+                                                        <span id="quick-minp-val" style="color: var(--accent); font-weight: 600;">0.05</span>
+                                                    </div>
+                                                    <input type="range" id="quick-inp-minp" min="0" max="1" step="0.01" value="0.05" style="width: 100%;">
                                                 </div>
                                                 <div>
                                                     <div style="display: flex; justify-content: space-between;">
@@ -3943,6 +3956,7 @@
                 port: parseInt(document.getElementById('inp-port').value, 10) || 8080,
                 ctxSize: parseInt(dashCtxInput.value, 10) || 8192,
                 gpuLayers: parseInt(document.getElementById('inp-ngl').value, 10) || 0,
+                threads: parseInt(document.getElementById('inp-threads')?.value, 10) || -1,
                 extraArgs: document.getElementById('inp-extra').value,
                 model: dashModelSelect.value || '',
                 theme: themeSelect.value,
@@ -3983,6 +3997,7 @@
             if (s.port) document.getElementById('inp-port').value = s.port;
             if (s.ctxSize) { dashCtxInput.value = s.ctxSize; serverCtxInput.value = s.ctxSize; }
             if (s.gpuLayers !== undefined) document.getElementById('inp-ngl').value = s.gpuLayers;
+            if (s.threads !== undefined && document.getElementById('inp-threads')) { document.getElementById('inp-threads').value = s.threads; if (document.getElementById('dash-threads')) document.getElementById('dash-threads').value = s.threads; }
             if (s.extraArgs !== undefined) document.getElementById('inp-extra').value = s.extraArgs;
             if (s.temperature !== undefined) document.getElementById('inp-temp').value = s.temperature;
             if (s.topK !== undefined) document.getElementById('inp-topk').value = s.topK;
@@ -4090,6 +4105,7 @@
         const metricModel = document.getElementById('metric-model');
         const metricAddr = document.getElementById('metric-addr');
         const metricCtx = document.getElementById('metric-ctx');
+        const metricThreads = document.getElementById('metric-threads');
         const metricUptime = document.getElementById('metric-uptime');
 
         const serverModelSelect = document.getElementById('server-model-select');
@@ -5513,7 +5529,7 @@
                 temperature: parseFloat(val('inp-temp')) || 0.8,
                 topP: parseFloat(val('inp-topp')) || 0.95,
                 topK: parseInt(val('inp-topk'), 10) || 40,
-                minP: parseFloat(val('inp-minp')) || 0.05,
+                minP: parseFloat((document.getElementById('quick-inp-minp') && document.getElementById('quick-inp-minp').value) || val('inp-minp')) || 0.05,
                 repeatPenalty: parseFloat(val('inp-repeat')) || 1.1,
                 maxTokens: parseInt(val('inp-maxtokens'), 10) || 2048,
                 maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited') ? document.getElementById('inp-maxtokens-unlimited').checked : true,
@@ -5577,7 +5593,7 @@
 
         setTimeout(() => {
             updateChatSamplingTags();
-            const allIds = ['inp-temp','inp-topp','inp-topk','inp-minp','inp-repeat','inp-seed','inp-ignore-eos','inp-samplers','inp-sampler-seq','inp-top-nsigma','inp-typical-p','inp-repeat-last-n','inp-presence-penalty','inp-frequency-penalty','inp-dry-seq-breakers','inp-mirostat','inp-mirostat-tau','inp-mirostat-eta','inp-dynatemp-range','inp-dynatemp-exp','quick-inp-temp','quick-inp-topp','quick-inp-topk','quick-inp-repeat','quick-inp-seed','quick-inp-ignore-eos','quick-inp-samplers','quick-inp-sampler-seq','quick-inp-top-nsigma','quick-inp-typical-p','quick-inp-repeat-last-n','quick-inp-presence-penalty','quick-inp-frequency-penalty','quick-inp-dry-seq-breakers','quick-inp-mirostat','quick-inp-mirostat-tau','quick-inp-mirostat-eta','quick-inp-dynatemp-range','quick-inp-dynatemp-exp'];
+            const allIds = ['inp-temp','inp-topp','inp-topk','inp-minp','quick-inp-minp','inp-repeat','inp-seed','inp-ignore-eos','inp-samplers','inp-sampler-seq','inp-top-nsigma','inp-typical-p','inp-repeat-last-n','inp-presence-penalty','inp-frequency-penalty','inp-dry-seq-breakers','inp-mirostat','inp-mirostat-tau','inp-mirostat-eta','inp-dynatemp-range','inp-dynatemp-exp','quick-inp-temp','quick-inp-topp','quick-inp-topk','quick-inp-repeat','quick-inp-seed','quick-inp-ignore-eos','quick-inp-samplers','quick-inp-sampler-seq','quick-inp-top-nsigma','quick-inp-typical-p','quick-inp-repeat-last-n','quick-inp-presence-penalty','quick-inp-frequency-penalty','quick-inp-dry-seq-breakers','quick-inp-mirostat','quick-inp-mirostat-tau','quick-inp-mirostat-eta','quick-inp-dynatemp-range','quick-inp-dynatemp-exp'];
             allIds.forEach(id => {
                 const e = document.getElementById(id);
                 if (e) { e.addEventListener('input', updateChatSamplingTags); e.addEventListener('change', updateChatSamplingTags); }
@@ -5587,6 +5603,7 @@
                 ['inp-temp','quick-inp-temp','quick-temp-val'],
                 ['inp-topp','quick-inp-topp','quick-topp-val'],
                 ['inp-topk','quick-inp-topk','quick-topk-val'],
+                ['inp-minp','quick-inp-minp','quick-minp-val'],
                 ['inp-repeat','quick-inp-repeat','quick-repeat-val'],
                 ['inp-top-nsigma','quick-inp-top-nsigma','quick-top-nsigma-val'],
                 ['inp-typical-p','quick-inp-typical-p','quick-typical-p-val'],
@@ -6993,6 +7010,7 @@
                     port: port,
                     ctxSize: ctx,
                     gpuLayers: gpuLayers,
+                    threads: parseInt((document.getElementById('inp-threads') || {}).value, 10) || parseInt((document.getElementById('dash-threads') || {}).value, 10) || -1,
                     extraArgs: document.getElementById('inp-extra').value,
                     temperature: parseFloat(document.getElementById('inp-temp').value) || 0.8,
                     topK: parseInt(document.getElementById('inp-topk').value, 10) || 40,
@@ -7021,6 +7039,9 @@
 
                 metricModel.textContent = modelName;
                 metricCtx.textContent = ctx;
+                const threadVal = parseInt((document.getElementById('inp-threads') || {}).value, 10) || -1;
+                const metricThr = document.getElementById('metric-threads');
+                if (metricThr) metricThr.textContent = threadVal > 0 ? `${threadVal} threads` : 'Auto';
                 metricAddr.textContent = `127.0.0.1:${port}`;
 
                 startTime = Date.now();
