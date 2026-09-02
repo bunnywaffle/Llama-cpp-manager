@@ -265,6 +265,7 @@ function getExcludedAdapterFiles() {
             if (!info) continue;
             if (info.mmproj) set.add(info.mmproj.toLowerCase());
             if (info.mtpDrafter) set.add(info.mtpDrafter.toLowerCase());
+            if (info.drafter && info.drafter.file) set.add(info.drafter.file.toLowerCase());
             if (Array.isArray(info.loras)) {
                 for (const l of info.loras) if (l.file) set.add(l.file.toLowerCase());
             }
@@ -410,6 +411,9 @@ function readGgufInfo(filePath) {
 
         let ctxLength = null;
         let mtp = false;
+        let isDspark = false;
+        let isDflash = false;
+        let isEagle = false;
         let arch = null;
         let isLora = false;
         let blockCount = null;
@@ -426,22 +430,40 @@ function readGgufInfo(filePath) {
             if (/nextn_predict_layers|mtp/i.test(key)) {
                 if (typeof value === 'number' && value > 0) mtp = true;
             }
-            if (key === 'general.architecture' && typeof value === 'string') arch = value;
-            if (key === 'general.name' && typeof value === 'string') baseModelName = value;
+            if (/dspark/i.test(key)) isDspark = true;
+            if (/dflash/i.test(key)) isDflash = true;
+            if (/eagle/i.test(key)) isEagle = true;
+            if (key === 'general.architecture' && typeof value === 'string') {
+                arch = value;
+                if (/dspark/i.test(value)) isDspark = true;
+                if (/dflash/i.test(value)) isDflash = true;
+                if (/eagle/i.test(value)) isEagle = true;
+            }
+            if (key === 'general.name' && typeof value === 'string') {
+                baseModelName = value;
+                if (/dspark/i.test(value)) isDspark = true;
+                if (/dflash/i.test(value)) isDflash = true;
+            }
             if (key === 'general.type' && value === 'lora') isLora = true;
             if (key.startsWith('adapter.') || key.startsWith('lora.')) isLora = true;
             if (key.endsWith('.block_count') && typeof value === 'number') blockCount = Number(value);
             if (key.endsWith('.embedding_length') && typeof value === 'number') embeddingLength = Number(value);
             if (key.startsWith('general.base_model') && typeof value === 'string') loraBaseModel = value;
         }
-        // Fallback: gemma models use gemma4.block_count etc.
-        if (blockCount === null) {
-            try {
-                // Re-scan for arch-specific block_count if not found under llama.*
-                // Already covered by generic arch keys, but keep fallback
-            } catch (e) {}
-        }
-        return { ctxLength, mtp, arch, isLora, blockCount, embeddingLength, baseModelName, loraBaseModel };
+
+        // Filename fallback checks for drafter types
+        const fileNameLower = path.basename(filePath).toLowerCase();
+        if (/dspark/i.test(fileNameLower)) isDspark = true;
+        if (/dflash/i.test(fileNameLower)) isDflash = true;
+        if (/eagle/i.test(fileNameLower)) isEagle = true;
+
+        let drafterType = null;
+        if (isDspark) drafterType = 'draft-dspark';
+        else if (isDflash) drafterType = 'draft-dflash';
+        else if (isEagle) drafterType = 'draft-eagle3';
+        else if (mtp) drafterType = 'draft-mtp';
+
+        return { ctxLength, mtp, isDspark, isDflash, isEagle, drafterType, arch, isLora, blockCount, embeddingLength, baseModelName, loraBaseModel };
     } catch (e) {
         return null;
     } finally {
@@ -722,18 +744,19 @@ ipcMain.handle('unlink-mmproj', (event, modelName) => {
     return meta;
 });
 
-// ============ MTP (Multi-Token Prediction) Drafter IPC Handlers ============
-ipcMain.handle('link-mtp-dialog', async (event, modelName) => {
+// ============ Speculative Decoding Drafter (DSpark, MTP, DFlash, EAGLE3, Simple) IPC Handlers ============
+async function handleLinkDrafterDialog(modelName) {
     if (!modelName) throw new Error('No model name specified.');
     const result = await dialog.showOpenDialog(mainWindow, {
-        title: 'Select MTP Drafter Model for ' + modelName,
+        title: 'Select Speculative Drafter Model (DSpark, MTP, DFlash, etc.) for ' + modelName,
         properties: ['openFile'],
-        filters: [{ name: 'GGUF MTP Drafter', extensions: ['gguf'] }, { name: 'All Files', extensions: ['*'] }]
+        filters: [{ name: 'Speculative Drafter (.gguf)', extensions: ['gguf'] }, { name: 'All Files', extensions: ['*'] }]
     });
 
     if (!result.canceled && result.filePaths.length > 0) {
         const srcPath = result.filePaths[0];
-        const destPath = path.join(getModelsDir(), path.basename(srcPath));
+        const fileName = path.basename(srcPath);
+        const destPath = path.join(getModelsDir(), fileName);
         if (srcPath !== destPath && !fs.existsSync(destPath)) {
             try {
                 fs.symlinkSync(srcPath, destPath, 'file');
@@ -741,26 +764,66 @@ ipcMain.handle('link-mtp-dialog', async (event, modelName) => {
                 try { fs.copyFileSync(srcPath, destPath); } catch (err) {}
             }
         }
+
+        // Auto-detect drafter architecture and speculative type
+        const info = readGgufInfo(srcPath) || {};
+        let specType = info.drafterType || null;
+        let drafterLabel = 'Drafter';
+
+        if (info.isDspark || /dspark/i.test(fileName) || (info.arch && /dspark/i.test(info.arch))) {
+            specType = 'draft-dspark';
+            drafterLabel = 'DSpark';
+        } else if (info.isDflash || /dflash/i.test(fileName) || (info.arch && /dflash/i.test(info.arch))) {
+            specType = 'draft-dflash';
+            drafterLabel = 'DFlash';
+        } else if (info.isEagle || /eagle/i.test(fileName) || (info.arch && /eagle/i.test(info.arch))) {
+            specType = 'draft-eagle3';
+            drafterLabel = 'EAGLE3';
+        } else if (info.mtp || /mtp/i.test(fileName)) {
+            specType = 'draft-mtp';
+            drafterLabel = 'MTP';
+        } else {
+            specType = 'draft-simple';
+            drafterLabel = 'Draft';
+        }
+
         const meta = readModelsMeta();
         meta[modelName] = meta[modelName] || {};
-        meta[modelName].mtpDrafter = path.basename(destPath);
+        meta[modelName].mtpDrafter = fileName;
         meta[modelName].mtpDrafterFullPath = srcPath;
+        meta[modelName].drafterSpecType = specType;
+        meta[modelName].drafterLabel = drafterLabel;
+        meta[modelName].drafter = {
+            file: fileName,
+            fullPath: srcPath,
+            specType: specType,
+            label: drafterLabel
+        };
         writeModelsMeta(meta);
+        console.log(`Linked ${drafterLabel} Drafter (${specType}) to ${modelName}: ${fileName}`);
         return meta;
     }
     return null;
-});
+}
 
-ipcMain.handle('unlink-mtp-drafter', (event, modelName) => {
+function handleUnlinkDrafter(modelName) {
     if (!modelName) return;
     const meta = readModelsMeta();
     if (meta[modelName]) {
         delete meta[modelName].mtpDrafter;
         delete meta[modelName].mtpDrafterFullPath;
+        delete meta[modelName].drafterSpecType;
+        delete meta[modelName].drafterLabel;
+        delete meta[modelName].drafter;
         writeModelsMeta(meta);
     }
     return meta;
-});
+}
+
+ipcMain.handle('link-drafter-dialog', async (event, modelName) => handleLinkDrafterDialog(modelName));
+ipcMain.handle('link-mtp-dialog', async (event, modelName) => handleLinkDrafterDialog(modelName));
+ipcMain.handle('unlink-drafter', (event, modelName) => handleUnlinkDrafter(modelName));
+ipcMain.handle('unlink-mtp-drafter', (event, modelName) => handleUnlinkDrafter(modelName));
 
 // ============ MCP Servers (llama.cpp --mcp-servers-config) ============
 ipcMain.handle('get-mcp-config', () => {
@@ -1499,7 +1562,8 @@ ipcMain.handle('delete-model', async (event, modelName) => {
             for (const [base, info] of Object.entries(meta)) {
                 if (!info) continue;
                 if (info.mmproj === modelName) { delete info.mmproj; delete info.mmprojFullPath; changed = true; }
-                if (info.mtpDrafter === modelName) { delete info.mtpDrafter; delete info.mtpDrafterFullPath; changed = true; }
+                if (info.mtpDrafter === modelName) { delete info.mtpDrafter; delete info.mtpDrafterFullPath; delete info.drafterSpecType; delete info.drafterLabel; delete info.drafter; changed = true; }
+                if (info.drafter && info.drafter.file === modelName) { delete info.drafter; delete info.mtpDrafter; delete info.mtpDrafterFullPath; delete info.drafterSpecType; delete info.drafterLabel; changed = true; }
                 if (Array.isArray(info.loras)) {
                     const before = info.loras.length;
                     info.loras = info.loras.filter(l => l.file !== modelName);
@@ -1948,19 +2012,29 @@ ipcMain.handle('start-server', async (event, params) => {
         args.push('--mmproj', mmprojPath);
     }
 
-    // MTP (Multi-Token Prediction) drafter: a separately-linked MTP-head GGUF.
-    // Embedded MTP heads (in the main model file) are auto-detected by llama-server,
-    // so only a separate drafter needs explicit --spec-draft-model / --spec-type.
-    if (!routerMode && meta[modelName] && meta[modelName].mtpDrafter) {
-        let mtpDrafterPath = path.join(getModelsDir(), meta[modelName].mtpDrafter);
-        try { mtpDrafterPath = fs.realpathSync(mtpDrafterPath); } catch (e) {}
-        if (!fs.existsSync(mtpDrafterPath) && meta[modelName].mtpDrafterFullPath && fs.existsSync(meta[modelName].mtpDrafterFullPath)) {
-            mtpDrafterPath = meta[modelName].mtpDrafterFullPath;
+    // Speculative Decoding Drafter (DSpark, MTP, DFlash, EAGLE3, Simple):
+    // Detects whether linked drafter is DSpark (draft-dspark), MTP (draft-mtp), DFlash (draft-dflash), etc.
+    if (!routerMode && meta[modelName] && (meta[modelName].mtpDrafter || (meta[modelName].drafter && meta[modelName].drafter.file))) {
+        const drafterFileName = (meta[modelName].drafter && meta[modelName].drafter.file) || meta[modelName].mtpDrafter;
+        let drafterPath = path.join(getModelsDir(), drafterFileName);
+        try { drafterPath = fs.realpathSync(drafterPath); } catch (e) {}
+        const drafterFullPath = (meta[modelName].drafter && meta[modelName].drafter.fullPath) || meta[modelName].mtpDrafterFullPath;
+        if (!fs.existsSync(drafterPath) && drafterFullPath && fs.existsSync(drafterFullPath)) {
+            drafterPath = drafterFullPath;
         }
-        if (fs.existsSync(mtpDrafterPath)) {
-            console.log('Loading MTP drafter:', mtpDrafterPath);
-            args.push('--spec-type', 'draft-mtp');
-            args.push('--spec-draft-model', mtpDrafterPath);
+        if (fs.existsSync(drafterPath)) {
+            let specType = (meta[modelName].drafter && meta[modelName].drafter.specType) || meta[modelName].drafterSpecType;
+            if (!specType) {
+                const drafterInfo = readGgufInfo(drafterPath) || {};
+                if (drafterInfo.isDspark || /dspark/i.test(drafterFileName)) specType = 'draft-dspark';
+                else if (drafterInfo.isDflash || /dflash/i.test(drafterFileName)) specType = 'draft-dflash';
+                else if (drafterInfo.isEagle || /eagle/i.test(drafterFileName)) specType = 'draft-eagle3';
+                else if (drafterInfo.mtp || /mtp/i.test(drafterFileName)) specType = 'draft-mtp';
+                else specType = 'draft-simple';
+            }
+            console.log(`Loading Speculative Drafter (${specType}):`, drafterPath);
+            args.push('--spec-type', specType);
+            args.push('--spec-draft-model', drafterPath);
         }
     }
 

@@ -6445,16 +6445,17 @@
                 models.forEach(m => {
                     const hasMmproj = modelsMeta[m] && modelsMeta[m].mmproj;
                     const hasMtp = modelsMeta[m] && modelsMeta[m].mtp;
-                    const hasMtpDrafter = modelsMeta[m] && modelsMeta[m].mtpDrafter;
-                    const mtpLabel = hasMtp ? ' ⚡ MTP' : (hasMtpDrafter ? ' ⚡ MTP-Draft' : '');
+                    const drafterFile = modelsMeta[m] && (modelsMeta[m].mtpDrafter || (modelsMeta[m].drafter && modelsMeta[m].drafter.file));
+                    const drafterLabel = (modelsMeta[m] && modelsMeta[m].drafterLabel) || (drafterFile && /dspark/i.test(drafterFile) ? 'DSpark' : 'MTP');
+                    const drafterTag = drafterFile ? (' ⚡ ' + drafterLabel + '-Draft') : (hasMtp ? ' ⚡ MTP' : '');
                     const opt1 = document.createElement('option');
                     opt1.value = m;
-                    opt1.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '') + mtpLabel;
+                    opt1.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '') + drafterTag;
                     serverModelSelect.appendChild(opt1);
 
                     const opt2 = document.createElement('option');
                     opt2.value = m;
-                    opt2.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '') + mtpLabel;
+                    opt2.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '') + drafterTag;
                     dashModelSelect.appendChild(opt2);
 
                     const loras = (modelsMeta[m] && Array.isArray(modelsMeta[m].loras)) ? modelsMeta[m].loras : [];
@@ -6499,13 +6500,13 @@
                                 </span>
                                 ${hasMmproj ? `<span class="vision-adapter-badge"><i class="fa-solid fa-eye"></i> Vision Adaptor: ${escapeHtml(modelsMeta[m].mmproj)}</span>` : ''}
                                 ${hasMtp ? '<span class="vision-adapter-badge" style="border-color: rgba(86, 211, 100, 0.4);"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> MTP Head (embedded, auto)</span>' : ''}
-                                ${hasMtpDrafter ? `<span class="vision-adapter-badge" style="border-color: rgba(86, 211, 100, 0.4);"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> MTP Drafter: ${escapeHtml(modelsMeta[m].mtpDrafter)}</span>` : ''}
+                                ${drafterFile ? `<span class="vision-adapter-badge" style="border-color: ${drafterLabel === 'DSpark' ? 'rgba(251, 146, 60, 0.4)' : 'rgba(86, 211, 100, 0.4)'};"><i class="fa-solid fa-bolt" style="color: ${drafterLabel === 'DSpark' ? '#fb923c' : '#56d364'};"></i> ${escapeHtml(drafterLabel)} Drafter: ${escapeHtml(drafterFile)}</span>` : ''}
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <button class="btn secondary btn-link-lora" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link LoRA adapter (.gguf)"><i class="fa-solid fa-bolt" style="color: #c084fc;"></i> + LoRA</button>
-                                ${hasMtpDrafter
-                                    ? `<button class="btn secondary btn-unlink-mtp" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Unlink MTP drafter"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> Unlink MTP</button>`
-                                    : `<button class="btn secondary btn-link-mtp" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link MTP drafter model (.gguf)"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> + MTP</button>`
+                                ${drafterFile
+                                    ? `<button class="btn secondary btn-unlink-drafter" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Unlink ${escapeHtml(drafterLabel)} drafter"><i class="fa-solid fa-bolt" style="color: #fb923c;"></i> Unlink ${escapeHtml(drafterLabel)}</button>`
+                                    : `<button class="btn secondary btn-link-drafter" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link speculative drafter model (.gguf) - DSpark, MTP, DFlash, etc."><i class="fa-solid fa-bolt" style="color: #fb923c;"></i> + Drafter</button>`
                                 }
                                 ${hasMmproj
                                     ? `<button class="btn secondary btn-unlink-vision" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Unlink vision adaptor"><i class="fa-solid fa-eye-slash"></i> Unlink Vision</button>`
@@ -6628,23 +6629,24 @@
                         });
                     }
 
-                    const linkMtpBtn = row.querySelector('.btn-link-mtp');
-                    if (linkMtpBtn) {
-                        linkMtpBtn.addEventListener('click', async () => {
+                    const linkDrafterBtn = row.querySelector('.btn-link-drafter') || row.querySelector('.btn-link-mtp');
+                    if (linkDrafterBtn) {
+                        linkDrafterBtn.addEventListener('click', async () => {
                             try {
-                                const updated = await ipcRenderer.invoke('link-mtp-dialog', m);
+                                const updated = await ipcRenderer.invoke('link-drafter-dialog', m);
                                 if (updated) loadModels();
                             } catch (err) {
-                                alert('Error linking MTP drafter: ' + err.message);
+                                alert('Error linking speculative drafter: ' + err.message);
                             }
                         });
                     }
 
-                    const unlinkMtpBtn = row.querySelector('.btn-unlink-mtp');
-                    if (unlinkMtpBtn) {
-                        unlinkMtpBtn.addEventListener('click', async () => {
-                            if (confirm('Unlink MTP drafter from ' + m + '?')) {
-                                await ipcRenderer.invoke('unlink-mtp-drafter', m);
+                    const unlinkDrafterBtn = row.querySelector('.btn-unlink-drafter') || row.querySelector('.btn-unlink-mtp');
+                    if (unlinkDrafterBtn) {
+                        unlinkDrafterBtn.addEventListener('click', async () => {
+                            const curLabel = (modelsMeta[m] && modelsMeta[m].drafterLabel) || 'drafter';
+                            if (confirm('Unlink ' + curLabel + ' from ' + m + '?')) {
+                                await ipcRenderer.invoke('unlink-drafter', m);
                                 loadModels();
                             }
                         });
