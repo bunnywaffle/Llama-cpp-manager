@@ -383,7 +383,6 @@
         .nav-item.active {
             background: linear-gradient(90deg, var(--glow-color) 0%, transparent 100%);
             color: var(--text-main);
-            border-left: 3px solid var(--accent);
         }
 
         .sidebar-bottom {
@@ -6280,8 +6279,8 @@
                             </div>
                         </div>
                         <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
-                            ${!b.isActive ? '<button class="btn primary btn-activate-backend" data-name="' + escapeHtml(b.name) + '" style="padding:4px 10px;font-size:11px;"><i class="fa-solid fa-power-off"></i> Activate</button>' : '<span style="font-size:11px;color:var(--accent);padding:4px 6px;"><i class="fa-solid fa-check"></i> Active</span>'}
-                            <button class="btn secondary btn-delete-backend-by-name" data-name="' + escapeHtml(b.name) + '" style="padding:4px 8px;font-size:11px;" ${b.isActive ? 'disabled title="Switch away before deleting"' : ''}><i class="fa-solid fa-trash"></i></button>
+                            ${!b.isActive ? `<button class="btn primary btn-activate-backend" data-name="${escapeHtml(b.name)}" style="padding:4px 10px;font-size:11px;"><i class="fa-solid fa-power-off"></i> Activate</button>` : '<span style="font-size:11px;color:var(--accent);padding:4px 6px;"><i class="fa-solid fa-check"></i> Active</span>'}
+                            <button class="btn secondary btn-delete-backend-by-name" data-name="${escapeHtml(b.name)}" style="padding:4px 8px;font-size:11px;" title="Delete backend"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     `;
                     container.appendChild(row);
@@ -6302,9 +6301,18 @@
                 });
                 container.querySelectorAll('.btn-delete-backend-by-name').forEach(btn => {
                     btn.addEventListener('click', async () => {
-                        if (!confirm('Delete backend "' + btn.dataset.name + '"? This removes its folder.')) return;
+                        const backendName = btn.dataset.name;
+                        if (!backendName) return;
+                        if (!confirm('Delete backend "' + backendName + '"? This removes its folder.')) return;
                         btn.disabled = true;
-                        try { await ipcRenderer.invoke('delete-backend-by-name', btn.dataset.name); await checkBackend(); await loadBackends(); } catch (e) { alert('Delete failed: ' + e.message); btn.disabled = false; }
+                        try {
+                            await ipcRenderer.invoke('delete-backend-by-name', backendName);
+                            await checkBackend();
+                            await loadBackends();
+                        } catch (e) {
+                            alert('Delete failed: ' + e.message);
+                            btn.disabled = false;
+                        }
                     });
                 });
             } catch (e) {
@@ -6797,7 +6805,7 @@
         });
 
         btnDeleteBackend.addEventListener('click', async () => {
-            if (!confirm('Delete the installed backend (all files in the bin folder)? This cannot be undone.')) return;
+            if (!confirm('Delete the active installed backend? This cannot be undone.')) return;
             btnDeleteBackend.disabled = true;
             const orig = btnDeleteBackend.innerHTML;
             btnDeleteBackend.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
@@ -6805,6 +6813,7 @@
                 await ipcRenderer.invoke('delete-backend');
                 alert('Backend deleted.');
                 await checkBackend();
+                await loadBackends();
                 backendRecheck.style.display = 'none';
             } catch (e) {
                 alert('Failed: ' + e.message);

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const AdmZip = require('adm-zip');
-const { spawn, spawnSync } = require('child_process');
+const { spawn, spawnSync, execSync } = require('child_process');
 
 let mainWindow;
 let llamaProcess = null;
@@ -78,18 +78,65 @@ function getActiveBackendPath() {
     try {
         const raw = fs.readFileSync(path.join(getDataDir(), 'active-backend.json'), 'utf8');
         const j = JSON.parse(raw);
-        if (j && j.active) return j.active;
+        if (j && j.active) {
+            const candidate = j.active;
+            const p = candidate === 'legacy-bin' ? path.join(getDataDir(), 'bin') : path.join(getBackendsDir(), candidate);
+            if (fs.existsSync(p)) return candidate;
+        }
     } catch (e) {}
     try {
         const entries = fs.readdirSync(getBackendsDir(), { withFileTypes: true });
         const dirs = entries.filter(d => d.isDirectory()).map(d => d.name);
-        if (dirs.length > 0) return dirs.sort()[0];
+        if (dirs.length > 0) {
+            const chosen = dirs.sort()[0];
+            setActiveBackendPath(chosen);
+            return chosen;
+        }
+    } catch (e) {}
+    try {
+        const legacy = path.join(getDataDir(), 'bin');
+        if (fs.existsSync(legacy) && findExecutable(legacy)) {
+            return 'legacy-bin';
+        }
     } catch (e) {}
     return null;
 }
 
 function setActiveBackendPath(name) {
-    try { fs.writeFileSync(path.join(getDataDir(), 'active-backend.json'), JSON.stringify({ active: name }, null, 2)); } catch (e) {}
+    try {
+        const activeFile = path.join(getDataDir(), 'active-backend.json');
+        if (name) {
+            fs.writeFileSync(activeFile, JSON.stringify({ active: name }, null, 2));
+        } else {
+            if (fs.existsSync(activeFile)) fs.unlinkSync(activeFile);
+        }
+    } catch (e) {}
+}
+
+function safeRemoveDir(targetPath) {
+    if (!targetPath || !fs.existsSync(targetPath)) return;
+    try {
+        fs.rmSync(targetPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 150 });
+    } catch (err) {
+        if (process.platform === 'win32') {
+            try {
+                // Terminate any rogue llama-server processes holding files
+                execSync('taskkill /F /IM llama-server.exe /T', { stdio: 'ignore', windowsHide: true });
+            } catch (e) {}
+            try {
+                // Remove read-only attributes
+                execSync(`attrib -r "${targetPath}\\*.*" /s /d`, { stdio: 'ignore', windowsHide: true });
+            } catch (e) {}
+            try {
+                execSync(`cmd /c rd /s /q "${targetPath}"`, { stdio: 'ignore', windowsHide: true });
+            } catch (e2) {
+                // final attempt with standard rmSync
+                fs.rmSync(targetPath, { recursive: true, force: true });
+            }
+        } else {
+            throw err;
+        }
+    }
 }
 
 let _backendsMigrated = false;
@@ -872,6 +919,9 @@ function cleanBinDir() {
         llamaProcess = null;
         serverStarting = false;
     }
+    if (process.platform === 'win32') {
+        try { execSync('taskkill /F /IM llama-server.exe /T', { stdio: 'ignore', windowsHide: true }); } catch (e) {}
+    }
     const binDir = getBinDir();
     if (!fs.existsSync(binDir)) {
         try { fs.mkdirSync(binDir, { recursive: true }); } catch (e) {}
@@ -883,9 +933,14 @@ function cleanBinDir() {
         try {
             const st = fs.lstatSync(fullPath);
             if (st.isDirectory()) {
-                fs.rmSync(fullPath, { recursive: true, force: true });
+                safeRemoveDir(fullPath);
             } else {
-                fs.unlinkSync(fullPath);
+                try { fs.unlinkSync(fullPath); } catch (e) {
+                    if (process.platform === 'win32') {
+                        try { execSync(`attrib -r "${fullPath}"`, { stdio: 'ignore', windowsHide: true }); } catch (ea) {}
+                        try { execSync(`cmd /c del /f /q "${fullPath}"`, { stdio: 'ignore', windowsHide: true }); } catch (eb) {}
+                    }
+                }
             }
         } catch (e) {
             console.error('Error removing old bin item:', fullPath, e.message);
@@ -1233,16 +1288,45 @@ ipcMain.handle('set-active-backend', (event, name) => {
     return getAllBackends();
 });
 
-ipcMain.handle('delete-backend-by-name', (event, name) => {
-    if (llamaProcess) throw new Error('Stop the server before deleting.');
-    if (!name) throw new Error('Invalid name');
+ipcMain.handle('delete-backend-by-name', async (event, name) => {
+    if (llamaProcess) {
+        await stopExistingServer();
+    }
+    if (!name) throw new Error('Invalid backend name');
     const dir = path.join(getBackendsDir(), name);
     const legacyBin = path.join(getDataDir(), 'bin');
     const target = name === 'legacy-bin' ? legacyBin : dir;
-    if (!fs.existsSync(target)) throw new Error('Backend folder not found');
+    if (!fs.existsSync(target)) throw new Error('Backend folder not found: ' + name);
+
     const active = getActiveBackendPath();
-    if (active === name) throw new Error('Cannot delete the active backend — switch to another first.');
-    try { fs.rmSync(target, { recursive: true, force: true }); } catch (e) { throw new Error('Failed to delete: ' + e.message); }
+    const wasActive = (active === name);
+
+    if (name === 'legacy-bin') {
+        cleanBinDir();
+    } else {
+        safeRemoveDir(target);
+    }
+
+    if (wasActive) {
+        let remaining = [];
+        try {
+            remaining = fs.readdirSync(getBackendsDir(), { withFileTypes: true })
+                .filter(d => d.isDirectory() && d.name !== name)
+                .map(d => d.name);
+        } catch (e) {}
+
+        if (remaining.length > 0) {
+            setActiveBackendPath(remaining.sort()[0]);
+        } else {
+            const legacy = path.join(getDataDir(), 'bin');
+            if (fs.existsSync(legacy) && findExecutable(legacy)) {
+                setActiveBackendPath('legacy-bin');
+            } else {
+                setActiveBackendPath(null);
+            }
+        }
+    }
+
     return getAllBackends();
 });
 
@@ -1307,11 +1391,35 @@ ipcMain.handle('install-backend-from-release', async (event, tag, assetName) => 
     return { name: path.basename(dir), dir, version: ver, asset: asset.name };
 });
 
-ipcMain.handle('delete-backend', () => {
+ipcMain.handle('delete-backend', async () => {
     if (llamaProcess) {
-        throw new Error('Stop the server before deleting the backend.');
+        await stopExistingServer();
     }
-    cleanBinDir();
+    const active = getActiveBackendPath();
+    if (active && active !== 'legacy-bin') {
+        const dir = path.join(getBackendsDir(), active);
+        safeRemoveDir(dir);
+        let remaining = [];
+        try {
+            remaining = fs.readdirSync(getBackendsDir(), { withFileTypes: true })
+                .filter(d => d.isDirectory() && d.name !== active)
+                .map(d => d.name);
+        } catch (e) {}
+
+        if (remaining.length > 0) {
+            setActiveBackendPath(remaining.sort()[0]);
+        } else {
+            const legacy = path.join(getDataDir(), 'bin');
+            if (fs.existsSync(legacy) && findExecutable(legacy)) {
+                setActiveBackendPath('legacy-bin');
+            } else {
+                setActiveBackendPath(null);
+            }
+        }
+    } else {
+        cleanBinDir();
+        setActiveBackendPath(null);
+    }
     return true;
 });
 
