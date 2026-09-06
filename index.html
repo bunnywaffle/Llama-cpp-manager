@@ -1345,6 +1345,33 @@
             font-weight: 600;
         }
 
+        .compact-num-input {
+            width: 56px;
+            padding: 2px 5px;
+            font-size: 11px;
+            font-weight: 600;
+            text-align: right;
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            color: var(--accent);
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .compact-num-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px var(--accent);
+        }
+
+        .compact-num-input::-webkit-inner-spin-button,
+        .compact-num-input::-webkit-outer-spin-button {
+            opacity: 0.6;
+            height: 14px;
+        }
+
         .chat-workspace-wrapper {
             display: flex;
             gap: 10px;
@@ -2329,7 +2356,7 @@
             </button>
             <div class="version-area">
                 <div class="version-dot"></div>
-                <span>v1.0.3</span>
+                <span>v1.0.4</span>
             </div>
         </div>
     </div>
@@ -2790,71 +2817,89 @@
                                             <i class="fa-solid fa-sliders" style="color: var(--accent);"></i>
                                             <span>Params</span>
                                         </button>
-                                        <div class="dropdown-menu dropdown-menu-up" id="composer-params-card" style="width: 340px; padding: 14px; display: none;">
+                                        <div class="dropdown-menu dropdown-menu-up" id="composer-params-card" style="width: 350px; padding: 14px; display: none;">
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                                <span style="font-weight: 600; font-size: 12.5px;"><i class="fa-solid fa-sliders" style="color: var(--accent);"></i> Sampling & Samplers</span>
+                                                <span style="font-weight: 600; font-size: 12.5px;"><i class="fa-solid fa-sliders" style="color: var(--accent);"></i> Sampling Parameters</span>
                                                 <button type="button" class="btn-icon" id="btn-close-composer-params" style="font-size: 11px; padding: 2px 6px; background: none; border: none; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
                                             </div>
-                                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11.5px; max-height: 420px; overflow-y: auto; padding-right: 4px;">
+
+                                            <!-- Active Model Banner with Save / Reset status -->
+                                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; margin-bottom: 10px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;">
+                                                <div style="min-width: 0; flex: 1;">
+                                                    <div style="font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Active Model</div>
+                                                    <div id="quick-params-model-title" style="font-size: 11.5px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="Local Model">Local Model</div>
+                                                </div>
+                                                <span id="quick-params-model-badge" style="font-size: 10px; padding: 2px 7px; border-radius: 12px; background: rgba(128,128,128,0.15); color: var(--text-muted); font-weight: 500; white-space: nowrap;">Default</span>
+                                            </div>
+
+                                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11.5px; max-height: 400px; overflow-y: auto; padding-right: 4px;">
                                                 <div>
-                                                    <div style="display: flex; justify-content: space-between;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                                                         <span>Temperature</span>
-                                                        <span id="quick-temp-val" style="color: var(--accent); font-weight: 600;">0.8</span>
+                                                        <input type="number" id="quick-num-temp" min="0" max="2" step="0.01" value="0.8" class="compact-num-input">
                                                     </div>
-                                                    <input type="range" id="quick-inp-temp" min="0" max="2" step="0.05" value="0.8" style="width: 100%;">
+                                                    <input type="range" id="quick-inp-temp" min="0" max="2" step="0.01" value="0.8" style="width: 100%;">
+                                                    <span id="quick-temp-val" style="display: none;">0.8</span>
                                                 </div>
                                                 <div>
-                                                    <div style="display: flex; justify-content: space-between;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                                                         <span>Top P</span>
-                                                        <span id="quick-topp-val" style="color: var(--accent); font-weight: 600;">0.95</span>
+                                                        <input type="number" id="quick-num-topp" min="0" max="1" step="0.01" value="0.95" class="compact-num-input">
                                                     </div>
-                                                    <input type="range" id="quick-inp-topp" min="0" max="1" step="0.05" value="0.95" style="width: 100%;">
+                                                    <input type="range" id="quick-inp-topp" min="0" max="1" step="0.01" value="0.95" style="width: 100%;">
+                                                    <span id="quick-topp-val" style="display: none;">0.95</span>
                                                 </div>
                                                 <div>
-                                                    <div style="display: flex; justify-content: space-between;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                                                         <span>Top K</span>
-                                                        <span id="quick-topk-val" style="color: var(--accent); font-weight: 600;">40</span>
+                                                        <input type="number" id="quick-num-topk" min="1" max="500" step="1" value="40" class="compact-num-input">
                                                     </div>
                                                     <input type="range" id="quick-inp-topk" min="1" max="100" step="1" value="40" style="width: 100%;">
+                                                    <span id="quick-topk-val" style="display: none;">40</span>
                                                 </div>
                                                 <div>
-                                                    <div style="display: flex; justify-content: space-between;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                                                         <span>Min P</span>
-                                                        <span id="quick-minp-val" style="color: var(--accent); font-weight: 600;">0.05</span>
+                                                        <input type="number" id="quick-num-minp" min="0" max="1" step="0.005" value="0.05" class="compact-num-input">
                                                     </div>
-                                                    <input type="range" id="quick-inp-minp" min="0" max="1" step="0.01" value="0.05" style="width: 100%;">
+                                                    <input type="range" id="quick-inp-minp" min="0" max="1" step="0.005" value="0.05" style="width: 100%;">
+                                                    <span id="quick-minp-val" style="display: none;">0.05</span>
                                                 </div>
                                                 <div>
-                                                    <div style="display: flex; justify-content: space-between;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                                                         <span>Repeat Penalty</span>
-                                                        <span id="quick-repeat-val" style="color: var(--accent); font-weight: 600;">1.1</span>
+                                                        <input type="number" id="quick-num-repeat" min="1" max="2" step="0.01" value="1.1" class="compact-num-input">
                                                     </div>
-                                                    <input type="range" id="quick-inp-repeat" min="1" max="2" step="0.05" value="1.1" style="width: 100%;">
+                                                    <input type="range" id="quick-inp-repeat" min="1" max="2" step="0.01" value="1.1" style="width: 100%;">
+                                                    <span id="quick-repeat-val" style="display: none;">1.1</span>
                                                 </div>
                                                 <div style="height: 1px; background: var(--border); margin: 2px 0;"></div>
                                                 <!-- Quick XTC -->
                                                 <div>
-                                                    <div style="display: flex; justify-content: space-between;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                                                         <span>XTC Probability</span>
-                                                        <span id="quick-xtc-prob-val" style="color: var(--accent); font-weight: 600;">0.00</span>
+                                                        <input type="number" id="quick-num-xtc-prob" min="0" max="1" step="0.01" value="0.00" class="compact-num-input">
                                                     </div>
-                                                    <input type="range" id="quick-inp-xtc-prob" min="0" max="1" step="0.05" value="0" style="width: 100%;">
+                                                    <input type="range" id="quick-inp-xtc-prob" min="0" max="1" step="0.01" value="0" style="width: 100%;">
+                                                    <span id="quick-xtc-prob-val" style="display: none;">0.00</span>
                                                 </div>
                                                 <!-- Quick DRY -->
                                                 <div>
-                                                    <div style="display: flex; justify-content: space-between;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                                                         <span>DRY Multiplier</span>
-                                                        <span id="quick-dry-mult-val" style="color: var(--accent); font-weight: 600;">0.00</span>
+                                                        <input type="number" id="quick-num-dry-mult" min="0" max="5" step="0.05" value="0.00" class="compact-num-input">
                                                     </div>
                                                     <input type="range" id="quick-inp-dry-mult" min="0" max="2" step="0.05" value="0" style="width: 100%;">
+                                                    <span id="quick-dry-mult-val" style="display: none;">0.00</span>
                                                 </div>
                                                 <!-- Quick CFG -->
                                                 <div>
-                                                    <div style="display: flex; justify-content: space-between;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                                                         <span>CFG Scale</span>
-                                                        <span id="quick-cfg-scale-val" style="color: var(--accent); font-weight: 600;">1.0</span>
+                                                        <input type="number" id="quick-num-cfg-scale" min="1" max="10" step="0.1" value="1.0" class="compact-num-input">
                                                     </div>
                                                     <input type="range" id="quick-inp-cfg-scale" min="1" max="3" step="0.1" value="1.0" style="width: 100%;">
+                                                    <span id="quick-cfg-scale-val" style="display: none;">1.0</span>
                                                 </div>
                                                 <div style="height:1px;background:var(--border);margin:4px 0;"></div>
                                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -2864,16 +2909,32 @@
                                                 <div><label style="font-size:10px;color:var(--text-muted);">Samplers (e.g. penalties;dry;top_n_sigma;...)</label><input type="text" id="quick-inp-samplers" placeholder="penalties;dry;top_n_sigma;top_k;typ_p;top_p;min_p;xtc;temperature" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:10.5px;"></div>
                                                 <div><label style="font-size:10px;color:var(--text-muted);">Sampler Seq</label><input type="text" id="quick-inp-sampler-seq" placeholder="edskypmxt" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:10.5px;"></div>
                                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                                    <div><div style="display:flex;justify-content:space-between;"><span>Top N Sigma</span><span id="quick-top-nsigma-val" style="color:var(--accent);font-weight:600;">-1.0</span></div><input type="range" id="quick-inp-top-nsigma" min="-1" max="5" step="0.1" value="-1" style="width:100%;"></div>
-                                                    <div><div style="display:flex;justify-content:space-between;"><span>Typical P</span><span id="quick-typical-p-val" style="color:var(--accent);font-weight:600;">1.0</span></div><input type="range" id="quick-inp-typical-p" min="0.1" max="1" step="0.05" value="1" style="width:100%;"></div>
+                                                    <div>
+                                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"><span>Top N Sigma</span><input type="number" id="quick-num-top-nsigma" min="-1" max="5" step="0.1" value="-1" class="compact-num-input" style="width:48px;"></div>
+                                                        <input type="range" id="quick-inp-top-nsigma" min="-1" max="5" step="0.1" value="-1" style="width:100%;">
+                                                        <span id="quick-top-nsigma-val" style="display:none;">-1.0</span>
+                                                    </div>
+                                                    <div>
+                                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"><span>Typical P</span><input type="number" id="quick-num-typical-p" min="0.1" max="1" step="0.05" value="1" class="compact-num-input" style="width:48px;"></div>
+                                                        <input type="range" id="quick-inp-typical-p" min="0.1" max="1" step="0.05" value="1" style="width:100%;">
+                                                        <span id="quick-typical-p-val" style="display:none;">1.0</span>
+                                                    </div>
                                                 </div>
                                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                                                     <div><label style="font-size:10px;color:var(--text-muted);">Repeat Last N</label><input type="number" id="quick-inp-repeat-last-n" value="64" min="0" step="1" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:11px;"></div>
                                                     <div><label style="font-size:10px;color:var(--text-muted);">DRY Seq Breakers</label><input type="text" id="quick-inp-dry-seq-breakers" placeholder="\n,:&quot;* or none" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:11px;"></div>
                                                 </div>
                                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                                    <div><div style="display:flex;justify-content:space-between;"><span>Presence Penalty</span><span id="quick-presence-penalty-val" style="color:var(--accent);font-weight:600;">0.00</span></div><input type="range" id="quick-inp-presence-penalty" min="-2" max="2" step="0.05" value="0" style="width:100%;"></div>
-                                                    <div><div style="display:flex;justify-content:space-between;"><span>Frequency Penalty</span><span id="quick-frequency-penalty-val" style="color:var(--accent);font-weight:600;">0.00</span></div><input type="range" id="quick-inp-frequency-penalty" min="-2" max="2" step="0.05" value="0" style="width:100%;"></div>
+                                                    <div>
+                                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"><span>Presence Penalty</span><input type="number" id="quick-num-presence-penalty" min="-2" max="2" step="0.05" value="0" class="compact-num-input" style="width:48px;"></div>
+                                                        <input type="range" id="quick-inp-presence-penalty" min="-2" max="2" step="0.05" value="0" style="width:100%;">
+                                                        <span id="quick-presence-penalty-val" style="display:none;">0.00</span>
+                                                    </div>
+                                                    <div>
+                                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"><span>Frequency Penalty</span><input type="number" id="quick-num-frequency-penalty" min="-2" max="2" step="0.05" value="0" class="compact-num-input" style="width:48px;"></div>
+                                                        <input type="range" id="quick-inp-frequency-penalty" min="-2" max="2" step="0.05" value="0" style="width:100%;">
+                                                        <span id="quick-frequency-penalty-val" style="display:none;">0.00</span>
+                                                    </div>
                                                 </div>
                                                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                                                     <div><label style="font-size:10px;color:var(--text-muted);">Mirostat</label><select id="quick-inp-mirostat" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:11px;"><option value="0">0=Off</option><option value="1">1=Mirostat</option><option value="2">2=Mirostat 2.0</option></select></div>
@@ -2881,10 +2942,31 @@
                                                     <div><label style="font-size:10px;color:var(--text-muted);">Mirostat Eta</label><input type="number" id="quick-inp-mirostat-eta" value="0.1" min="0" step="0.01" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-base);color:var(--text-main);font-size:11px;"></div>
                                                 </div>
                                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                                    <div><div style="display:flex;justify-content:space-between;"><span>Dynatemp Range</span><span id="quick-dynatemp-range-val" style="color:var(--accent);font-weight:600;">0.00</span></div><input type="range" id="quick-inp-dynatemp-range" min="0" max="1" step="0.05" value="0" style="width:100%;"></div>
-                                                    <div><div style="display:flex;justify-content:space-between;"><span>Dynatemp Exp</span><span id="quick-dynatemp-exp-val" style="color:var(--accent);font-weight:600;">1.00</span></div><input type="range" id="quick-inp-dynatemp-exp" min="0.1" max="3" step="0.1" value="1" style="width:100%;"></div>
+                                                    <div>
+                                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"><span>Dynatemp Range</span><input type="number" id="quick-num-dynatemp-range" min="0" max="1" step="0.05" value="0" class="compact-num-input" style="width:48px;"></div>
+                                                        <input type="range" id="quick-inp-dynatemp-range" min="0" max="1" step="0.05" value="0" style="width:100%;">
+                                                        <span id="quick-dynatemp-range-val" style="display:none;">0.00</span>
+                                                    </div>
+                                                    <div>
+                                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"><span>Dynatemp Exp</span><input type="number" id="quick-num-dynatemp-exp" min="0.1" max="3" step="0.1" value="1" class="compact-num-input" style="width:48px;"></div>
+                                                        <input type="range" id="quick-inp-dynatemp-exp" min="0.1" max="3" step="0.1" value="1" style="width:100%;">
+                                                        <span id="quick-dynatemp-exp-val" style="display:none;">1.00</span>
+                                                    </div>
                                                 </div>
                                             </div>
+
+                                            <!-- Bottom Action Bar: Save for Model & Reset -->
+                                            <div style="display: flex; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border);">
+                                                <button type="button" class="btn primary" id="btn-save-model-sampling" style="flex: 1; padding: 6px 10px; font-size: 11.5px; display: flex; align-items: center; justify-content: center; gap: 6px;" title="Save these sampling parameters specifically for the active model">
+                                                    <i class="fa-solid fa-floppy-disk"></i>
+                                                    <span>Save for Model</span>
+                                                </button>
+                                                <button type="button" class="btn secondary" id="btn-reset-model-sampling" style="padding: 6px 10px; font-size: 11.5px; display: flex; align-items: center; justify-content: center; gap: 4px;" title="Reset active model to global defaults">
+                                                    <i class="fa-solid fa-rotate-left"></i>
+                                                    <span>Reset</span>
+                                                </button>
+                                            </div>
+                                            <div id="quick-params-feedback" style="display: none; font-size: 10.5px; text-align: center; margin-top: 5px; color: var(--accent); font-weight: 500;"></div>
                                         </div>
                                     </div>
 
@@ -4037,6 +4119,7 @@
                 document.documentElement.setAttribute('data-theme', s.theme);
                 localStorage.setItem('llama-manager-theme', s.theme);
             }
+            defaultSamplingSettings = collectSettings();
             setTimeout(updateChatSamplingTags, 150);
         }
 
@@ -4518,29 +4601,231 @@
         wireReasoningMenu(headerReasoningTrigger, headerReasoningDropdown, headerReasoningMenu);
         wireReasoningMenu(composerReasoningTrigger, composerReasoningDropdown, composerReasoningMenu);
 
-        // ============ Quick Parameters Popover in Composer ============
+        // ============ Quick Parameters Popover & Bidirectional Slider/Number Sync ============
+        const paramSliderBindings = [
+            { main: 'inp-temp', slider: 'quick-inp-temp', num: 'quick-num-temp', val: 'quick-temp-val', decimals: 2 },
+            { main: 'inp-topp', slider: 'quick-inp-topp', num: 'quick-num-topp', val: 'quick-topp-val', decimals: 2 },
+            { main: 'inp-topk', slider: 'quick-inp-topk', num: 'quick-num-topk', val: 'quick-topk-val', decimals: 0 },
+            { main: 'inp-minp', slider: 'quick-inp-minp', num: 'quick-num-minp', val: 'quick-minp-val', decimals: 3 },
+            { main: 'inp-repeat', slider: 'quick-inp-repeat', num: 'quick-num-repeat', val: 'quick-repeat-val', decimals: 2 },
+            { main: 'inp-xtc-prob', slider: 'quick-inp-xtc-prob', num: 'quick-num-xtc-prob', val: 'quick-xtc-prob-val', decimals: 2 },
+            { main: 'inp-dry-mult', slider: 'quick-inp-dry-mult', num: 'quick-num-dry-mult', val: 'quick-dry-mult-val', decimals: 2 },
+            { main: 'inp-cfg-scale', slider: 'quick-inp-cfg-scale', num: 'quick-num-cfg-scale', val: 'quick-cfg-scale-val', decimals: 1 },
+            { main: 'inp-top-nsigma', slider: 'quick-inp-top-nsigma', num: 'quick-num-top-nsigma', val: 'quick-top-nsigma-val', decimals: 1 },
+            { main: 'inp-typical-p', slider: 'quick-inp-typical-p', num: 'quick-num-typical-p', val: 'quick-typical-p-val', decimals: 2 },
+            { main: 'inp-presence-penalty', slider: 'quick-inp-presence-penalty', num: 'quick-num-presence-penalty', val: 'quick-presence-penalty-val', decimals: 2 },
+            { main: 'inp-frequency-penalty', slider: 'quick-inp-frequency-penalty', num: 'quick-num-frequency-penalty', val: 'quick-frequency-penalty-val', decimals: 2 },
+            { main: 'inp-dynatemp-range', slider: 'quick-inp-dynatemp-range', num: 'quick-num-dynatemp-range', val: 'quick-dynatemp-range-val', decimals: 2 },
+            { main: 'inp-dynatemp-exp', slider: 'quick-inp-dynatemp-exp', num: 'quick-num-dynatemp-exp', val: 'quick-dynatemp-exp-val', decimals: 2 }
+        ];
+
+        let defaultSamplingSettings = null;
+
+        function applySamplingValues(p) {
+            if (!p) return;
+            paramSliderBindings.forEach(b => {
+                let v = undefined;
+                if (b.main === 'inp-temp') v = p.temperature;
+                else if (b.main === 'inp-topp') v = p.topP;
+                else if (b.main === 'inp-topk') v = p.topK;
+                else if (b.main === 'inp-minp') v = p.minP;
+                else if (b.main === 'inp-repeat') v = p.repeatPenalty;
+                else if (b.main === 'inp-xtc-prob') v = p.xtcProbability;
+                else if (b.main === 'inp-dry-mult') v = p.dryMultiplier;
+                else if (b.main === 'inp-cfg-scale') v = p.cfgScale;
+                else if (b.main === 'inp-top-nsigma') v = p.topNSigma;
+                else if (b.main === 'inp-typical-p') v = p.typicalP;
+                else if (b.main === 'inp-presence-penalty') v = p.presencePenalty;
+                else if (b.main === 'inp-frequency-penalty') v = p.frequencyPenalty;
+                else if (b.main === 'inp-dynatemp-range') v = p.dynatempRange;
+                else if (b.main === 'inp-dynatemp-exp') v = p.dynatempExp;
+
+                if (v !== undefined && v !== null && v !== '') {
+                    const elSlider = document.getElementById(b.slider);
+                    const elNum = document.getElementById(b.num);
+                    const elMain = document.getElementById(b.main);
+                    const elVal = document.getElementById(b.val);
+                    const n = parseFloat(v);
+                    const formatted = isNaN(n) ? String(v) : (b.decimals > 0 ? n.toFixed(b.decimals) : String(Math.round(n)));
+                    if (elSlider) elSlider.value = v;
+                    if (elNum) elNum.value = formatted;
+                    if (elMain) elMain.value = v;
+                    if (elVal) elVal.textContent = formatted;
+                }
+            });
+
+            const setVal = (mId, qId, val) => {
+                if (val === undefined || val === null) return;
+                const em = document.getElementById(mId);
+                const eq = document.getElementById(qId);
+                if (em) em.value = val;
+                if (eq) eq.value = val;
+            };
+            const setChk = (mId, qId, val) => {
+                if (val === undefined || val === null) return;
+                const em = document.getElementById(mId);
+                const eq = document.getElementById(qId);
+                if (em) em.checked = !!val;
+                if (eq) eq.checked = !!val;
+            };
+
+            setVal('inp-seed', 'quick-inp-seed', p.seed);
+            setChk('inp-ignore-eos', 'quick-inp-ignore-eos', p.ignoreEOS);
+            setVal('inp-samplers', 'quick-inp-samplers', p.samplers);
+            setVal('inp-sampler-seq', 'quick-inp-sampler-seq', p.samplerSeq);
+            setVal('inp-repeat-last-n', 'quick-inp-repeat-last-n', p.repeatLastN);
+            setVal('inp-dry-seq-breakers', 'quick-inp-dry-seq-breakers', p.drySequenceBreakers);
+            setVal('inp-mirostat', 'quick-inp-mirostat', p.mirostat);
+            setVal('inp-mirostat-tau', 'quick-inp-mirostat-tau', p.mirostatTau);
+            setVal('inp-mirostat-eta', 'quick-inp-mirostat-eta', p.mirostatEta);
+
+            if (p.reasoningEffort !== undefined && document.getElementById('inp-reasoning')) {
+                document.getElementById('inp-reasoning').value = p.reasoningEffort;
+                updateReasoningDisplay();
+            }
+            if (p.maxTokens !== undefined && document.getElementById('inp-maxtokens')) {
+                document.getElementById('inp-maxtokens').value = p.maxTokens;
+            }
+            if (p.maxTokensUnlimited !== undefined && document.getElementById('inp-maxtokens-unlimited')) {
+                document.getElementById('inp-maxtokens-unlimited').checked = !!p.maxTokensUnlimited;
+                updateMaxTokensUI();
+            }
+        }
+
+        async function applyModelSampling(modelName) {
+            if (!modelName) modelName = dashModelSelect.value || serverModelSelect.value;
+            const titleEl = document.getElementById('quick-params-model-title');
+            const badgeEl = document.getElementById('quick-params-model-badge');
+            if (titleEl) {
+                titleEl.textContent = modelName || 'Local Model';
+                titleEl.title = modelName || 'Local Model';
+            }
+
+            if (!modelName) {
+                if (badgeEl) {
+                    badgeEl.textContent = 'Default';
+                    badgeEl.style.background = 'rgba(128,128,128,0.15)';
+                    badgeEl.style.color = 'var(--text-muted)';
+                    badgeEl.style.border = 'none';
+                }
+                return;
+            }
+
+            let saved = null;
+            if (modelsMeta && modelsMeta[modelName] && modelsMeta[modelName].sampling) {
+                saved = modelsMeta[modelName].sampling;
+            } else {
+                try {
+                    saved = await ipcRenderer.invoke('get-model-sampling', modelName);
+                } catch (e) {}
+            }
+
+            if (saved) {
+                applySamplingValues(saved);
+                if (badgeEl) {
+                    badgeEl.textContent = 'Saved for Model';
+                    badgeEl.style.background = 'color-mix(in srgb, var(--accent) 20%, transparent)';
+                    badgeEl.style.color = 'var(--accent)';
+                    badgeEl.style.border = '1px solid color-mix(in srgb, var(--accent) 40%, transparent)';
+                }
+            } else {
+                if (defaultSamplingSettings) {
+                    applySamplingValues(defaultSamplingSettings);
+                }
+                if (badgeEl) {
+                    badgeEl.textContent = 'Default';
+                    badgeEl.style.background = 'rgba(128,128,128,0.15)';
+                    badgeEl.style.color = 'var(--text-muted)';
+                    badgeEl.style.border = 'none';
+                }
+            }
+            updateChatSamplingTags();
+        }
+
+        // Initialize slider & number input sync bindings
+        paramSliderBindings.forEach(b => {
+            const elSlider = document.getElementById(b.slider);
+            const elNum = document.getElementById(b.num);
+            const elMain = document.getElementById(b.main);
+            const elVal = document.getElementById(b.val);
+
+            if (elSlider) {
+                elSlider.addEventListener('input', () => {
+                    const n = parseFloat(elSlider.value);
+                    const formatted = isNaN(n) ? elSlider.value : (b.decimals > 0 ? n.toFixed(b.decimals) : String(Math.round(n)));
+                    if (elNum) elNum.value = formatted;
+                    if (elMain) elMain.value = elSlider.value;
+                    if (elVal) elVal.textContent = formatted;
+                    updateChatSamplingTags();
+                });
+            }
+            if (elNum) {
+                const onNumChange = () => {
+                    const n = parseFloat(elNum.value);
+                    if (!isNaN(n)) {
+                        if (elSlider) {
+                            if (n > parseFloat(elSlider.max)) elSlider.max = n;
+                            if (n < parseFloat(elSlider.min)) elSlider.min = n;
+                            elSlider.value = n;
+                        }
+                        if (elMain) elMain.value = n;
+                        if (elVal) elVal.textContent = elNum.value;
+                    }
+                    updateChatSamplingTags();
+                };
+                elNum.addEventListener('input', onNumChange);
+                elNum.addEventListener('change', onNumChange);
+            }
+            if (elMain) {
+                elMain.addEventListener('input', () => {
+                    const n = parseFloat(elMain.value);
+                    const formatted = isNaN(n) ? elMain.value : (b.decimals > 0 ? n.toFixed(b.decimals) : String(Math.round(n)));
+                    if (elSlider) elSlider.value = elMain.value;
+                    if (elNum && document.activeElement !== elNum) elNum.value = formatted;
+                    if (elVal) elVal.textContent = formatted;
+                    updateChatSamplingTags();
+                });
+            }
+        });
+
+        // Non-slider setting pairs
+        const nonSliderPairs = [
+            ['inp-seed', 'quick-inp-seed'],
+            ['inp-ignore-eos', 'quick-inp-ignore-eos'],
+            ['inp-samplers', 'quick-inp-samplers'],
+            ['inp-sampler-seq', 'quick-inp-sampler-seq'],
+            ['inp-repeat-last-n', 'quick-inp-repeat-last-n'],
+            ['inp-dry-seq-breakers', 'quick-inp-dry-seq-breakers'],
+            ['inp-mirostat', 'quick-inp-mirostat'],
+            ['inp-mirostat-tau', 'quick-inp-mirostat-tau'],
+            ['inp-mirostat-eta', 'quick-inp-mirostat-eta']
+        ];
+        nonSliderPairs.forEach(([mId, qId]) => {
+            const em = document.getElementById(mId);
+            const eq = document.getElementById(qId);
+            if (em && eq) {
+                const sync = (src, dst) => {
+                    if (src.type === 'checkbox') dst.checked = src.checked;
+                    else dst.value = src.value;
+                    updateChatSamplingTags();
+                };
+                em.addEventListener('input', () => sync(em, eq));
+                em.addEventListener('change', () => sync(em, eq));
+                eq.addEventListener('input', () => sync(eq, em));
+                eq.addEventListener('change', () => sync(eq, em));
+            }
+        });
+
         if (btnComposerParams) {
-            btnComposerParams.addEventListener('click', (e) => {
+            btnComposerParams.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const open = composerParamsCard.style.display === 'block';
                 closeAllDropdowns();
                 composerParamsCard.style.display = open ? 'none' : 'block';
                 if (composerParamsDropdown) composerParamsDropdown.classList.toggle('open', !open);
                 if (!open) {
-                    quickInpTemp.value = document.getElementById('inp-temp').value || '0.8';
-                    quickTempVal.textContent = quickInpTemp.value;
-                    quickInpTopP.value = document.getElementById('inp-topp').value || '0.95';
-                    quickTopPVal.textContent = quickInpTopP.value;
-                    quickInpTopK.value = document.getElementById('inp-topk').value || '40';
-                    quickTopKVal.textContent = quickInpTopK.value;
-                    quickInpRepeat.value = document.getElementById('inp-repeat').value || '1.1';
-                    quickRepeatVal.textContent = quickInpRepeat.value;
-                    quickInpXtcProb.value = document.getElementById('inp-xtc-prob').value || '0';
-                    quickXtcProbVal.textContent = quickInpXtcProb.value;
-                    quickInpDryMult.value = document.getElementById('inp-dry-mult').value || '0';
-                    quickDryMultVal.textContent = quickInpDryMult.value;
-                    quickInpCfgScale.value = document.getElementById('inp-cfg-scale').value || '1.0';
-                    quickCfgScaleVal.textContent = quickInpCfgScale.value;
+                    const activeModel = dashModelSelect.value || serverModelSelect.value;
+                    await applyModelSampling(activeModel);
                 }
             });
         }
@@ -4550,6 +4835,76 @@
                 e.stopPropagation();
                 composerParamsCard.style.display = 'none';
                 if (composerParamsDropdown) composerParamsDropdown.classList.remove('open');
+            });
+        }
+
+        const btnSaveModelSampling = document.getElementById('btn-save-model-sampling');
+        const btnResetModelSampling = document.getElementById('btn-reset-model-sampling');
+        const quickParamsFeedback = document.getElementById('quick-params-feedback');
+
+        if (btnSaveModelSampling) {
+            btnSaveModelSampling.addEventListener('click', async () => {
+                const activeModel = dashModelSelect.value || serverModelSelect.value;
+                if (!activeModel) {
+                    alert('Please select a model first.');
+                    return;
+                }
+                const sampling = currentChatParams();
+                const orig = btnSaveModelSampling.innerHTML;
+                btnSaveModelSampling.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+                btnSaveModelSampling.disabled = true;
+                try {
+                    await ipcRenderer.invoke('save-model-sampling', activeModel, sampling);
+                    if (!modelsMeta[activeModel]) modelsMeta[activeModel] = {};
+                    modelsMeta[activeModel].sampling = sampling;
+
+                    const badgeEl = document.getElementById('quick-params-model-badge');
+                    if (badgeEl) {
+                        badgeEl.textContent = 'Saved for Model';
+                        badgeEl.style.background = 'color-mix(in srgb, var(--accent) 20%, transparent)';
+                        badgeEl.style.color = 'var(--accent)';
+                        badgeEl.style.border = '1px solid color-mix(in srgb, var(--accent) 40%, transparent)';
+                    }
+                    if (quickParamsFeedback) {
+                        quickParamsFeedback.textContent = '✓ Saved custom sampling parameters for ' + (activeModel.length > 25 ? activeModel.slice(0, 22) + '...' : activeModel);
+                        quickParamsFeedback.style.display = 'block';
+                        clearTimeout(quickParamsFeedback._t);
+                        quickParamsFeedback._t = setTimeout(() => { quickParamsFeedback.style.display = 'none'; }, 3000);
+                    }
+                    await loadModels();
+                } catch (e) {
+                    alert('Failed to save parameters for model: ' + e.message);
+                }
+                btnSaveModelSampling.innerHTML = orig;
+                btnSaveModelSampling.disabled = false;
+            });
+        }
+
+        if (btnResetModelSampling) {
+            btnResetModelSampling.addEventListener('click', async () => {
+                const activeModel = dashModelSelect.value || serverModelSelect.value;
+                if (!activeModel) return;
+                if (!confirm('Reset sampling parameters for "' + activeModel + '" to global defaults?')) return;
+                const orig = btnResetModelSampling.innerHTML;
+                btnResetModelSampling.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                btnResetModelSampling.disabled = true;
+                try {
+                    await ipcRenderer.invoke('reset-model-sampling', activeModel);
+                    if (modelsMeta[activeModel]) delete modelsMeta[activeModel].sampling;
+                    await applyModelSampling(activeModel);
+
+                    if (quickParamsFeedback) {
+                        quickParamsFeedback.textContent = '✓ Parameters reset to defaults';
+                        quickParamsFeedback.style.display = 'block';
+                        clearTimeout(quickParamsFeedback._t);
+                        quickParamsFeedback._t = setTimeout(() => { quickParamsFeedback.style.display = 'none'; }, 3000);
+                    }
+                    await loadModels();
+                } catch (e) {
+                    alert('Failed to reset model parameters: ' + e.message);
+                }
+                btnResetModelSampling.innerHTML = orig;
+                btnResetModelSampling.disabled = false;
             });
         }
 
@@ -4568,49 +4923,6 @@
                 closeAllDropdowns();
             }
         });
-
-        if (quickInpTemp) {
-            quickInpTemp.addEventListener('input', (e) => {
-                quickTempVal.textContent = e.target.value;
-                document.getElementById('inp-temp').value = e.target.value;
-            });
-        }
-        if (quickInpTopP) {
-            quickInpTopP.addEventListener('input', (e) => {
-                quickTopPVal.textContent = e.target.value;
-                document.getElementById('inp-topp').value = e.target.value;
-            });
-        }
-        if (quickInpTopK) {
-            quickInpTopK.addEventListener('input', (e) => {
-                quickTopKVal.textContent = e.target.value;
-                document.getElementById('inp-topk').value = e.target.value;
-            });
-        }
-        if (quickInpRepeat) {
-            quickInpRepeat.addEventListener('input', (e) => {
-                quickRepeatVal.textContent = e.target.value;
-                document.getElementById('inp-repeat').value = e.target.value;
-            });
-        }
-        if (quickInpXtcProb) {
-            quickInpXtcProb.addEventListener('input', (e) => {
-                quickXtcProbVal.textContent = e.target.value;
-                document.getElementById('inp-xtc-prob').value = e.target.value;
-            });
-        }
-        if (quickInpDryMult) {
-            quickInpDryMult.addEventListener('input', (e) => {
-                quickDryMultVal.textContent = e.target.value;
-                document.getElementById('inp-dry-mult').value = e.target.value;
-            });
-        }
-        if (quickInpCfgScale) {
-            quickInpCfgScale.addEventListener('input', (e) => {
-                quickCfgScaleVal.textContent = e.target.value;
-                document.getElementById('inp-cfg-scale').value = e.target.value;
-            });
-        }
 
         function renderPersonaList() {
             if (!personaList) return;
@@ -5524,40 +5836,48 @@
                 const qel = document.getElementById(id.replace(/^inp-/, 'quick-inp-'));
                 return qel ? qel.checked : false;
             };
+            const num = (id, fallback) => {
+                const v = parseFloat(val(id));
+                return !isNaN(v) ? v : fallback;
+            };
+            const int = (id, fallback) => {
+                const v = parseInt(val(id), 10);
+                return !isNaN(v) ? v : fallback;
+            };
             return {
-                temperature: parseFloat(val('inp-temp')) || 0.8,
-                topP: parseFloat(val('inp-topp')) || 0.95,
-                topK: parseInt(val('inp-topk'), 10) || 40,
-                minP: parseFloat((document.getElementById('quick-inp-minp') && document.getElementById('quick-inp-minp').value) || val('inp-minp')) || 0.05,
-                repeatPenalty: parseFloat(val('inp-repeat')) || 1.1,
-                maxTokens: parseInt(val('inp-maxtokens'), 10) || 2048,
+                temperature: num('inp-temp', 0.8),
+                topP: num('inp-topp', 0.95),
+                topK: int('inp-topk', 40),
+                minP: num('inp-minp', 0.05),
+                repeatPenalty: num('inp-repeat', 1.1),
+                maxTokens: int('inp-maxtokens', 2048),
                 maxTokensUnlimited: document.getElementById('inp-maxtokens-unlimited') ? document.getElementById('inp-maxtokens-unlimited').checked : true,
                 reasoningEffort: val('inp-reasoning') || 'medium',
                 // Advanced Samplers: XTC, DRY, CFG
-                xtcProbability: parseFloat(val('inp-xtc-prob')) || 0,
-                xtcThreshold: parseFloat(val('inp-xtc-thresh')) || 0.1,
-                dryMultiplier: parseFloat(val('inp-dry-mult')) || 0,
-                dryBase: parseFloat(val('inp-dry-base')) || 1.75,
-                dryAllowedLength: parseInt(val('inp-dry-allowed-length'), 10) || 2,
-                dryPenaltyLastN: parseInt(val('inp-dry-penalty-last-n'), 10) || 64,
-                cfgScale: parseFloat(val('inp-cfg-scale')) || 1.0,
+                xtcProbability: num('inp-xtc-prob', 0),
+                xtcThreshold: num('inp-xtc-thresh', 0.1),
+                dryMultiplier: num('inp-dry-mult', 0),
+                dryBase: num('inp-dry-base', 1.75),
+                dryAllowedLength: int('inp-dry-allowed-length', 2),
+                dryPenaltyLastN: int('inp-dry-penalty-last-n', 64),
+                cfgScale: num('inp-cfg-scale', 1.0),
                 cfgNegativePrompt: val('inp-cfg-negative-prompt') || '',
                 // All llama.cpp sampling params (chat tag) — expanded per --help
-                seed: parseInt(val('inp-seed') || '-1', 10),
+                seed: int('inp-seed', -1),
                 ignoreEOS: chk('inp-ignore-eos'),
                 samplers: val('inp-samplers') || '',
                 samplerSeq: val('inp-sampler-seq') || '',
-                topNSigma: parseFloat(val('inp-top-nsigma')) || -1,
-                typicalP: parseFloat(val('inp-typical-p')) || 1.0,
-                repeatLastN: parseInt(val('inp-repeat-last-n') || '64', 10),
-                presencePenalty: parseFloat(val('inp-presence-penalty')) || 0,
-                frequencyPenalty: parseFloat(val('inp-frequency-penalty')) || 0,
+                topNSigma: num('inp-top-nsigma', -1),
+                typicalP: num('inp-typical-p', 1.0),
+                repeatLastN: int('inp-repeat-last-n', 64),
+                presencePenalty: num('inp-presence-penalty', 0),
+                frequencyPenalty: num('inp-frequency-penalty', 0),
                 drySequenceBreakers: val('inp-dry-seq-breakers') || '',
-                mirostat: parseInt(val('inp-mirostat') || '0', 10),
-                mirostatTau: parseFloat(val('inp-mirostat-tau')) || 5.0,
-                mirostatEta: parseFloat(val('inp-mirostat-eta')) || 0.1,
-                dynatempRange: parseFloat(val('inp-dynatemp-range')) || 0,
-                dynatempExp: parseFloat(val('inp-dynatemp-exp')) || 1.0
+                mirostat: int('inp-mirostat', 0),
+                mirostatTau: num('inp-mirostat-tau', 5.0),
+                mirostatEta: num('inp-mirostat-eta', 0.1),
+                dynatempRange: num('inp-dynatemp-range', 0),
+                dynatempExp: num('inp-dynatemp-exp', 1.0)
             };
         }
 
@@ -5596,37 +5916,6 @@
             allIds.forEach(id => {
                 const e = document.getElementById(id);
                 if (e) { e.addEventListener('input', updateChatSamplingTags); e.addEventListener('change', updateChatSamplingTags); }
-            });
-            // sync main <-> quick pairs and live value displays
-            const pairs = [
-                ['inp-temp','quick-inp-temp','quick-temp-val'],
-                ['inp-topp','quick-inp-topp','quick-topp-val'],
-                ['inp-topk','quick-inp-topk','quick-topk-val'],
-                ['inp-minp','quick-inp-minp','quick-minp-val'],
-                ['inp-repeat','quick-inp-repeat','quick-repeat-val'],
-                ['inp-top-nsigma','quick-inp-top-nsigma','quick-top-nsigma-val'],
-                ['inp-typical-p','quick-inp-typical-p','quick-typical-p-val'],
-                ['inp-presence-penalty','quick-inp-presence-penalty','quick-presence-penalty-val'],
-                ['inp-frequency-penalty','quick-inp-frequency-penalty','quick-frequency-penalty-val'],
-                ['inp-dynatemp-range','quick-inp-dynatemp-range','quick-dynatemp-range-val'],
-                ['inp-dynatemp-exp','quick-inp-dynatemp-exp','quick-dynatemp-exp-val']
-            ];
-            pairs.forEach(([a,b,lab]) => {
-                const ea = document.getElementById(a), eb = document.getElementById(b);
-                const lbl = document.getElementById(lab);
-                const upd = (src, dst) => {
-                    if (!src || !dst) return;
-                    dst.value = src.value;
-                    if (lbl) lbl.textContent = parseFloat(src.value).toFixed(src.step && src.step.includes('.') ? 2 : 0);
-                };
-                if (ea && eb) {
-                    ea.addEventListener('input', () => { upd(ea, eb); });
-                    eb.addEventListener('input', () => { upd(eb, ea); updateChatSamplingTags(); });
-                }
-                // quick-only value labels
-                if (eb && lbl && !ea) {
-                    eb.addEventListener('input', () => { lbl.textContent = parseFloat(eb.value).toFixed(2); });
-                }
             });
             // mirostat and other selects need tag refresh
             ['inp-mirostat','quick-inp-mirostat','inp-seed','quick-inp-seed','inp-ignore-eos','quick-inp-ignore-eos'].forEach(id=>{
@@ -6253,6 +6542,10 @@
                 serverModelSelect.value = dashModelSelect.value;
                 detectAndSetCtx(dashModelSelect.value);
             }
+            const activeM = dashModelSelect.value || serverModelSelect.value;
+            if (activeM) {
+                await applyModelSampling(activeM);
+            }
         }
 
         async function loadBackends() {
@@ -6448,6 +6741,7 @@
         }
 
         async function loadModels() {
+            const currentSelected = dashModelSelect.value || serverModelSelect.value;
             const models = await ipcRenderer.invoke('list-models');
             try {
                 modelsMeta = await ipcRenderer.invoke('get-models-meta');
@@ -6473,14 +6767,16 @@
                     const drafterFile = modelsMeta[m] && (modelsMeta[m].mtpDrafter || (modelsMeta[m].drafter && modelsMeta[m].drafter.file));
                     const drafterLabel = (modelsMeta[m] && modelsMeta[m].drafterLabel) || (drafterFile && /dspark/i.test(drafterFile) ? 'DSpark' : 'MTP');
                     const drafterTag = drafterFile ? (' ⚡ ' + drafterLabel + '-Draft') : (hasMtp ? ' ⚡ MTP' : '');
+                    const hasSampling = !!(modelsMeta[m] && modelsMeta[m].sampling);
+                    const samplingTag = hasSampling ? ' ⚙️' : '';
                     const opt1 = document.createElement('option');
                     opt1.value = m;
-                    opt1.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '') + drafterTag;
+                    opt1.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '') + drafterTag + samplingTag;
                     serverModelSelect.appendChild(opt1);
 
                     const opt2 = document.createElement('option');
                     opt2.value = m;
-                    opt2.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '') + drafterTag;
+                    opt2.textContent = m + (hasMmproj ? ' 👁️ (Vision)' : '') + drafterTag + samplingTag;
                     dashModelSelect.appendChild(opt2);
 
                     const loras = (modelsMeta[m] && Array.isArray(modelsMeta[m].loras)) ? modelsMeta[m].loras : [];
@@ -6526,6 +6822,7 @@
                                 ${hasMmproj ? `<span class="vision-adapter-badge"><i class="fa-solid fa-eye"></i> Vision Adaptor: ${escapeHtml(modelsMeta[m].mmproj)}</span>` : ''}
                                 ${hasMtp ? '<span class="vision-adapter-badge" style="border-color: rgba(86, 211, 100, 0.4);"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> MTP Head (embedded, auto)</span>' : ''}
                                 ${drafterFile ? `<span class="vision-adapter-badge" style="border-color: ${drafterLabel === 'DSpark' ? 'rgba(251, 146, 60, 0.4)' : 'rgba(86, 211, 100, 0.4)'};"><i class="fa-solid fa-bolt" style="color: ${drafterLabel === 'DSpark' ? '#fb923c' : '#56d364'};"></i> ${escapeHtml(drafterLabel)} Drafter: ${escapeHtml(drafterFile)}</span>` : ''}
+                                ${hasSampling ? `<span class="vision-adapter-badge" style="border-color: color-mix(in srgb, var(--accent) 40%, transparent); color: var(--accent);"><i class="fa-solid fa-sliders" style="color: var(--accent);"></i> Custom Sampling</span>` : ''}
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <button class="btn secondary btn-link-lora" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link LoRA adapter (.gguf)"><i class="fa-solid fa-bolt" style="color: #c084fc;"></i> + LoRA</button>
@@ -6690,6 +6987,15 @@
                     modelsListContainer.appendChild(row);
                 });
             }
+
+            if (currentSelected && models && models.includes(currentSelected)) {
+                dashModelSelect.value = currentSelected;
+                serverModelSelect.value = currentSelected;
+            }
+            const activeModel = dashModelSelect.value || serverModelSelect.value;
+            if (activeModel) {
+                await applyModelSampling(activeModel);
+            }
         }
 
         async function detectAndSetCtx(modelName) {
@@ -6711,6 +7017,7 @@
             serverModelSelect.value = val;
             if (val) {
                 await detectAndSetCtx(val);
+                await applyModelSampling(val);
                 const badgeEl = document.getElementById('chat-model-name');
                 if (badgeEl) badgeEl.textContent = val.length > 22 ? val.slice(0, 20) + '...' : val;
             }
@@ -6720,6 +7027,7 @@
             dashModelSelect.value = val;
             if (val) {
                 await detectAndSetCtx(val);
+                await applyModelSampling(val);
                 const badgeEl = document.getElementById('chat-model-name');
                 if (badgeEl) badgeEl.textContent = val.length > 22 ? val.slice(0, 20) + '...' : val;
             }
@@ -6741,6 +7049,7 @@
                     dashModelSelect.value = added;
                     serverModelSelect.value = added;
                     await detectAndSetCtx(added);
+                    await applyModelSampling(added);
                     // Ask if model has a vision projector
                     if (confirm('Did you import a multimodal model? Would you like to link a Vision Projector (mmproj) adapter file for it now?')) {
                         const updated = await ipcRenderer.invoke('link-mmproj-dialog', added);

@@ -54,7 +54,7 @@ Llama.cpp Manager is a sleek, modern desktop workstation for local LLM inference
 
 - ⚡ **Speculative Decoding with DSpark & MTP** — Link companion drafter models with automatic GGUF architecture inspection and family mismatch safety guards.
 - 🧵 **CPU Threads Control (`-t` / `--threads`)** — Tune generation threads on both the Dashboard and Server settings to prevent CPU oversaturation and boost token generation speed by **2x–4x** per official llama.cpp performance guidelines.
-- 🎛️ **Quick Chat Sampler Popover** — Instantly adjust Min P, Temperature, Top P, Top K, Repeat Penalty, XTC, and DRY multiplier directly from the chat input bar.
+- 🎛️ **Quick Chat Sampler & Per-Model Parameters** — Save model-specific sampling configurations automatically, adjust parameters via sliders or compact manual numeric inputs, and instantly tune Min P, Temperature, Top P, Top K, Repeat Penalty, XTC, and DRY directly from the chat composer.
 - 🧠 **Dynamic LoRA Adapters** — Add, scale, enable, or disable LoRA adapters on the fly with base variant mismatch protection.
 - 🎭 **Persona & Roleplay Engine** — Create custom personas with starting greetings, dialogue examples, and keyword-triggered lorebook injection.
 - 🛠️ **MCP (Model Context Protocol)** — Run stdio MCP servers with automatic parameter exposure and chat tool call visualizers.
@@ -67,7 +67,7 @@ Llama.cpp Manager is a sleek, modern desktop workstation for local LLM inference
 
 Download the latest portable executable from the **[Releases](https://github.com/bunnywaffle/Llama-cpp-manager/releases)** page:
 
-1. Download **`Llama.cpp.Manager.1.0.3.exe`** from [Latest Release](https://github.com/bunnywaffle/Llama-cpp-manager/releases/latest).
+1. Download **`Llama.cpp.Manager.1.0.4.exe`** from [Latest Release](https://github.com/bunnywaffle/Llama-cpp-manager/releases/latest).
 2. Run the executable anywhere — no setup wizard or registry modifications required.
 3. Open **Backends** to install the latest llama.cpp build (or link your existing installation).
 4. Point the app to your GGUF models folder in **Models** and start generating!

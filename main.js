@@ -747,9 +747,34 @@ ipcMain.handle('unlink-lora', (event, { modelName, loraFile }) => {
 });
 
 
-// ============ Vision Adapter (mmproj) IPC Handlers ============
+// ============ Model Metadata & Per-Model Sampling IPC Handlers ============
 ipcMain.handle('get-models-meta', () => {
     return readModelsMeta();
+});
+
+ipcMain.handle('save-model-sampling', (event, modelName, sampling) => {
+    if (!modelName) throw new Error('No model name specified');
+    const meta = readModelsMeta();
+    meta[modelName] = meta[modelName] || {};
+    meta[modelName].sampling = sampling;
+    writeModelsMeta(meta);
+    return meta;
+});
+
+ipcMain.handle('reset-model-sampling', (event, modelName) => {
+    if (!modelName) throw new Error('No model name specified');
+    const meta = readModelsMeta();
+    if (meta[modelName] && meta[modelName].sampling) {
+        delete meta[modelName].sampling;
+        writeModelsMeta(meta);
+    }
+    return meta;
+});
+
+ipcMain.handle('get-model-sampling', (event, modelName) => {
+    if (!modelName) return null;
+    const meta = readModelsMeta();
+    return (meta[modelName] && meta[modelName].sampling) ? meta[modelName].sampling : null;
 });
 
 ipcMain.handle('link-mmproj-dialog', async (event, modelName) => {
