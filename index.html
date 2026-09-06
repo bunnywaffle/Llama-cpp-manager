@@ -1409,6 +1409,55 @@
             background: var(--bg-card);
         }
 
+        .chat-persona-drawer {
+            width: 360px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+            z-index: 5;
+        }
+
+        .chat-persona-drawer.collapsed {
+            width: 0;
+            padding: 0;
+            margin: 0;
+            border: none;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .chat-persona-drawer-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-card);
+            flex-shrink: 0;
+        }
+
+        .chat-persona-drawer-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-persona-drawer-footer {
+            padding: 10px 14px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
         .chat-sessions-list {
             flex: 1;
             overflow-y: auto;
@@ -2665,6 +2714,7 @@
                 <div class="chat-header-left">
                     
                     <button class="btn secondary btn-icon" id="btn-toggle-sessions-drawer" title="Toggle Chat History"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                    <button class="btn secondary btn-icon" id="btn-toggle-persona-drawer" title="Toggle Persona Studio (Edit / Create Personas)"><i class="fa-solid fa-user-pen"></i></button>
                     <h2 class="chat-view-title">Chat</h2>
                     <span id="chat-model-badge" class="chat-model-pill" title="Active Model">
                         <i class="fa-solid fa-microchip"></i> <span id="chat-model-name">No Model</span>
@@ -2693,7 +2743,7 @@
                             <span id="header-reasoning-label" class="hide-mobile">Medium</span>
                             <i class="fa-solid fa-chevron-down" style="font-size: 9px; opacity: 0.7;"></i>
                         </button>
-                        <div class="dropdown-menu dropdown-menu-right" id="header-reasoning-menu" style="min-width: 170px;">
+                        <div class="dropdown-menu dropdown-menu-right" id="header-reasoning-menu" style="min-width: 190px;">
                             <button type="button" class="dropdown-item" data-reasoning="none"><i class="fa-solid fa-ban"></i> None (Disabled)</button>
                             <button type="button" class="dropdown-item" data-reasoning="minimal"><i class="fa-solid fa-battery-empty"></i> Minimal</button>
                             <button type="button" class="dropdown-item" data-reasoning="low"><i class="fa-solid fa-battery-quarter"></i> Low</button>
@@ -2701,6 +2751,11 @@
                             <button type="button" class="dropdown-item" data-reasoning="high"><i class="fa-solid fa-battery-three-quarters"></i> High</button>
                             <button type="button" class="dropdown-item" data-reasoning="xhigh"><i class="fa-solid fa-battery-full"></i> Extra High</button>
                             <button type="button" class="dropdown-item" data-reasoning="max"><i class="fa-solid fa-bolt"></i> Max</button>
+                            <div style="height: 1px; background: var(--border); margin: 4px 0;"></div>
+                            <label class="dropdown-item" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px; user-select: none;" id="lbl-header-reasoning-collapsed">
+                                <span><i class="fa-solid fa-compress" style="color: var(--accent); margin-right: 6px;"></i> Collapse by Default</span>
+                                <input type="checkbox" id="chk-header-reasoning-collapsed" checked style="cursor: pointer; width: auto; height: auto;">
+                            </label>
                         </div>
                     </div>
                     </div>
@@ -2974,6 +3029,73 @@
                                 </div>
                                 <span class="chat-composer-hint">Shift + Enter for new line</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Persona Studio Drawer (Non-blocking, live simultaneous chat) -->
+                <div class="chat-persona-drawer collapsed" id="chat-persona-drawer">
+                    <div class="chat-persona-drawer-header">
+                        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                            <span style="font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-user-pen" style="color: var(--accent);"></i> Persona Studio
+                            </span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <button type="button" class="btn primary btn-sm" id="btn-new-persona" style="padding: 3px 8px; font-size: 11.5px;" title="Create New Persona"><i class="fa-solid fa-plus"></i> New</button>
+                                <button type="button" class="btn secondary btn-icon" id="btn-close-persona-drawer" style="padding: 2px 6px; font-size: 11px;" title="Close Persona Studio"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-persona-drawer-body">
+                        <div>
+                            <label style="font-size: 11px; color: var(--text-muted); font-weight: 500; margin-bottom: 4px; display: block;">Select Persona to Edit</label>
+                            <select id="persona-select-picker" style="width: 100%; font-size: 12.5px;"></select>
+                        </div>
+                        <div>
+                            <label style="font-size: 11.5px; font-weight: 500;">Persona Name</label>
+                            <input type="text" id="persona-name" placeholder="e.g. Expert Coder" style="font-size: 12.5px;">
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <label style="font-size: 11.5px; font-weight: 500;">System Prompt</label>
+                            <textarea id="persona-prompt" style="min-height: 90px; resize: vertical; font-size: 12px; line-height: 1.4;" placeholder="Define this persona's behavior, style, and instructions..."></textarea>
+                        </div>
+                        <button type="button" class="btn secondary" id="btn-toggle-advanced" style="justify-content: flex-start; width: 100%; font-size: 12px;"><i class="fa-solid fa-sliders"></i> Advanced Options <i class="fa-solid fa-chevron-down adv-chevron" style="margin-left: auto; font-size: 10px; transition: transform 0.18s;"></i></button>
+                        <div id="persona-advanced" style="display: none; flex-direction: column; gap: 10px;">
+                            <div>
+                                <label style="font-size: 11px;">Personality <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
+                                <input type="text" id="persona-personality" placeholder="e.g. witty, curious, blunt when needed" style="font-size: 12px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 11px;">Appearance <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
+                                <input type="text" id="persona-appearance" placeholder="e.g. holographic assistant with a warm, animated face" style="font-size: 12px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 11px;">Background <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
+                                <textarea id="persona-background" style="min-height: 60px; font-size: 12px;" placeholder="e.g. Created in a research lab, you have worked as a guide for over a decade..."></textarea>
+                            </div>
+                        </div>
+                        <button type="button" class="btn secondary" id="btn-toggle-rp" style="justify-content: flex-start; width: 100%; font-size: 12px;"><i class="fa-solid fa-book-open"></i> Roleplay Extras (Greeting, Lorebook) <i class="fa-solid fa-chevron-down rp-chevron" style="margin-left: auto; font-size: 10px; transition: transform 0.18s;"></i></button>
+                        <div id="persona-rp" style="display: none; flex-direction: column; gap: 12px; padding: 10px; background: color-mix(in srgb, var(--bg-card) 60%, transparent); border: 1px solid var(--border); border-radius: 10px;">
+                            <div>
+                                <label style="font-size: 11px;">Start Message / Greeting <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
+                                <textarea id="persona-greeting" style="min-height: 60px; font-size: 12px;" placeholder="e.g. *The tavern door creaks...* Welcome, traveler!"></textarea>
+                            </div>
+                            <div>
+                                <label style="font-size: 11px;">Dialogue Example <span style="font-weight: 400; color: var(--text-muted);">(few-shot)</span></label>
+                                <textarea id="persona-dialogue-example" style="min-height: 80px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;" placeholder="{{user}}: Hello!&#10;{{char}}: Greetings traveler!"></textarea>
+                            </div>
+                            <div>
+                                <label style="font-size: 11px;">Lorebook <span style="font-weight: 400; color: var(--text-muted);">(keyword triggered)</span></label>
+                                <div id="lorebook-list" style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;"></div>
+                                <button type="button" class="btn secondary" id="btn-add-lorebook" style="margin-top: 6px; width: 100%; font-size: 11px; padding: 4px 8px;"><i class="fa-solid fa-plus"></i> Add Lorebook Entry</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-persona-drawer-footer">
+                        <button class="btn danger" id="btn-delete-persona" style="display: none; font-size: 11.5px; padding: 5px 10px;"><i class="fa-solid fa-trash"></i> Delete</button>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+                            <span id="persona-save-feedback" style="display: none; font-size: 11px; color: var(--accent); font-weight: 500;">Saved ✓</span>
+                            <button class="btn primary" id="btn-save-persona" style="font-size: 11.5px; padding: 5px 14px;"><i class="fa-solid fa-floppy-disk"></i> Save Persona</button>
                         </div>
                     </div>
                 </div>
@@ -3266,70 +3388,6 @@
         </div>
     </div>
 
-    <!-- Personas Modal -->
-    <div class="modal-overlay" id="personas-modal">
-        <div class="modal" style="width: 780px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div class="card-title"><i class="fa-solid fa-user-pen"></i> Manage Personas</div>
-                <button class="btn secondary" id="btn-close-personas" style="padding: 4px 10px;"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div style="display: grid; grid-template-columns: 280px 1fr; gap: 20px; min-height: 360px;">
-                <div>
-                    <button class="btn primary" id="btn-new-persona" style="width: 100%; margin-bottom: 12px;"><i class="fa-solid fa-plus"></i> New Persona</button>
-                    <div id="persona-list" style="max-height: 380px; overflow-y: auto;"></div>
-                </div>
-                <div class="persona-editor">
-                    <div>
-                        <label>Persona Name</label>
-                        <input type="text" id="persona-name" placeholder="e.g. Expert Coder">
-                    </div>
-                    <div style="flex: 1; display: flex; flex-direction: column;">
-                        <label>System Prompt</label>
-                        <textarea id="persona-prompt" style="flex: 1;" placeholder="Define this persona's behavior, style, and instructions..."></textarea>
-                    </div>
-                    <button type="button" class="btn secondary" id="btn-toggle-advanced" style="justify-content: flex-start; width: 100%;"><i class="fa-solid fa-sliders"></i> Advanced Options <i class="fa-solid fa-chevron-down adv-chevron" style="margin-left: auto; font-size: 10px; transition: transform 0.18s;"></i></button>
-                    <div id="persona-advanced" style="display: none; flex-direction: column; gap: 12px;">
-                        <div>
-                            <label>Personality <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
-                            <input type="text" id="persona-personality" placeholder="e.g. witty, curious, blunt when needed">
-                        </div>
-                        <div>
-                            <label>Appearance <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
-                            <input type="text" id="persona-appearance" placeholder="e.g. holographic assistant with a warm, animated face">
-                        </div>
-                        <div>
-                            <label>Background <span style="font-weight: 400; color: var(--text-muted);">(optional)</span></label>
-                            <textarea id="persona-background" style="min-height: 70px;" placeholder="e.g. Created in a research lab, you have worked as a guide for over a decade..."></textarea>
-                        </div>
-                    </div>
-                    <button type="button" class="btn secondary" id="btn-toggle-rp" style="justify-content: flex-start; width: 100%;"><i class="fa-solid fa-book-open"></i> Roleplay Extras — Lorebook, Dialogue Example, Greeting <i class="fa-solid fa-chevron-down rp-chevron" style="margin-left: auto; font-size: 10px; transition: transform 0.18s;"></i></button>
-                    <div id="persona-rp" style="display: none; flex-direction: column; gap: 14px; padding: 12px; background: color-mix(in srgb, var(--bg-card) 60%, transparent); border: 1px solid var(--border); border-radius: 10px;">
-                        <div>
-                            <label>Start Message / Greeting <span style="font-weight: 400; color: var(--text-muted);">(optional — first assistant message)</span></label>
-                            <textarea id="persona-greeting" style="min-height: 70px;" placeholder="e.g. *The tavern door creaks...* Welcome, traveler! What brings you here?"></textarea>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Shown as the first message when you start a new chat with this persona (if chat is empty).</div>
-                        </div>
-                        <div>
-                            <label>Dialogue Example <span style="font-weight: 400; color: var(--text-muted);">(optional — few-shot example)</span></label>
-                            <textarea id="persona-dialogue-example" style="min-height: 110px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px;" placeholder="e.g. {{user}}: Hello, who are you?&#10;{{char}}: *smiles warmly* I'm Elara, keeper of the old library. How may I help you today?&#10;&#10;Use {{user}} and {{char}} as placeholders."></textarea>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Added to system context as an example — helps the model mimic the persona's style.</div>
-                        </div>
-                        <div>
-                            <label>Lorebook <span style="font-weight: 400; color: var(--text-muted);">(optional — keyword-triggered world info)</span></label>
-                            <div id="lorebook-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;"></div>
-                            <button type="button" class="btn secondary" id="btn-add-lorebook" style="margin-top: 8px; width: 100%;"><i class="fa-solid fa-plus"></i> Add Lorebook Entry</button>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Each entry triggers when its <b>keys</b> appear in recent chat. Use <code>constant</code> to always inject. Keep entries focused and concise.</div>
-                        </div>
-                    </div>
-                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                        <button class="btn danger" id="btn-delete-persona" style="display: none;"><i class="fa-solid fa-trash"></i> Delete</button>
-                        <button class="btn primary" id="btn-save-persona"><i class="fa-solid fa-floppy-disk"></i> Save Persona</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
         // ============ Global Application State ============
         let isServerOnline = false;
@@ -3521,15 +3579,19 @@
         const viewPanes = document.querySelectorAll('.view-pane');
         const sidebar = document.getElementById('sidebar');
 
+        function switchView(viewName) {
+            const targetId = viewName.startsWith('view-') ? viewName : ('view-' + viewName);
+            navItems.forEach(n => n.classList.remove('active'));
+            viewPanes.forEach(p => p.classList.remove('active'));
+            const navBtn = document.querySelector(`.nav-item[data-target="${targetId}"]`);
+            if (navBtn) navBtn.classList.add('active');
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) targetEl.classList.add('active');
+        }
+
         navItems.forEach(item => {
             item.addEventListener('click', () => {
-                navItems.forEach(n => n.classList.remove('active'));
-                viewPanes.forEach(p => p.classList.remove('active'));
-                item.classList.add('active');
-                const targetEl = document.getElementById(item.dataset.target);
-                if (targetEl) targetEl.classList.add('active');
-
-
+                switchView(item.dataset.target);
             });
         });
 
@@ -4091,7 +4153,11 @@
                 updateMaxTokensUI();
             }
             if (s.reasoningEffort !== undefined) document.getElementById('inp-reasoning').value = s.reasoningEffort;
-            if (s.reasoningCollapsed !== undefined && document.getElementById('inp-reasoning-collapsed')) document.getElementById('inp-reasoning-collapsed').checked = !!s.reasoningCollapsed;
+            if (s.reasoningCollapsed !== undefined) {
+                const val = !!s.reasoningCollapsed;
+                if (document.getElementById('inp-reasoning-collapsed')) document.getElementById('inp-reasoning-collapsed').checked = val;
+                if (chkHeaderReasoningCollapsed) chkHeaderReasoningCollapsed.checked = val;
+            }
             if (s.seed !== undefined && document.getElementById('inp-seed')) document.getElementById('inp-seed').value = s.seed;
             if (s.ignoreEOS !== undefined && document.getElementById('inp-ignore-eos')) document.getElementById('inp-ignore-eos').checked = !!s.ignoreEOS;
             if (s.samplers !== undefined && document.getElementById('inp-samplers')) document.getElementById('inp-samplers').value = s.samplers;
@@ -4293,12 +4359,15 @@
         const quickInpCfgScale = document.getElementById('quick-inp-cfg-scale');
         const quickCfgScaleVal = document.getElementById('quick-cfg-scale-val');
 
-        const personasModal = document.getElementById('personas-modal');
-        const btnClosePersonas = document.getElementById('btn-close-personas');
+        const chatPersonaDrawer = document.getElementById('chat-persona-drawer');
+        const btnTogglePersonaDrawer = document.getElementById('btn-toggle-persona-drawer');
+        const btnClosePersonaDrawer = document.getElementById('btn-close-persona-drawer');
+        const personaSelectPicker = document.getElementById('persona-select-picker');
+        const personaSaveFeedback = document.getElementById('persona-save-feedback');
+        const chkHeaderReasoningCollapsed = document.getElementById('chk-header-reasoning-collapsed');
         const btnNewPersona = document.getElementById('btn-new-persona');
         const btnSavePersona = document.getElementById('btn-save-persona');
         const btnDeletePersona = document.getElementById('btn-delete-persona');
-        const personaList = document.getElementById('persona-list');
         const personaName = document.getElementById('persona-name');
         const personaPrompt = document.getElementById('persona-prompt');
         const personaPersonality = document.getElementById('persona-personality');
@@ -4527,8 +4596,35 @@
                             renderPersonaDropdowns();
                             closeAllDropdowns();
                         });
-                        menuEl.appendChild(item);
+                    menuEl.appendChild(item);
                     });
+
+                    // Divider & Quick Studio actions
+                    const divider = document.createElement('div');
+                    divider.style.cssText = 'height: 1px; background: var(--border); margin: 4px 0;';
+                    menuEl.appendChild(divider);
+
+                    const newBtn = document.createElement('button');
+                    newBtn.type = 'button';
+                    newBtn.className = 'dropdown-item';
+                    newBtn.innerHTML = '<i class="fa-solid fa-plus" style="color:var(--accent);"></i><span class="di-name">New Persona...</span>';
+                    newBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        closeAllDropdowns();
+                        openPersonaDrawer(null, true);
+                    });
+                    menuEl.appendChild(newBtn);
+
+                    const studioBtn = document.createElement('button');
+                    studioBtn.type = 'button';
+                    studioBtn.className = 'dropdown-item';
+                    studioBtn.innerHTML = '<i class="fa-solid fa-user-pen" style="color:var(--accent);"></i><span class="di-name">Persona Studio...</span>';
+                    studioBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        closeAllDropdowns();
+                        openPersonaDrawer(activePersonaId, false);
+                    });
+                    menuEl.appendChild(studioBtn);
                 }
             };
 
@@ -4587,6 +4683,7 @@
             }
             if (menuEl) {
                 menuEl.querySelectorAll('.dropdown-item').forEach(btn => {
+                    if (btn.tagName !== 'BUTTON' || !btn.dataset.reasoning) return;
                     btn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         const val = btn.dataset.reasoning || 'medium';
@@ -4600,6 +4697,19 @@
 
         wireReasoningMenu(headerReasoningTrigger, headerReasoningDropdown, headerReasoningMenu);
         wireReasoningMenu(composerReasoningTrigger, composerReasoningDropdown, composerReasoningMenu);
+
+        const inpReasoningCollapsed = document.getElementById('inp-reasoning-collapsed');
+        function setReasoningCollapsed(val) {
+            if (inpReasoningCollapsed) inpReasoningCollapsed.checked = val;
+            if (chkHeaderReasoningCollapsed) chkHeaderReasoningCollapsed.checked = val;
+            ipcRenderer.invoke('save-settings', { reasoningCollapsed: val }).catch(() => {});
+        }
+        if (inpReasoningCollapsed) {
+            inpReasoningCollapsed.addEventListener('change', () => setReasoningCollapsed(inpReasoningCollapsed.checked));
+        }
+        if (chkHeaderReasoningCollapsed) {
+            chkHeaderReasoningCollapsed.addEventListener('change', () => setReasoningCollapsed(chkHeaderReasoningCollapsed.checked));
+        }
 
         // ============ Quick Parameters Popover & Bidirectional Slider/Number Sync ============
         const paramSliderBindings = [
@@ -4925,42 +5035,31 @@
         });
 
         function renderPersonaList() {
-            if (!personaList) return;
-            personaList.innerHTML = '';
+            if (!personaSelectPicker) return;
+            personaSelectPicker.innerHTML = '';
+            if (!personas || personas.length === 0) {
+                personaSelectPicker.innerHTML = '<option value="">No personas</option>';
+                return;
+            }
             personas.forEach(p => {
-                const item = document.createElement('div');
-                item.className = 'persona-list-item' + (p.id === editingPersonaId ? ' active' : '');
-                item.innerHTML = `
-                    <div style="display: flex; flex-direction: column; gap: 3px;">
-                        <span style="font-weight: 600; font-size: 13px;">${escapeHtml(p.name)}</span>
-                        <span style="font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 190px;">${escapeHtml(p.systemPrompt || 'No system prompt')}</span>
-                    </div>
-                    <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); font-size: 11px;"></i>
-                `;
-                item.addEventListener('click', () => {
-                    editingPersonaId = p.id;
-                    personaName.value = p.name || '';
-                    personaPrompt.value = p.systemPrompt || '';
-                    personaPersonality.value = p.personality || '';
-                    personaAppearance.value = p.appearance || '';
-                    personaBackground.value = p.background || '';
-                    if (typeof personaGreeting !== 'undefined' && personaGreeting) personaGreeting.value = p.greeting || p.startMessage || '';
-                    if (typeof personaDialogueExample !== 'undefined' && personaDialogueExample) personaDialogueExample.value = p.dialogueExample || p.exampleDialogue || '';
-                    lorebookEntries = Array.isArray(p.lorebook) ? JSON.parse(JSON.stringify(p.lorebook)) : (Array.isArray(p.loreBook) ? JSON.parse(JSON.stringify(p.loreBook)) : []);
-                    if (typeof renderLorebook === 'function') renderLorebook();
-                    if (btnDeletePersona) btnDeletePersona.style.display = 'inline-flex';
-                    renderPersonaList();
-                });
-                personaList.appendChild(item);
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name + (p.id === activePersonaId ? ' (Active)' : '');
+                personaSelectPicker.appendChild(opt);
             });
+            if (editingPersonaId) {
+                personaSelectPicker.value = editingPersonaId;
+            } else if (activePersonaId) {
+                personaSelectPicker.value = activePersonaId;
+            }
         }
 
-        if (btnClosePersonas) {
-            btnClosePersonas.addEventListener('click', () => { personasModal.style.display = 'none'; });
-        }
+        function openPersonaDrawer(targetId, isNew = false) {
+            switchView('chat');
+            if (chatPersonaDrawer) chatPersonaDrawer.classList.remove('collapsed');
+            if (btnTogglePersonaDrawer) btnTogglePersonaDrawer.classList.add('active');
 
-        if (btnNewPersona) {
-            btnNewPersona.addEventListener('click', () => {
+            if (isNew) {
                 editingPersonaId = null;
                 personaName.value = '';
                 personaPrompt.value = '';
@@ -4972,8 +5071,58 @@
                 lorebookEntries = [];
                 if (typeof renderLorebook === 'function') renderLorebook();
                 if (btnDeletePersona) btnDeletePersona.style.display = 'none';
-                renderPersonaList();
+                if (personaSelectPicker) personaSelectPicker.value = '';
                 personaName.focus();
+            } else {
+                const p = personas.find(x => x.id === targetId) || getActivePersona() || (personas.length > 0 ? personas[0] : null);
+                if (p) {
+                    editingPersonaId = p.id;
+                    if (personaSelectPicker) personaSelectPicker.value = p.id;
+                    personaName.value = p.name || '';
+                    personaPrompt.value = p.systemPrompt || '';
+                    personaPersonality.value = p.personality || '';
+                    personaAppearance.value = p.appearance || '';
+                    personaBackground.value = p.background || '';
+                    if (typeof personaGreeting !== 'undefined' && personaGreeting) personaGreeting.value = p.greeting || p.startMessage || '';
+                    if (typeof personaDialogueExample !== 'undefined' && personaDialogueExample) personaDialogueExample.value = p.dialogueExample || p.exampleDialogue || '';
+                    lorebookEntries = Array.isArray(p.lorebook) ? JSON.parse(JSON.stringify(p.lorebook)) : (Array.isArray(p.loreBook) ? JSON.parse(JSON.stringify(p.loreBook)) : []);
+                    if (typeof renderLorebook === 'function') renderLorebook();
+                    if (btnDeletePersona) btnDeletePersona.style.display = (p.id === 'general' ? 'none' : 'inline-flex');
+                }
+            }
+            renderPersonaList();
+        }
+
+        function closePersonaDrawer() {
+            if (chatPersonaDrawer) chatPersonaDrawer.classList.add('collapsed');
+            if (btnTogglePersonaDrawer) btnTogglePersonaDrawer.classList.remove('active');
+        }
+
+        if (btnTogglePersonaDrawer) {
+            btnTogglePersonaDrawer.addEventListener('click', () => {
+                if (chatPersonaDrawer && chatPersonaDrawer.classList.contains('collapsed')) {
+                    openPersonaDrawer(activePersonaId, false);
+                } else {
+                    closePersonaDrawer();
+                }
+            });
+        }
+
+        if (btnClosePersonaDrawer) {
+            btnClosePersonaDrawer.addEventListener('click', closePersonaDrawer);
+        }
+
+        if (personaSelectPicker) {
+            personaSelectPicker.addEventListener('change', () => {
+                if (personaSelectPicker.value) {
+                    openPersonaDrawer(personaSelectPicker.value, false);
+                }
+            });
+        }
+
+        if (btnNewPersona) {
+            btnNewPersona.addEventListener('click', () => {
+                openPersonaDrawer(null, true);
             });
         }
 
@@ -5125,7 +5274,10 @@
                     }
                     await loadPersonas();
                     renderPersonaList();
-                    personasModal.style.display = 'none';
+                    if (personaSaveFeedback) {
+                        personaSaveFeedback.style.display = 'inline';
+                        setTimeout(() => { personaSaveFeedback.style.display = 'none'; }, 2000);
+                    }
                 } catch (e) {
                     alert('Error saving persona: ' + e.message);
                 }
@@ -5141,18 +5293,8 @@
                     personas = list;
                     if (activePersonaId === editingPersonaId) activePersonaId = personas.length > 0 ? personas[0].id : 'general';
                     editingPersonaId = null;
-                    personaName.value = '';
-                    personaPrompt.value = '';
-                    personaPersonality.value = '';
-                    personaAppearance.value = '';
-                    personaBackground.value = '';
-                    if (typeof personaGreeting !== 'undefined' && personaGreeting) personaGreeting.value = '';
-                    if (typeof personaDialogueExample !== 'undefined' && personaDialogueExample) personaDialogueExample.value = '';
-                    lorebookEntries = [];
-                    if (typeof renderLorebook === 'function') renderLorebook();
-                    btnDeletePersona.style.display = 'none';
                     await loadPersonas();
-                    renderPersonaList();
+                    openPersonaDrawer(activePersonaId, false);
                 } catch (e) {
                     alert('Error deleting persona: ' + e.message);
                 }
@@ -5345,7 +5487,7 @@
         if (btnMenuManagePersonas) {
             btnMenuManagePersonas.addEventListener('click', () => {
                 if (chatMoreDropdown) chatMoreDropdown.classList.remove('open');
-                if (personasModal) personasModal.style.display = 'flex';
+                openPersonaDrawer(activePersonaId, false);
             });
         }
 
@@ -5567,7 +5709,7 @@
             const reasoningTime = opts.reasoningTime;
             const collapsedDefaultEl = document.getElementById('inp-reasoning-collapsed');
             const collapsedDefault = collapsedDefaultEl ? collapsedDefaultEl.checked : true;
-            const shouldCollapse = !streaming && collapsedDefault;
+            const shouldCollapse = opts.collapsed !== undefined ? !!opts.collapsed : (!streaming && collapsedDefault);
             let label;
             if (streaming) {
                 const timeStr = reasoningTime != null ? ' · ' + formatReasoningTime(reasoningTime) : '';
@@ -5611,14 +5753,32 @@
             const streaming = !!opts.streaming;
             const reasoningTime = opts.reasoningTime;
             const toolCalls = opts.toolCalls;
+            let cleanContent = content || '';
+            let finalReasoning = reasoning || '';
+
+            // If reasoning was not separately provided, extract <think>...</think> from content
+            if (!finalReasoning && cleanContent.includes('<think>')) {
+                const thinkMatch = cleanContent.match(/<think>([\s\S]*?)<\/think>/i);
+                if (thinkMatch) {
+                    finalReasoning = thinkMatch[1].trim();
+                    cleanContent = cleanContent.replace(/<think>[\s\S]*?<\/think>/i, '').trim();
+                } else {
+                    const openMatch = cleanContent.match(/<think>([\s\S]*)$/i);
+                    if (openMatch) {
+                        finalReasoning = openMatch[1].trim();
+                        cleanContent = cleanContent.replace(/<think>[\s\S]*$/i, '').trim();
+                    }
+                }
+            }
+
             let html = '';
-            if (reasoning && reasoning.trim()) {
-                html += reasoningBlockHtml(reasoning, { streaming, reasoningTime });
+            if (finalReasoning && finalReasoning.trim()) {
+                html += reasoningBlockHtml(finalReasoning, { streaming, reasoningTime, collapsed: opts.collapsed });
             }
             if (toolCalls && Array.isArray(toolCalls) && toolCalls.length > 0) {
                 html += toolCallsBlockHtmlGlobal(toolCalls);
             }
-            html += (renderMarkdown(content) || '<p></p>');
+            html += (renderMarkdown(cleanContent) || '<p></p>');
             return html;
         }
 
@@ -6076,26 +6236,81 @@
                 });
             };
 
-            const chunkHandler = (event, { delta, reasoning, toolCalls }) => {
-                if (delta) {
-                    acc += delta;
-                    generatedTokenCount++;
-                    if (reasoningStartAt && !reasoningEndAt && accReasoning) {
-                        reasoningEndAt = Date.now();
-                        if (reasoningTimer) { clearInterval(reasoningTimer); reasoningTimer = null; }
-                        reasoningTimeMs = reasoningEndAt - reasoningStartAt;
-                        updateReasoningTimerLabel();
+            let inThinkTag = false;
+
+            const finishReasoning = () => {
+                if (reasoningStartAt && !reasoningEndAt && accReasoning) {
+                    reasoningEndAt = Date.now();
+                    if (reasoningTimer) { clearInterval(reasoningTimer); reasoningTimer = null; }
+                    reasoningTimeMs = reasoningEndAt - reasoningStartAt;
+                    if (reasoningEl) {
+                        reasoningEl.classList.remove('thinking');
+                        const labelEl = reasoningEl.querySelector('.reasoning-toggle-label');
+                        if (labelEl) {
+                            labelEl.innerHTML = 'Thought for ' + formatReasoningTime(reasoningTimeMs);
+                        }
+                        const collapsedDefaultEl = document.getElementById('inp-reasoning-collapsed');
+                        const collapsedDefault = collapsedDefaultEl ? collapsedDefaultEl.checked : true;
+                        if (collapsedDefault) {
+                            reasoningEl.classList.add('collapsed');
+                        }
                     }
                 }
+            };
+
+            const chunkHandler = (event, { delta, reasoning, toolCalls }) => {
                 if (reasoning) {
                     if (!reasoningStartAt) {
                         reasoningStartAt = Date.now();
                         reasoningTimer = setInterval(updateReasoningTimerLabel, 250);
                     }
-                    reasoningEndAt = Date.now();
                     accReasoning += reasoning;
                     generatedTokenCount++;
                 }
+
+                if (delta) {
+                    let text = delta;
+                    if (!inThinkTag) {
+                        if (text.includes('<think>')) {
+                            const parts = text.split('<think>');
+                            if (parts[0]) {
+                                acc += parts[0];
+                                generatedTokenCount++;
+                            }
+                            if (!reasoningStartAt) {
+                                reasoningStartAt = Date.now();
+                                reasoningTimer = setInterval(updateReasoningTimerLabel, 250);
+                            }
+                            inThinkTag = true;
+                            text = parts.slice(1).join('<think>');
+                        }
+                    }
+
+                    if (inThinkTag) {
+                        if (text.includes('</think>')) {
+                            const parts = text.split('</think>');
+                            accReasoning += parts[0];
+                            generatedTokenCount++;
+                            inThinkTag = false;
+                            finishReasoning();
+                            const rem = parts.slice(1).join('</think>');
+                            if (rem) {
+                                acc += rem;
+                                generatedTokenCount++;
+                            }
+                        } else {
+                            accReasoning += text;
+                            generatedTokenCount++;
+                        }
+                    } else {
+                        acc += text;
+                        generatedTokenCount++;
+                        if (reasoningStartAt && !reasoningEndAt && accReasoning) {
+                            finishReasoning();
+                        }
+                    }
+                }
+
                 if (toolCalls && Array.isArray(toolCalls) && toolCalls.length > 0) {
                     toolCalls.forEach(tc => {
                         const idx = tc.index != null ? tc.index : (tc.id ? toolCallsAcc.findIndex(x => x.id === tc.id) : toolCallsAcc.length);
@@ -6124,6 +6339,15 @@
             };
 
             const doneHandler = (event, data) => {
+                inThinkTag = false;
+                finishReasoning();
+                if (acc && acc.includes('<think>')) {
+                    const m = acc.match(/<think>([\s\S]*?)<\/think>/i);
+                    if (m) {
+                        if (!accReasoning) accReasoning = m[1].trim();
+                        acc = acc.replace(/<think>[\s\S]*?<\/think>/i, '').trim();
+                    }
+                }
                 if (reasoningTimer) { clearInterval(reasoningTimer); reasoningTimer = null; }
                 if (reasoningStartAt && accReasoning) {
                     if (!reasoningEndAt) reasoningEndAt = Date.now();
@@ -6748,9 +6972,12 @@
             } catch (e) {
                 modelsMeta = {};
             }
-            try {
-                modelsMeta = await ipcRenderer.invoke('scan-model-mtp');
-            } catch (e) {}
+            // Run background MTP scan asynchronously without blocking UI
+            setTimeout(() => {
+                ipcRenderer.invoke('scan-model-mtp').then(updated => {
+                    if (updated) modelsMeta = updated;
+                }).catch(() => {});
+            }, 1000);
 
             serverModelSelect.innerHTML = '';
             dashModelSelect.innerHTML = '';
@@ -6999,39 +7226,64 @@
         }
 
         async function detectAndSetCtx(modelName) {
+            if (!modelName) return 8192;
             if (modelsMeta && modelsMeta[modelName] && modelsMeta[modelName].ctxLength) {
                 const ctx = modelsMeta[modelName].ctxLength;
                 dashCtxInput.value = ctx;
                 serverCtxInput.value = ctx;
                 return ctx;
             }
-            const detected = await ipcRenderer.invoke('get-model-ctx', modelName);
-            const ctx = (detected && Number.isInteger(detected) && detected > 0) ? detected : 8192;
-            dashCtxInput.value = ctx;
-            serverCtxInput.value = ctx;
-            return ctx;
+            try {
+                const detected = await ipcRenderer.invoke('get-model-ctx', modelName);
+                const ctx = (detected && Number.isInteger(detected) && detected > 0) ? detected : 8192;
+                dashCtxInput.value = ctx;
+                serverCtxInput.value = ctx;
+                if (modelsMeta) {
+                    modelsMeta[modelName] = modelsMeta[modelName] || {};
+                    modelsMeta[modelName].ctxLength = ctx;
+                }
+                return ctx;
+            } catch (e) {
+                return 8192;
+            }
         }
 
-        dashModelSelect.addEventListener('change', async () => {
-            const val = dashModelSelect.value;
-            serverModelSelect.value = val;
-            if (val) {
-                await detectAndSetCtx(val);
-                await applyModelSampling(val);
-                const badgeEl = document.getElementById('chat-model-name');
-                if (badgeEl) badgeEl.textContent = val.length > 22 ? val.slice(0, 20) + '...' : val;
+        function onModelSelectionChanged(val) {
+            if (!val) return;
+            // 1. Immediately update peer dropdown and chat model badge (0ms synchronous)
+            if (dashModelSelect.value !== val) dashModelSelect.value = val;
+            if (serverModelSelect.value !== val) serverModelSelect.value = val;
+            const badgeEl = document.getElementById('chat-model-name');
+            if (badgeEl) badgeEl.textContent = val.length > 22 ? val.slice(0, 20) + '...' : val;
+
+            // 2. Immediately apply sampling parameters synchronously from memory
+            applyModelSampling(val);
+
+            // 3. Immediately set context size from memory if cached
+            if (modelsMeta && modelsMeta[val] && modelsMeta[val].ctxLength) {
+                const ctx = modelsMeta[val].ctxLength;
+                dashCtxInput.value = ctx;
+                serverCtxInput.value = ctx;
+            } else {
+                // Non-blocking background fetch
+                ipcRenderer.invoke('get-model-ctx', val).then(detected => {
+                    if (detected && (dashModelSelect.value === val || serverModelSelect.value === val)) {
+                        dashCtxInput.value = detected;
+                        serverCtxInput.value = detected;
+                        if (modelsMeta) {
+                            modelsMeta[val] = modelsMeta[val] || {};
+                            modelsMeta[val].ctxLength = detected;
+                        }
+                    }
+                }).catch(() => {});
             }
-        });
-        serverModelSelect.addEventListener('change', async () => {
-            const val = serverModelSelect.value;
-            dashModelSelect.value = val;
-            if (val) {
-                await detectAndSetCtx(val);
-                await applyModelSampling(val);
-                const badgeEl = document.getElementById('chat-model-name');
-                if (badgeEl) badgeEl.textContent = val.length > 22 ? val.slice(0, 20) + '...' : val;
-            }
-        });
+
+            // 4. Save selected model in settings in background
+            ipcRenderer.invoke('save-settings', { model: val }).catch(() => {});
+        }
+
+        dashModelSelect.addEventListener('change', () => onModelSelectionChanged(dashModelSelect.value));
+        serverModelSelect.addEventListener('change', () => onModelSelectionChanged(serverModelSelect.value));
 
         // Keep the context-size controls in the Dashboard and Server panels synchronized.
         dashCtxInput.addEventListener('input', () => {

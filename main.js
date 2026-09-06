@@ -291,17 +291,25 @@ function writePersonas(list) {
     fs.writeFileSync(getPersonasPath(), JSON.stringify(list, null, 2));
 }
 
-function readModelsMeta() {
+let cachedModelsMeta = null;
+
+function readModelsMeta(forceReload = false) {
+    if (!forceReload && cachedModelsMeta) return cachedModelsMeta;
     try {
         const raw = fs.readFileSync(getModelsMetaPath(), 'utf8');
-        return JSON.parse(raw) || {};
+        cachedModelsMeta = JSON.parse(raw) || {};
+        return cachedModelsMeta;
     } catch (e) {
-        return {};
+        cachedModelsMeta = {};
+        return cachedModelsMeta;
     }
 }
 
 function writeModelsMeta(meta) {
-    fs.writeFileSync(getModelsMetaPath(), JSON.stringify(meta || {}, null, 2));
+    cachedModelsMeta = meta || {};
+    try {
+        fs.writeFileSync(getModelsMetaPath(), JSON.stringify(cachedModelsMeta, null, 2));
+    } catch (e) {}
 }
 
 function getExcludedAdapterFiles() {
@@ -398,32 +406,77 @@ function readGgufContextLength(filePath) {
     }
 }
 
-// Reads GGUF metadata to detect context length and MTP (Multi-Token Prediction)
-// capability. MTP is present when the metadata contains a key like
-// "<arch>.nextn_predict_layers" with a positive value (set by convert_hf_to_gguf.py
-// for Qwen3.5/3.6 family models) or tensor names prefixed with "nextn".
+const GGUF_TYPE_SIZES = {
+    [GGUF_TYPES.UINT8]: 1,
+    [GGUF_TYPES.INT8]: 1,
+    [GGUF_TYPES.UINT16]: 2,
+    [GGUF_TYPES.INT16]: 2,
+    [GGUF_TYPES.UINT32]: 4,
+    [GGUF_TYPES.INT32]: 4,
+    [GGUF_TYPES.FLOAT32]: 4,
+    [GGUF_TYPES.BOOL]: 1,
+    [GGUF_TYPES.UINT64]: 8,
+    [GGUF_TYPES.INT64]: 8,
+    [GGUF_TYPES.FLOAT64]: 8
+};
+
 function readGgufInfo(filePath) {
     let fd;
     try {
         fd = fs.openSync(filePath, 'r');
+        let filePos = 0;
         let buf = Buffer.alloc(0);
         let offset = 0;
 
         const readBytes = (n) => {
             while (buf.length < offset + n) {
-                const chunk = Buffer.alloc(Math.max(n, 8192));
-                const bytesRead = fs.readSync(fd, chunk, 0, chunk.length, buf.length);
+                const chunk = Buffer.alloc(Math.max(n, 65536));
+                const bytesRead = fs.readSync(fd, chunk, 0, chunk.length, filePos);
                 if (bytesRead === 0) throw new Error('Unexpected end of GGUF file');
-                buf = Buffer.concat([buf, chunk.subarray(0, bytesRead)]);
+                filePos += bytesRead;
+                buf = Buffer.concat([buf.subarray(offset), chunk.subarray(0, bytesRead)]);
+                offset = 0;
             }
             const val = buf.subarray(offset, offset + n);
             offset += n;
             return val;
         };
 
+        const skipBytes = (n) => {
+            if (n <= 0) return;
+            if (offset + n <= buf.length) {
+                offset += n;
+            } else {
+                const rem = buf.length - offset;
+                filePos += (n - rem);
+                buf = Buffer.alloc(0);
+                offset = 0;
+            }
+        };
+
         const readString = () => {
             const len = Number(readBytes(8).readBigUInt64LE(0));
             return readBytes(len).toString('utf8');
+        };
+
+        const skipString = () => {
+            const len = Number(readBytes(8).readBigUInt64LE(0));
+            skipBytes(len);
+        };
+
+        const skipArray = (elemType, n) => {
+            const sz = GGUF_TYPE_SIZES[elemType];
+            if (sz) {
+                skipBytes(sz * n);
+            } else if (elemType === GGUF_TYPES.STRING) {
+                for (let i = 0; i < n; i++) skipString();
+            } else if (elemType === GGUF_TYPES.ARRAY) {
+                for (let i = 0; i < n; i++) {
+                    const subType = readBytes(4).readUInt32LE(0);
+                    const subN = Number(readBytes(8).readBigUInt64LE(0));
+                    skipArray(subType, subN);
+                }
+            }
         };
 
         const readValue = (type) => {
@@ -443,9 +496,8 @@ function readGgufInfo(filePath) {
                 case GGUF_TYPES.ARRAY: {
                     const elemType = readBytes(4).readUInt32LE(0);
                     const n = Number(readBytes(8).readBigUInt64LE(0));
-                    const arr = [];
-                    for (let i = 0; i < n; i++) arr.push(readValue(elemType));
-                    return arr;
+                    skipArray(elemType, n);
+                    return null;
                 }
                 default: throw new Error('Unknown GGUF value type: ' + type);
             }
@@ -470,6 +522,19 @@ function readGgufInfo(filePath) {
         for (let i = 0; i < kvCount; i++) {
             const key = readString();
             const type = readBytes(4).readUInt32LE(0);
+
+            if (key.startsWith('tokenizer.')) {
+                if (type === GGUF_TYPES.STRING) skipString();
+                else if (type === GGUF_TYPES.ARRAY) {
+                    const elemType = readBytes(4).readUInt32LE(0);
+                    const n = Number(readBytes(8).readBigUInt64LE(0));
+                    skipArray(elemType, n);
+                } else if (GGUF_TYPE_SIZES[type]) {
+                    skipBytes(GGUF_TYPE_SIZES[type]);
+                }
+                continue;
+            }
+
             const value = readValue(type);
             if ((key === 'llama.context_length' || key === 'context_length') && Number(value) > 0) {
                 ctxLength = Number(value);
@@ -1765,9 +1830,10 @@ ipcMain.handle('scan-model-mtp', () => {
         if (!fs.existsSync(modelPath)) continue;
         try {
             const info = readGgufInfo(modelPath);
-            if (info && info.mtp) {
+            if (info) {
                 meta[file] = meta[file] || {};
-                meta[file].mtp = true;
+                meta[file].mtp = !!info.mtp;
+                if (info.ctxLength && !meta[file].ctxLength) meta[file].ctxLength = info.ctxLength;
                 changed = true;
             }
         } catch (e) {}
