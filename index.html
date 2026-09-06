@@ -558,6 +558,132 @@
             box-shadow: 0 0 6px var(--accent);
         }
 
+        /* Dashboard Quick Toggles Bar */
+        .dash-quick-toggles-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin: 18px 0;
+            padding: 12px 18px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            flex-wrap: wrap;
+        }
+
+        .dash-toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dash-switch {
+            position: relative;
+            display: inline-block;
+            width: 38px;
+            height: 22px;
+            flex-shrink: 0;
+            margin: 0;
+        }
+
+        .dash-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            position: absolute;
+        }
+
+        .dash-switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.12);
+            border: 1px solid var(--border);
+            transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 22px;
+        }
+
+        .dash-switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #cbd5e1;
+            transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 50%;
+        }
+
+        .dash-switch input:checked + .dash-switch-slider,
+        .dash-switch-slider.active {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--glow-color);
+        }
+
+        .dash-switch input#dash-toggle-router-mode:checked + .dash-switch-slider,
+        #dash-toggle-router-mode + .dash-switch-slider.active {
+            background-color: #8b5cf6 !important;
+            border-color: #a855f7 !important;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.45) !important;
+        }
+
+        .dash-switch input#dash-toggle-parallel-enabled:checked + .dash-switch-slider,
+        #dash-toggle-parallel-enabled + .dash-switch-slider.active {
+            background-color: #2563eb !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.45) !important;
+        }
+
+        .dash-switch input:checked + .dash-switch-slider:before,
+        .dash-switch-slider.active:before {
+            transform: translateX(16px) !important;
+            background-color: #ffffff !important;
+        }
+
+        .dash-switch-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .dash-mode-badge {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 6px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+
+        .dash-mode-badge.active-router {
+            background: rgba(168, 85, 247, 0.18) !important;
+            color: #c084fc !important;
+            border-color: rgba(168, 85, 247, 0.45) !important;
+        }
+
+        .dash-mode-badge.active-parallel {
+            background: rgba(96, 165, 250, 0.18) !important;
+            color: #60a5fa !important;
+            border-color: rgba(96, 165, 250, 0.45) !important;
+        }
+
+        .dash-mode-badge.inactive {
+            background: rgba(255, 255, 255, 0.05) !important;
+            color: var(--text-muted) !important;
+            border-color: var(--border) !important;
+        }
+
         .metrics-grid-4 {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -2460,6 +2586,57 @@
                     </div>
                 </div>
 
+                <!-- DASHBOARD QUICK TOGGLES (Router Mode & Parallel Slots) -->
+                <div class="dash-quick-toggles-bar">
+                    <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+                        <!-- Quick Router Mode Toggle -->
+                        <div class="dash-toggle-group">
+                            <label class="dash-switch" title="Toggle Router Mode (serve all imported models with live switching)">
+                                <input type="checkbox" id="dash-toggle-router-mode">
+                                <span class="dash-switch-slider"></span>
+                            </label>
+                            <div style="display: flex; flex-direction: column;">
+                                <span class="dash-switch-label" id="lbl-dash-router-mode">
+                                    <i class="fa-solid fa-route" style="color: var(--accent); font-size: 12px;"></i> Router Mode
+                                    <span id="dash-badge-router-mode" class="dash-mode-badge inactive">OFF</span>
+                                </span>
+                                <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Serve all models in folder with live switching</span>
+                            </div>
+                        </div>
+
+                        <div style="width: 1px; height: 30px; background: var(--border);"></div>
+
+                        <!-- Quick Parallel Slots Toggle & Counter -->
+                        <div class="dash-toggle-group">
+                            <label class="dash-switch" title="Toggle Parallel Slots (-np / --parallel)">
+                                <input type="checkbox" id="dash-toggle-parallel-enabled">
+                                <span class="dash-switch-slider"></span>
+                            </label>
+                            <div style="display: flex; flex-direction: column;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="dash-switch-label" id="lbl-dash-parallel-enabled">
+                                        <i class="fa-solid fa-network-wired" style="color: #60a5fa; font-size: 12px;"></i> Parallel Slots
+                                        <span id="dash-badge-parallel-enabled" class="dash-mode-badge inactive">OFF</span>
+                                    </span>
+                                    <!-- Compact Slots Input -->
+                                    <div id="dash-parallel-slots-box" style="display: flex; align-items: center; gap: 5px; margin-left: 4px; opacity: 0.4;">
+                                        <span style="font-size: 11px; font-family: 'JetBrains Mono', Consolas, monospace; color: var(--text-muted);">-np</span>
+                                        <input type="number" id="dash-parallel-slots" min="1" max="512" step="1" value="1" style="width: 58px; padding: 4px 6px; font-size: 12px; text-align: center; height: 26px; border-radius: 6px;" disabled title="Number of parallel sequences (--parallel / -np)">
+                                    </div>
+                                </div>
+                                <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Concurrent sequences processing (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-np</code>)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Server Restart Hint (if changed while server is running) -->
+                    <div id="dash-restart-required-pill" style="display: none; align-items: center; gap: 8px; font-size: 11.5px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 5px 12px; border-radius: 8px;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Restart required to apply changes</span>
+                        <button class="btn secondary" id="btn-dash-quick-restart" style="padding: 2px 8px; font-size: 10.5px; margin-left: 4px;"><i class="fa-solid fa-rotate"></i> Restart Now</button>
+                    </div>
+                </div>
+
                 <div class="metrics-grid-4">
                     <div class="metric-card">
                         <i class="fa-solid fa-desktop"></i>
@@ -4180,6 +4357,7 @@
             const _pe = document.getElementById('inp-parallel-enabled');
             const _ps = document.getElementById('inp-parallel-slots');
             if (_pe && _ps) _ps.disabled = !_pe.checked;
+            if (typeof syncDashboardModesUI === 'function') syncDashboardModesUI(false);
             if (s.theme) {
                 themeSelect.value = s.theme;
                 document.documentElement.setAttribute('data-theme', s.theme);
@@ -4229,11 +4407,125 @@
 
         const inpParallelEnabled = document.getElementById('inp-parallel-enabled');
         const inpParallelSlots = document.getElementById('inp-parallel-slots');
-        if (inpParallelEnabled && inpParallelSlots) {
-            const syncParallelUI = () => { inpParallelSlots.disabled = !inpParallelEnabled.checked; };
-            inpParallelEnabled.addEventListener('change', syncParallelUI);
-            syncParallelUI();
+        const inpRouterMode = document.getElementById('inp-router-mode');
+
+        const dashToggleRouterMode = document.getElementById('dash-toggle-router-mode');
+        const dashBadgeRouterMode = document.getElementById('dash-badge-router-mode');
+        const dashToggleParallelEnabled = document.getElementById('dash-toggle-parallel-enabled');
+        const dashBadgeParallelEnabled = document.getElementById('dash-badge-parallel-enabled');
+        const dashParallelSlots = document.getElementById('dash-parallel-slots');
+        const dashParallelSlotsBox = document.getElementById('dash-parallel-slots-box');
+        const dashRestartRequiredPill = document.getElementById('dash-restart-required-pill');
+        const btnDashQuickRestart = document.getElementById('btn-dash-quick-restart');
+        const lblDashRouterMode = document.getElementById('lbl-dash-router-mode');
+        const lblDashParallelEnabled = document.getElementById('lbl-dash-parallel-enabled');
+
+        function syncDashboardModesUI(fromDashboard = false) {
+            const inpRouter = document.getElementById('inp-router-mode');
+            const inpParEnabled = document.getElementById('inp-parallel-enabled');
+            const inpParSlots = document.getElementById('inp-parallel-slots');
+
+            if (fromDashboard) {
+                if (dashToggleRouterMode && inpRouter) inpRouter.checked = dashToggleRouterMode.checked;
+                if (dashToggleParallelEnabled && inpParEnabled) inpParEnabled.checked = dashToggleParallelEnabled.checked;
+                if (dashParallelSlots && inpParSlots) inpParSlots.value = dashParallelSlots.value;
+            } else {
+                if (dashToggleRouterMode && inpRouter) dashToggleRouterMode.checked = inpRouter.checked;
+                if (dashToggleParallelEnabled && inpParEnabled) dashToggleParallelEnabled.checked = inpParEnabled.checked;
+                if (dashParallelSlots && inpParSlots) dashParallelSlots.value = inpParSlots.value;
+            }
+
+            // Sync Router Mode badge & visual state
+            const isRouter = dashToggleRouterMode ? dashToggleRouterMode.checked : (inpRouter ? inpRouter.checked : false);
+            if (dashBadgeRouterMode) {
+                dashBadgeRouterMode.textContent = isRouter ? 'ACTIVE' : 'OFF';
+                dashBadgeRouterMode.className = 'dash-mode-badge ' + (isRouter ? 'active-router' : 'inactive');
+            }
+            if (dashToggleRouterMode && dashToggleRouterMode.nextElementSibling) {
+                dashToggleRouterMode.nextElementSibling.classList.toggle('active', isRouter);
+            }
+
+            // Sync Parallel Slots badge & input state
+            const isParallel = dashToggleParallelEnabled ? dashToggleParallelEnabled.checked : (inpParEnabled ? inpParEnabled.checked : false);
+            if (dashBadgeParallelEnabled) {
+                dashBadgeParallelEnabled.textContent = isParallel ? 'ACTIVE' : 'OFF';
+                dashBadgeParallelEnabled.className = 'dash-mode-badge ' + (isParallel ? 'active-parallel' : 'inactive');
+            }
+            if (dashToggleParallelEnabled && dashToggleParallelEnabled.nextElementSibling) {
+                dashToggleParallelEnabled.nextElementSibling.classList.toggle('active', isParallel);
+            }
+            if (dashParallelSlots && dashParallelSlotsBox) {
+                dashParallelSlots.disabled = !isParallel;
+                dashParallelSlotsBox.style.opacity = isParallel ? '1' : '0.4';
+            }
+            if (inpParSlots && inpParEnabled) {
+                inpParSlots.disabled = !inpParEnabled.checked;
+            }
+
+            // If server is currently running, show restart required indicator when toggled from dashboard
+            if (fromDashboard && typeof isServerOnline !== 'undefined' && isServerOnline) {
+                if (dashRestartRequiredPill) dashRestartRequiredPill.style.display = 'inline-flex';
+            }
         }
+
+        if (dashToggleRouterMode) {
+            dashToggleRouterMode.addEventListener('change', () => {
+                syncDashboardModesUI(true);
+                loadModels();
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (lblDashRouterMode && dashToggleRouterMode) {
+            lblDashRouterMode.addEventListener('click', () => {
+                dashToggleRouterMode.checked = !dashToggleRouterMode.checked;
+                dashToggleRouterMode.dispatchEvent(new Event('change'));
+            });
+        }
+
+        if (dashToggleParallelEnabled) {
+            dashToggleParallelEnabled.addEventListener('change', () => {
+                syncDashboardModesUI(true);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (lblDashParallelEnabled && dashToggleParallelEnabled) {
+            lblDashParallelEnabled.addEventListener('click', () => {
+                dashToggleParallelEnabled.checked = !dashToggleParallelEnabled.checked;
+                dashToggleParallelEnabled.dispatchEvent(new Event('change'));
+            });
+        }
+
+        if (dashParallelSlots) {
+            dashParallelSlots.addEventListener('input', () => {
+                let v = parseInt(dashParallelSlots.value, 10);
+                if (isNaN(v) || v < 1) v = 1;
+                dashParallelSlots.value = v;
+                syncDashboardModesUI(true);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+
+        if (btnDashQuickRestart) {
+            btnDashQuickRestart.addEventListener('click', async () => {
+                if (dashRestartRequiredPill) dashRestartRequiredPill.style.display = 'none';
+                try {
+                    await ipcRenderer.invoke('stop-server');
+                } catch(e) {}
+                await new Promise(r => setTimeout(r, 400));
+                await startServerFunc();
+            });
+        }
+
+        if (inpRouterMode) {
+            inpRouterMode.addEventListener('change', () => syncDashboardModesUI(false));
+        }
+        if (inpParallelEnabled) {
+            inpParallelEnabled.addEventListener('change', () => syncDashboardModesUI(false));
+        }
+        if (inpParallelSlots) {
+            inpParallelSlots.addEventListener('input', () => syncDashboardModesUI(false));
+        }
+        syncDashboardModesUI(false);
 
         // Sidebar Toggle
         const btnUniversalSidebarToggle = document.getElementById('btn-universal-sidebar-toggle');
@@ -5596,6 +5888,8 @@
 
         function updateServerStatusUI(online) {
             isServerOnline = online;
+            const dashRestartPill = document.getElementById('dash-restart-required-pill');
+            if (dashRestartPill) dashRestartPill.style.display = 'none';
             if (chatServerStatusPill) {
                 chatServerStatusPill.className = 'chat-status-pill ' + (online ? 'online' : 'offline');
             }
@@ -7607,7 +7901,7 @@
                 dashboardActionBtnContainer.style.display = 'none';
                 dashStopContainer.style.display = 'block';
 
-                metricModel.textContent = modelName;
+                metricModel.textContent = routerMode ? '🔀 Router Mode (All Models)' : modelName;
                 metricCtx.textContent = ctx;
                 const threadVal = parseInt((document.getElementById('inp-threads') || {}).value, 10) || -1;
                 const metricThr = document.getElementById('metric-threads');
