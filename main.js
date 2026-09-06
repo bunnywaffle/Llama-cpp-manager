@@ -232,6 +232,78 @@ function getModelsDir() {
     return dir;
 }
 
+function getAllModelDirs() {
+    const dirs = new Set();
+    const add = (d) => {
+        if (!d || typeof d !== 'string') return;
+        try {
+            if (fs.existsSync(d)) dirs.add(path.resolve(d));
+        } catch (e) {}
+    };
+    try { add(getModelsDir()); } catch (e) {}
+    try { add(getDataDir()); } catch (e) {}
+    try { add(path.join(app.getPath('userData'), 'models')); } catch (e) {}
+    try { add(path.join(app.getPath('appData'), 'llama-manager', 'models')); } catch (e) {}
+    try { add(path.join(app.getPath('appData'), 'Llama.cpp Manager', 'models')); } catch (e) {}
+    if (process.env.PORTABLE_EXECUTABLE_DIR) {
+        try { add(path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'llama-manager-data', 'models')); } catch (e) {}
+        try { add(path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'llama-manager-data')); } catch (e) {}
+    }
+    try { add(path.join(__dirname, 'dist', 'llama-manager-data', 'models')); } catch (e) {}
+    try { add(path.join(__dirname, 'llama-manager-data', 'models')); } catch (e) {}
+    return Array.from(dirs);
+}
+
+function findModelPath(modelName) {
+    if (!modelName) return null;
+    const dirs = getAllModelDirs();
+    for (const dir of dirs) {
+        const candidate = path.join(dir, modelName);
+        try {
+            const st = fs.lstatSync(candidate);
+            if (st.isFile() || st.isSymbolicLink()) {
+                return candidate;
+            }
+        } catch (e) {}
+    }
+    if (fs.existsSync(modelName)) return modelName;
+    return null;
+}
+
+function safelyDeleteModelEntry(targetPath) {
+    let st = null;
+    try {
+        st = fs.lstatSync(targetPath);
+    } catch (e) {
+        return false;
+    }
+    try {
+        fs.unlinkSync(targetPath);
+        return true;
+    } catch (err) {
+        try {
+            if (st.isDirectory()) {
+                fs.rmdirSync(targetPath);
+            } else {
+                fs.rmSync(targetPath, { force: true });
+            }
+            return true;
+        } catch (err2) {
+            if (process.platform === 'win32') {
+                try {
+                    if (st.isDirectory()) {
+                        execSync(`cmd /c rd /s /q "${targetPath}"`, { stdio: 'ignore', windowsHide: true });
+                    } else {
+                        execSync(`cmd /c del /f /q "${targetPath}"`, { stdio: 'ignore', windowsHide: true });
+                    }
+                    return true;
+                } catch (e3) {}
+            }
+            throw err2;
+        }
+    }
+}
+
 function getSettingsPath() { return path.join(getDataDir(), 'settings.json'); }
 function getPersonasPath() { return path.join(getDataDir(), 'personas.json'); }
 function getModelsMetaPath() { return path.join(getDataDir(), 'models-meta.json'); }
@@ -808,6 +880,18 @@ ipcMain.handle('unlink-lora', (event, { modelName, loraFile }) => {
         meta[modelName].loras = meta[modelName].loras.filter(l => l.file !== loraFile);
         writeModelsMeta(meta);
     }
+    if (loraFile) {
+        const stillUsed = Object.values(meta).some(m => m && Array.isArray(m.loras) && m.loras.some(l => l.file === loraFile));
+        if (!stillUsed) {
+            for (const dir of getAllModelDirs()) {
+                const p = path.join(dir, loraFile);
+                try {
+                    const st = fs.lstatSync(p);
+                    if (st.isSymbolicLink()) safelyDeleteModelEntry(p);
+                } catch (e) {}
+            }
+        }
+    }
     return meta;
 });
 
@@ -873,10 +957,23 @@ ipcMain.handle('link-mmproj-dialog', async (event, modelName) => {
 ipcMain.handle('unlink-mmproj', (event, modelName) => {
     if (!modelName) return;
     const meta = readModelsMeta();
+    const mmprojFile = meta[modelName]?.mmproj;
     if (meta[modelName]) {
         delete meta[modelName].mmproj;
         delete meta[modelName].mmprojFullPath;
         writeModelsMeta(meta);
+    }
+    if (mmprojFile) {
+        const stillUsed = Object.values(meta).some(m => m && m.mmproj === mmprojFile);
+        if (!stillUsed) {
+            for (const dir of getAllModelDirs()) {
+                const p = path.join(dir, mmprojFile);
+                try {
+                    const st = fs.lstatSync(p);
+                    if (st.isSymbolicLink()) safelyDeleteModelEntry(p);
+                } catch (e) {}
+            }
+        }
     }
     return meta;
 });
@@ -946,6 +1043,7 @@ async function handleLinkDrafterDialog(modelName) {
 function handleUnlinkDrafter(modelName) {
     if (!modelName) return;
     const meta = readModelsMeta();
+    const drafterFile = meta[modelName]?.mtpDrafter || (meta[modelName]?.drafter && meta[modelName].drafter.file);
     if (meta[modelName]) {
         delete meta[modelName].mtpDrafter;
         delete meta[modelName].mtpDrafterFullPath;
@@ -953,6 +1051,18 @@ function handleUnlinkDrafter(modelName) {
         delete meta[modelName].drafterLabel;
         delete meta[modelName].drafter;
         writeModelsMeta(meta);
+    }
+    if (drafterFile) {
+        const stillUsed = Object.values(meta).some(m => m && (m.mtpDrafter === drafterFile || (m.drafter && m.drafter.file === drafterFile)));
+        if (!stillUsed) {
+            for (const dir of getAllModelDirs()) {
+                const p = path.join(dir, drafterFile);
+                try {
+                    const st = fs.lstatSync(p);
+                    if (st.isSymbolicLink()) safelyDeleteModelEntry(p);
+                } catch (e) {}
+            }
+        }
     }
     return meta;
 }
@@ -1717,19 +1827,26 @@ function getExcludedAdapterFiles() {
 
 ipcMain.handle('list-models', () => {
     try {
-        const modelsDir = getModelsDir();
-        const files = fs.readdirSync(modelsDir);
+        const modelDirs = getAllModelDirs();
+        const modelSet = new Set();
         const excluded = getExcludedAdapterFiles();
-        return files.filter(f => {
-            if (!f.toLowerCase().endsWith('.gguf')) return false;
-            if (excluded.has(f.toLowerCase())) return false;
-            const fullPath = path.join(modelsDir, f);
+        for (const dir of modelDirs) {
             try {
-                return fs.existsSync(fullPath);
-            } catch (e) {
-                return false;
-            }
-        });
+                const files = fs.readdirSync(dir);
+                for (const f of files) {
+                    if (!f.toLowerCase().endsWith('.gguf')) continue;
+                    if (excluded.has(f.toLowerCase())) continue;
+                    const fullPath = path.join(dir, f);
+                    try {
+                        const st = fs.lstatSync(fullPath);
+                        if (st.isFile() || st.isSymbolicLink()) {
+                            modelSet.add(f);
+                        }
+                    } catch (e) {}
+                }
+            } catch (e) {}
+        }
+        return Array.from(modelSet);
     } catch (e) {
         return [];
     }
@@ -1739,43 +1856,98 @@ ipcMain.handle('delete-model', async (event, modelName) => {
     if (!modelName || path.basename(modelName) !== modelName) {
         throw new Error('Invalid model name.');
     }
-    const modelPath = path.join(getModelsDir(), modelName);
-    if (!fs.existsSync(modelPath)) {
-        throw new Error('Model file not found.');
-    }
     if (llamaProcess) {
         throw new Error('Stop the server before removing a model.');
     }
+
+    const modelDirs = getAllModelDirs();
+    let deletedCount = 0;
+    let lastErr = null;
+
+    // Collect any attached adapters to clean up orphaned symlinks
+    let attachedAdapters = [];
     try {
-        const st = await fs.promises.lstat(modelPath);
-        if (st.isSymbolicLink() || st.isFile()) {
-            await fs.promises.unlink(modelPath);
-        } else {
-            throw new Error('Not a regular file.');
-        }
-        // Also clean up any meta references to this file as an adapter
-        try {
-            const meta = readModelsMeta();
-            let changed = false;
-            for (const [base, info] of Object.entries(meta)) {
-                if (!info) continue;
-                if (info.mmproj === modelName) { delete info.mmproj; delete info.mmprojFullPath; changed = true; }
-                if (info.mtpDrafter === modelName) { delete info.mtpDrafter; delete info.mtpDrafterFullPath; delete info.drafterSpecType; delete info.drafterLabel; delete info.drafter; changed = true; }
-                if (info.drafter && info.drafter.file === modelName) { delete info.drafter; delete info.mtpDrafter; delete info.mtpDrafterFullPath; delete info.drafterSpecType; delete info.drafterLabel; changed = true; }
-                if (Array.isArray(info.loras)) {
-                    const before = info.loras.length;
-                    info.loras = info.loras.filter(l => l.file !== modelName);
-                    if (info.loras.length !== before) changed = true;
+        const curMeta = readModelsMeta();
+        if (curMeta && curMeta[modelName]) {
+            const info = curMeta[modelName];
+            if (info.mmproj) attachedAdapters.push(info.mmproj);
+            if (info.mtpDrafter) attachedAdapters.push(info.mtpDrafter);
+            if (info.drafter && info.drafter.file) attachedAdapters.push(info.drafter.file);
+            if (Array.isArray(info.loras)) {
+                for (const l of info.loras) {
+                    if (l.file) attachedAdapters.push(l.file);
                 }
             }
-            // If the deleted file was itself a base model with meta, remove its entry
-            if (meta[modelName]) { delete meta[modelName]; changed = true; }
-            if (changed) writeModelsMeta(meta);
-        } catch (e) {}
-    } catch (e) {
-        if (e.code === 'EPERM') throw new Error('Failed to remove model (permission denied).');
-        throw new Error('Failed to remove model: ' + e.message);
+        }
+    } catch (e) {}
+
+    // Delete the model itself across all assigned/candidate model directories
+    for (const dir of modelDirs) {
+        const targetPath = path.join(dir, modelName);
+        try {
+            if (safelyDeleteModelEntry(targetPath)) {
+                deletedCount++;
+            }
+        } catch (err) {
+            lastErr = err;
+        }
     }
+
+    // Clean up any meta references to this file
+    try {
+        const meta = readModelsMeta();
+        let changed = false;
+        for (const [base, info] of Object.entries(meta)) {
+            if (!info) continue;
+            if (info.mmproj === modelName) { delete info.mmproj; delete info.mmprojFullPath; changed = true; }
+            if (info.mtpDrafter === modelName) { delete info.mtpDrafter; delete info.mtpDrafterFullPath; delete info.drafterSpecType; delete info.drafterLabel; delete info.drafter; changed = true; }
+            if (info.drafter && info.drafter.file === modelName) { delete info.drafter; delete info.mtpDrafter; delete info.mtpDrafterFullPath; delete info.drafterSpecType; delete info.drafterLabel; changed = true; }
+            if (Array.isArray(info.loras)) {
+                const before = info.loras.length;
+                info.loras = info.loras.filter(l => l.file !== modelName);
+                if (info.loras.length !== before) changed = true;
+            }
+        }
+        // Remove the base model entry itself
+        if (meta[modelName]) { delete meta[modelName]; changed = true; }
+        if (changed) writeModelsMeta(meta);
+
+        // Also clean up any orphaned adapter symlinks if not used by any other model
+        for (const adapterFile of attachedAdapters) {
+            const stillUsed = Object.values(meta).some(m => {
+                if (!m) return false;
+                if (m.mmproj === adapterFile) return true;
+                if (m.mtpDrafter === adapterFile) return true;
+                if (m.drafter && m.drafter.file === adapterFile) return true;
+                if (Array.isArray(m.loras) && m.loras.some(l => l.file === adapterFile)) return true;
+                return false;
+            });
+            if (!stillUsed) {
+                for (const dir of modelDirs) {
+                    const ap = path.join(dir, adapterFile);
+                    try {
+                        const st = fs.lstatSync(ap);
+                        if (st.isSymbolicLink()) safelyDeleteModelEntry(ap);
+                    } catch (e) {}
+                }
+            }
+        }
+    } catch (e) {}
+
+    // Reset settings model if active model was the deleted one
+    try {
+        const settings = getSettings();
+        if (settings && settings.model === modelName) {
+            settings.model = '';
+            saveSettings(settings);
+        }
+    } catch (e) {}
+
+    if (deletedCount === 0 && lastErr) {
+        if (lastErr.code === 'EPERM') throw new Error('Failed to remove model (permission denied).');
+        throw new Error('Failed to remove model: ' + lastErr.message);
+    }
+
     return true;
 });
 

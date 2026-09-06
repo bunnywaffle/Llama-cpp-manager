@@ -7203,7 +7203,7 @@
 
                     row.querySelector('.btn-del-model').addEventListener('click', async (e) => {
                         const modelName = e.currentTarget.dataset.model;
-                        if (!confirm(`Remove "${modelName}" from the app? The file will be deleted.`)) return;
+                        if (!confirm(`Remove "${modelName}" from the app? The model link/file in your assigned data folder will be removed.`)) return;
                         try {
                             await ipcRenderer.invoke('delete-model', modelName);
                             loadModels();
