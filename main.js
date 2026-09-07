@@ -1236,7 +1236,7 @@ ipcMain.handle('link-models-folder-dialog', async () => {
     return 0;
 });
 
-async function fetchLlamaReleases(perPage = 5) {
+async function fetchLlamaReleases(perPage = 20) {
     const urls = [
         `https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=${perPage}`,
         `https://api.github.com/repos/ggerganov/llama.cpp/releases?per_page=${perPage}`
@@ -1251,6 +1251,56 @@ async function fetchLlamaReleases(perPage = 5) {
         }
     }
     throw lastErr || new Error('Failed to fetch releases from both repos');
+}
+
+function classifyBinaryAsset(assetName) {
+    const name = assetName || '';
+    const lc = name.toLowerCase();
+    let variantKey = 'other';
+    let label = name;
+    let badge = 'Binary';
+    let recommended = false;
+
+    if (lc.includes('cuda-12.4') || lc.includes('cu12.4')) {
+        variantKey = 'cuda-12.4';
+        label = 'CUDA 12.4 (NVIDIA RTX/GTX)';
+        badge = 'CUDA 12.4';
+        recommended = true;
+    } else if (lc.includes('cuda-13.3') || lc.includes('cu13.3')) {
+        variantKey = 'cuda-13.3';
+        label = 'CUDA 13.3 (NVIDIA)';
+        badge = 'CUDA 13.3';
+    } else if (lc.includes('cuda-11.8') || lc.includes('cu11.8')) {
+        variantKey = 'cuda-11.8';
+        label = 'CUDA 11.8 (NVIDIA Legacy)';
+        badge = 'CUDA 11.8';
+    } else if (lc.includes('vulkan')) {
+        variantKey = 'vulkan';
+        label = 'Vulkan (AMD / Intel / Universal GPU)';
+        badge = 'Vulkan';
+    } else if (lc.includes('cpu-x64') || (lc.includes('bin-win-cpu') && !lc.includes('arm64'))) {
+        variantKey = 'cpu-x64';
+        label = 'CPU (Standard x64 / AVX2)';
+        badge = 'CPU';
+    } else if (lc.includes('rocm')) {
+        variantKey = 'rocm';
+        label = 'AMD ROCm (Radeon)';
+        badge = 'ROCm';
+    } else if (lc.includes('sycl')) {
+        variantKey = 'sycl';
+        label = 'Intel SYCL (Arc / Data Center)';
+        badge = 'SYCL';
+    } else if (lc.includes('openvino')) {
+        variantKey = 'openvino';
+        label = 'Intel OpenVINO';
+        badge = 'OpenVINO';
+    } else if (lc.includes('arm64')) {
+        variantKey = 'arm64';
+        label = 'ARM64';
+        badge = 'ARM64';
+    }
+
+    return { variantKey, label, badge, recommended };
 }
 
 function selectBackendAsset(release, binDir) {
@@ -1271,6 +1321,12 @@ function selectBackendAsset(release, binDir) {
         if (cudaAsset) return cudaAsset;
     }
 
+    // Default to CUDA 12.4 if available on win32 x64 (most common modern GPU)
+    if (process.platform === 'win32' && arch === 'x64') {
+        const cuda12 = findAsset(a => lc(a.name).startsWith('llama-') && lc(a.name).includes('win-cuda-12.4'));
+        if (cuda12) return cuda12;
+    }
+
     // CPU variant: prefer explicit cpu, fallback to generic bin-win without cuda/vulkan/sycl/rocm/openvino
     const cpuAsset = findAsset(a => lc(a.name).startsWith('llama-') && lc(a.name).includes('bin-win-cpu'))
         || findAsset(a => lc(a.name).startsWith('llama-') && lc(a.name).includes('bin-win') && !lc(a.name).includes('cuda') && !lc(a.name).includes('vulkan') && !lc(a.name).includes('sycl') && !lc(a.name).includes('rocm') && !lc(a.name).includes('openvino'))
@@ -1278,25 +1334,76 @@ function selectBackendAsset(release, binDir) {
     return cpuAsset || null;
 }
 
-function selectCudartAsset(release, cudaMajor) {
-    if (!cudaMajor) return null;
+function selectCudartAsset(release, cudaMajorOrName) {
     const assets = release.assets || [];
     const lc = (s) => (s || '').toLowerCase();
     const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
-    return assets.find(a => lc(a.name).startsWith('cudart-llama-bin-win-cuda-') && lc(a.name).includes(`-cuda-${cudaMajor}`) && lc(a.name).endsWith(`-${arch}.zip`))
+
+    let versionStr = typeof cudaMajorOrName === 'string' ? cudaMajorOrName : (cudaMajorOrName ? String(cudaMajorOrName) : null);
+    if (versionStr) {
+        // e.g. 12.4 or 12 or 13.3
+        const match = assets.find(a => lc(a.name).startsWith('cudart') && lc(a.name).includes(versionStr) && lc(a.name).endsWith(`-${arch}.zip`))
+            || assets.find(a => lc(a.name).startsWith('cudart') && lc(a.name).includes(versionStr));
+        if (match) return match;
+    }
+    return assets.find(a => lc(a.name).startsWith('cudart-llama-bin-win-cuda-12.4') && lc(a.name).endsWith(`-${arch}.zip`))
         || assets.find(a => lc(a.name).startsWith('cudart-llama-bin-win-cuda-') && lc(a.name).endsWith(`-${arch}.zip`))
+        || assets.find(a => lc(a.name).startsWith('cudart'))
         || null;
 }
 
 ipcMain.handle('get-releases', async () => {
     try {
-        const data = await fetchLlamaReleases(5);
-        return data.map(rel => ({
-            tag_name: rel.tag_name,
-            name: rel.name,
-            published_at: rel.published_at,
-            assets: rel.assets.map(a => ({ name: a.name, browser_download_url: a.browser_download_url }))
-        }));
+        const data = await fetchLlamaReleases(20);
+        const platformKey = process.platform === 'win32' ? 'win' : (process.platform === 'darwin' ? 'macos' : 'ubuntu');
+        const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+
+        return data.map(rel => {
+            const rawAssets = rel.assets || [];
+            const binaryAssets = [];
+
+            for (const a of rawAssets) {
+                const name = a.name;
+                const lc = name.toLowerCase();
+                if (!lc.endsWith('.zip') && !lc.endsWith('.tar.gz')) continue;
+                if (lc.startsWith('cudart')) continue; // runtime companion, not standalone server
+                if (lc.includes('ui.tar.gz') || lc.includes('xcframework')) continue;
+
+                // Match platform
+                if (platformKey === 'win' && !lc.includes('win')) continue;
+                if (platformKey === 'macos' && !lc.includes('macos')) continue;
+                if (platformKey === 'ubuntu' && !lc.includes('ubuntu') && !lc.includes('linux')) continue;
+
+                // On windows, default to current architecture
+                if (process.platform === 'win32') {
+                    if (arch === 'x64' && lc.includes('arm64')) continue;
+                    if (arch === 'arm64' && !lc.includes('arm64')) continue;
+                }
+
+                const classification = classifyBinaryAsset(name);
+                binaryAssets.push({
+                    name: a.name,
+                    size: a.size || 0,
+                    downloadUrl: a.browser_download_url,
+                    label: classification.label,
+                    badge: classification.badge,
+                    variantKey: classification.variantKey,
+                    recommended: classification.recommended
+                });
+            }
+
+            // Sort: recommended first, then CUDA, Vulkan, CPU, then others
+            const priority = { 'cuda-12.4': 1, 'cuda-13.3': 2, 'vulkan': 3, 'cpu-x64': 4, 'rocm': 5, 'sycl': 6, 'openvino': 7 };
+            binaryAssets.sort((x, y) => (priority[x.variantKey] || 99) - (priority[y.variantKey] || 99));
+
+            return {
+                tag_name: rel.tag_name,
+                name: rel.name,
+                published_at: rel.published_at,
+                binaryAssets,
+                assets: rawAssets.map(a => ({ name: a.name, size: a.size || 0, browser_download_url: a.browser_download_url }))
+            };
+        });
     } catch (err) {
         throw new Error('Failed to fetch GitHub releases: ' + err.message);
     }
@@ -1306,12 +1413,51 @@ ipcMain.handle('check-backend-update', async () => {
     const binDir = getBinDir();
     const exePath = findExecutable(binDir);
     const currentBuild = exePath ? getBackendBuildNumber(exePath) : null;
-    const data = await fetchLlamaReleases(10);
-    const latest = data.find(r => r.tag_name && r.tag_name.startsWith('b') && !r.draft && !r.prerelease)
-        || data.find(r => !r.draft && !r.prerelease);
+    const data = await fetchLlamaReleases(15);
+    const latest = data.find(r => r.tag_name && r.tag_name.startsWith('b') && !r.draft)
+        || data.find(r => !r.draft);
     if (!latest) throw new Error('No releases found');
     const latestBuild = latest.tag_name.startsWith('b') ? parseInt(latest.tag_name.slice(1), 10) : null;
     const hasUpdate = latestBuild && currentBuild ? (latestBuild > currentBuild) : (!currentBuild);
+
+    const platformKey = process.platform === 'win32' ? 'win' : (process.platform === 'darwin' ? 'macos' : 'ubuntu');
+    const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+    const rawAssets = latest.assets || [];
+    const availableVariants = [];
+
+    for (const a of rawAssets) {
+        const name = a.name;
+        const lc = name.toLowerCase();
+        if (!lc.endsWith('.zip') && !lc.endsWith('.tar.gz')) continue;
+        if (lc.startsWith('cudart')) continue;
+        if (lc.includes('ui.tar.gz') || lc.includes('xcframework')) continue;
+
+        if (platformKey === 'win' && !lc.includes('win')) continue;
+        if (platformKey === 'macos' && !lc.includes('macos')) continue;
+        if (platformKey === 'ubuntu' && !lc.includes('ubuntu') && !lc.includes('linux')) continue;
+
+        if (process.platform === 'win32') {
+            if (arch === 'x64' && lc.includes('arm64')) continue;
+            if (arch === 'arm64' && !lc.includes('arm64')) continue;
+        }
+
+        const classification = classifyBinaryAsset(name);
+        availableVariants.push({
+            name: a.name,
+            size: a.size || 0,
+            label: classification.label,
+            badge: classification.badge,
+            variantKey: classification.variantKey,
+            recommended: classification.recommended,
+            downloadUrl: a.browser_download_url
+        });
+    }
+
+    const priority = { 'cuda-12.4': 1, 'cuda-13.3': 2, 'vulkan': 3, 'cpu-x64': 4, 'rocm': 5, 'sycl': 6, 'openvino': 7 };
+    availableVariants.sort((x, y) => (priority[x.variantKey] || 99) - (priority[y.variantKey] || 99));
+
+    const defaultAsset = availableVariants.find(v => v.recommended) || availableVariants.find(v => v.variantKey === 'vulkan') || availableVariants[0];
+
     return {
         currentBuild,
         latestTag: latest.tag_name,
@@ -1321,44 +1467,84 @@ ipcMain.handle('check-backend-update', async () => {
             tag_name: latest.tag_name,
             name: latest.name,
             published_at: latest.published_at,
-            assets: latest.assets.slice(0, 12).map(a => ({ name: a.name }))
-        }
+            assets: rawAssets.map(a => ({ name: a.name, size: a.size || 0, browser_download_url: a.browser_download_url }))
+        },
+        availableVariants,
+        defaultAsset: defaultAsset ? defaultAsset.name : null
     };
 });
 
-ipcMain.handle('update-backend', async (event) => {
+ipcMain.handle('update-backend', async (event, chosenAssetName) => {
     if (llamaProcess) throw new Error('Stop the server before updating the backend.');
     const binDir = getBinDir();
-    const data = await fetchLlamaReleases(10);
-    const latest = data.find(r => r.tag_name && r.tag_name.startsWith('b') && !r.draft && !r.prerelease)
-        || data.find(r => !r.draft && !r.prerelease);
+    const data = await fetchLlamaReleases(15);
+    const latest = data.find(r => r.tag_name && r.tag_name.startsWith('b') && !r.draft)
+        || data.find(r => !r.draft);
     if (!latest) throw new Error('No suitable release found to update to.');
 
-    const mainAsset = selectBackendAsset(latest, binDir);
+    let mainAsset = null;
+    if (chosenAssetName) {
+        mainAsset = (latest.assets || []).find(a => a.name === chosenAssetName);
+    }
+    if (!mainAsset) {
+        mainAsset = selectBackendAsset(latest, binDir);
+    }
     if (!mainAsset) throw new Error('Could not find a backend asset for this system in release ' + latest.tag_name + '.');
 
-    const cudaMajor = detectCudaVersion(binDir);
-    const cudartAsset = selectCudartAsset(latest, cudaMajor);
+    // Create a cleanly versioned backend directory in backends/
+    let name = latest.tag_name.replace(/^b/, 'b') + '-' + mainAsset.name.replace(/\.zip$/,'').slice(0, 32);
+    name = name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 48);
+    let dir = path.join(getBackendsDir(), name);
+    let suffix = 1;
+    while (fs.existsSync(dir)) { dir = path.join(getBackendsDir(), name + '-' + suffix); suffix++; }
+    fs.mkdirSync(dir, { recursive: true });
 
-    const archives = [{ asset: mainAsset }];
-    if (cudartAsset && cudaMajor) archives.push({ asset: cudartAsset });
+    const tempZipPath = path.join(getDataDir(), 'temp_update_' + Date.now() + '.zip');
+    const response = await axios({ url: mainAsset.browser_download_url, method: 'GET', responseType: 'stream' });
+    const writer = fs.createWriteStream(tempZipPath);
+    response.data.pipe(writer);
+    await new Promise((resolve, reject) => { writer.on('finish', resolve); writer.on('error', reject); });
+    const zip = new AdmZip(tempZipPath);
+    zip.extractAllTo(dir, true);
+    try { fs.unlinkSync(tempZipPath); } catch (e) {}
 
-    for (const { asset } of archives) {
-        const tempZipPath = path.join(getDataDir(), 'temp_update_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '.zip');
-        const response = await axios({ url: asset.browser_download_url, method: 'GET', responseType: 'stream' });
-        const writer = fs.createWriteStream(tempZipPath);
-        response.data.pipe(writer);
-        await new Promise((resolve, reject) => {
-            writer.on('finish', resolve);
-            writer.on('error', reject);
-        });
-        // Only clean on first archive (main), second is additive
-        if (asset === mainAsset) cleanBinDir();
-        const zip = new AdmZip(tempZipPath);
-        zip.extractAllTo(getBinDir(), true);
-        try { fs.unlinkSync(tempZipPath); } catch (e) {}
+    // If installing a CUDA asset, automatically pair with the cudart runtime DLLs
+    if (mainAsset.name.toLowerCase().includes('cuda')) {
+        const m = mainAsset.name.toLowerCase().match(/cuda[-_](\d+(\.\d+)?)/);
+        const cudaVer = m ? m[1] : '12.4';
+        const cudartAsset = selectCudartAsset(latest, cudaVer);
+        if (cudartAsset && cudartAsset.browser_download_url) {
+            try {
+                const tempCudartPath = path.join(getDataDir(), 'temp_cudart_' + Date.now() + '.zip');
+                const cRes = await axios({ url: cudartAsset.browser_download_url, method: 'GET', responseType: 'stream' });
+                const cWriter = fs.createWriteStream(tempCudartPath);
+                cRes.data.pipe(cWriter);
+                await new Promise((resolve, reject) => { cWriter.on('finish', resolve); cWriter.on('error', reject); });
+                const cudartZip = new AdmZip(tempCudartPath);
+                cudartZip.extractAllTo(dir, true);
+                try { fs.unlinkSync(tempCudartPath); } catch (e) {}
+            } catch (errCuda) {
+                console.warn('[Backend Update] Failed to download cudart companion:', errCuda.message);
+            }
+        }
     }
-    return { tag: latest.tag_name, asset: mainAsset.name };
+
+    const exe = findExecutable(dir);
+    const ver = exe ? (getBackendVersion(exe) || '') : '';
+    try {
+        fs.writeFileSync(path.join(dir, 'backend.json'), JSON.stringify({
+            name: path.basename(dir),
+            tag: latest.tag_name,
+            asset: mainAsset.name,
+            version: ver,
+            installedAt: new Date().toISOString()
+        }, null, 2));
+    } catch (e) {}
+
+    // Automatically set the new backend as active
+    setActiveBackendPath(path.basename(dir));
+
+    return { tag: latest.tag_name, asset: mainAsset.name, name: path.basename(dir), version: ver };
 });
 
 ipcMain.handle('download-release', async (event, downloadUrl, fileName) => {
@@ -1585,9 +1771,35 @@ ipcMain.handle('install-backend-from-release', async (event, tag, assetName) => 
     const zip = new AdmZip(tempZipPath);
     zip.extractAllTo(dir, true);
     try { fs.unlinkSync(tempZipPath); } catch (e) {}
+
+    // If installing a CUDA variant, automatically fetch the companion cudart archive
+    if (asset.name.toLowerCase().includes('cuda')) {
+        const m = asset.name.toLowerCase().match(/cuda[-_](\d+(\.\d+)?)/);
+        const cudaVer = m ? m[1] : '12.4';
+        const cudartAsset = selectCudartAsset(rel, cudaVer);
+        if (cudartAsset && cudartAsset.browser_download_url) {
+            try {
+                const tempCudartPath = path.join(getDataDir(), 'temp_cudart_' + Date.now() + '.zip');
+                const cRes = await axios({ url: cudartAsset.browser_download_url, method: 'GET', responseType: 'stream' });
+                const cWriter = fs.createWriteStream(tempCudartPath);
+                cRes.data.pipe(cWriter);
+                await new Promise((resolve, reject) => { cWriter.on('finish', resolve); cWriter.on('error', reject); });
+                const cZip = new AdmZip(tempCudartPath);
+                cZip.extractAllTo(dir, true);
+                try { fs.unlinkSync(tempCudartPath); } catch (e) {}
+            } catch (errCuda) {
+                console.warn('[Install Backend] Failed to download cudart companion:', errCuda.message);
+            }
+        }
+    }
+
     const exe = findExecutable(dir);
     const ver = exe ? (getBackendVersion(exe) || '') : '';
     try { fs.writeFileSync(path.join(dir, 'backend.json'), JSON.stringify({ name: path.basename(dir), tag, asset: asset.name, version: ver, installedAt: new Date().toISOString() }, null, 2)); } catch (e) {}
+
+    // Automatically set the new backend as active
+    setActiveBackendPath(path.basename(dir));
+
     return { name: path.basename(dir), dir, version: ver, asset: asset.name };
 });
 
@@ -1735,10 +1947,10 @@ ipcMain.handle('download-missing-files', async (event, missingFiles) => {
         release = releasesData.find(r => r.tag_name === ('b' + buildNumber));
     }
     if (!release) {
-        release = releasesData.find(r => !r.draft && !r.prerelease && r.tag_name && r.tag_name.startsWith('b'));
+        release = releasesData.find(r => !r.draft && r.tag_name && r.tag_name.startsWith('b'));
     }
     if (!release) {
-        release = releasesData.find(r => !r.draft && !r.prerelease);
+        release = releasesData.find(r => !r.draft);
     }
     if (!release) {
         throw new Error('Could not find a suitable llama.cpp release.');
@@ -2251,7 +2463,11 @@ async function waitForServer(port, child, getRecentLogs, timeoutMs = 45000) {
         if (!child || child.exitCode !== null || child.killed) {
             const logs = getRecentLogs ? getRecentLogs() : '';
             let hint = '';
-            if (logs.includes('GGML_ASSERT(ggml_can_repeat') || logs.includes('failed to measure the memory of the extra model')) {
+            if (logs.includes("unknown model architecture: 'spark2_5'")) {
+                hint = '\n\n💡 Tip: The Spark-X2.5 model architecture requires llama.cpp build b10828 or newer. Please go to the Backends tab and update or install the latest release build.';
+            } else if (logs.includes('unknown model architecture')) {
+                hint = '\n\n💡 Tip: Your currently active backend build does not support this model architecture. Please go to the Backends tab and update to the latest llama.cpp release.';
+            } else if (logs.includes('GGML_ASSERT(ggml_can_repeat') || logs.includes('failed to measure the memory of the extra model')) {
                 hint = '\n\n💡 Tip: This crash is caused by linking an incompatible speculative drafter (e.g. an LFM drafter on a Nanbeige model). Speculative drafters (DSpark/MTP/DFlash) must match the exact base model architecture and vocabulary.';
             }
             const errorDetail = logs ? '\n\nLog output:\n' + logs + hint : '';

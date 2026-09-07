@@ -3328,7 +3328,7 @@
                         <button class="btn secondary" id="btn-install-release-as-backend" style="padding:4px 8px;font-size:11px;display:none;"><i class="fa-solid fa-plus"></i> Install as New Backend</button>
                     </div>
                 </div>
-                <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">Showing latest 5 releases from <code>ggml-org/llama.cpp</code> (fallback <code>ggerganov/llama.cpp</code>). Assets adapt to new naming (<code>bin-win-cpu-x64</code> / <code>bin-win-cuda-12.4-x64</code>). Use <strong>Update Backend</strong> to auto-install latest as a new version, or <strong>Browse Releases</strong> to pick a specific tag → <em>Install as New Backend</em>.</div>
+                <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">Browse official <code>llama.cpp</code> releases. Select any release and install your preferred binary variant (CUDA 12.4, CUDA 13.3, Vulkan, CPU) with companion runtime DLLs directly into Backend Manager.</div>
                 <div id="releases-container"></div>
             </div>
         </div>
@@ -7704,46 +7704,87 @@
                 releasesCard.style.display = 'block';
                 releasesContainer.innerHTML = '';
 
+                let totalRendered = 0;
                 releases.forEach(rel => {
-                    let platformKey = 'win';
-                    if (process.platform === 'darwin') platformKey = 'macos';
-                    else if (process.platform === 'linux') platformKey = 'linux';
+                    const binaries = rel.binaryAssets || [];
+                    if (binaries.length === 0) return;
 
-                    // Prefer cpu for win, fallback to any win asset
-                    const zipAssets = (rel.assets || []).filter(a => a.name.toLowerCase().endsWith('.zip'));
-                    let asset = null;
-                    if (platformKey === 'win') {
-                        asset = zipAssets.find(a => a.name.toLowerCase().includes('bin-win-cpu')) || zipAssets.find(a => a.name.toLowerCase().includes('bin-win-cuda')) || zipAssets.find(a => a.name.toLowerCase().includes('win'));
-                    } else {
-                        asset = zipAssets.find(a => a.name.toLowerCase().includes(platformKey));
-                    }
-                    if (asset) {
-                        const div = document.createElement('div');
-                        div.className = 'list-row';
-                        div.innerHTML = `
-                            <span style="font-size: 13px; min-width:0; flex:1;"><strong>${escapeHtml(rel.tag_name)}</strong> - ${escapeHtml(rel.name)}<br><span style="font-size:11px;color:var(--text-muted);font-family:monospace;">${escapeHtml(asset.name)}</span></span>
-                            <button class="btn primary" style="padding: 6px 12px; font-size: 12px; white-space:nowrap;">Install as New Backend</button>
+                    totalRendered++;
+                    const dateStr = rel.published_at ? new Date(rel.published_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+
+                    const groupCard = document.createElement('div');
+                    groupCard.style.cssText = 'margin-bottom: 12px; padding: 12px 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; gap: 8px;';
+
+                    groupCard.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px;">
+                            <div style="display:flex; align-items:center; gap: 8px;">
+                                <span style="font-size: 13.5px; font-weight: 700; color: var(--accent);"><i class="fa-solid fa-tag" style="font-size: 11px;"></i> ${escapeHtml(rel.tag_name)}</span>
+                                <span style="font-size: 12px; color: var(--text-muted);">${escapeHtml(rel.name || '')}</span>
+                            </div>
+                            <span style="font-size: 11px; color: var(--text-muted);">${escapeHtml(dateStr)}</span>
+                        </div>
+                        <div class="release-binaries-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                    `;
+
+                    const binariesList = groupCard.querySelector('.release-binaries-list');
+
+                    binaries.forEach(binary => {
+                        const row = document.createElement('div');
+                        row.className = 'list-row';
+                        row.style.cssText = 'padding: 7px 10px; background: rgba(0,0,0,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px;';
+
+                        const sizeMb = binary.size ? (binary.size / (1024 * 1024)).toFixed(1) + ' MB' : '';
+                        let badgeBg = 'background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid var(--border);';
+                        if (binary.variantKey.includes('cuda')) {
+                            badgeBg = 'background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35);';
+                        } else if (binary.variantKey === 'vulkan') {
+                            badgeBg = 'background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35);';
+                        } else if (binary.variantKey.includes('cpu')) {
+                            badgeBg = 'background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35);';
+                        }
+
+                        row.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                                <span style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; ${badgeBg} flex-shrink: 0;">${escapeHtml(binary.badge)}</span>
+                                <div style="display: flex; flex-direction: column; min-width: 0;">
+                                    <div style="display:flex; align-items:center; gap: 6px;">
+                                        <span style="font-size: 12.5px; font-weight: 600; color: var(--text-main);">${escapeHtml(binary.label)}</span>
+                                        ${binary.recommended ? '<span style="font-size: 9.5px; padding: 1px 5px; border-radius: 4px; background: rgba(34,197,94,0.18); color: #4ade80; border: 1px solid rgba(34,197,94,0.35); font-weight:600;"><i class="fa-solid fa-star" style="font-size:8px;"></i> Recommended</span>' : ''}
+                                    </div>
+                                    <span style="font-size: 11px; color: var(--text-muted); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        ${escapeHtml(binary.name)} ${sizeMb ? `• ${sizeMb}` : ''}
+                                    </span>
+                                </div>
+                            </div>
+                            <button class="btn secondary" style="padding: 4px 10px; font-size: 11.5px; white-space: nowrap; flex-shrink: 0;">
+                                <i class="fa-solid fa-download"></i> Install Backend
+                            </button>
                         `;
-                        const installBtn = div.querySelector('button');
+
+                        const installBtn = row.querySelector('button');
                         installBtn.addEventListener('click', async () => {
-                            installBtn.innerHTML = 'Installing...';
+                            installBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Installing...';
                             installBtn.disabled = true;
                             try {
-                                const res = await ipcRenderer.invoke('install-backend-from-release', rel.tag_name, asset.name);
-                                alert('Installed backend "' + res.name + '" from ' + rel.tag_name + ' — activate it in Backend Manager.');
+                                const res = await ipcRenderer.invoke('install-backend-from-release', rel.tag_name, binary.name);
+                                alert('Successfully installed & activated backend: "' + res.name + '" (' + (res.version || rel.tag_name) + ')!');
                                 await checkBackend();
                                 await loadBackends();
                             } catch (e) {
-                                alert('Failed: ' + e.message);
+                                alert('Failed to install backend: ' + e.message);
                             }
-                            installBtn.innerHTML = 'Install as New Backend';
+                            installBtn.innerHTML = '<i class="fa-solid fa-download"></i> Install Backend';
                             installBtn.disabled = false;
                         });
-                        releasesContainer.appendChild(div);
-                    }
+
+                        binariesList.appendChild(row);
+                    });
+
+                    releasesContainer.appendChild(groupCard);
                 });
-                if (releasesContainer.children.length === 0) {
-                    releasesContainer.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:12px;">No matching zip assets for this platform found in the latest releases.</div>';
+
+                if (totalRendered === 0) {
+                    releasesContainer.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:12px;">No matching platform binaries found in the latest releases.</div>';
                 }
             } catch (e) {
                 alert('Failed to fetch releases: ' + e.message);
@@ -7760,33 +7801,66 @@
                 backendUpdateStatus.innerHTML = '<div style="font-size:12px;color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Checking for updates from ggml-org/llama.cpp...</div>';
                 try {
                     const info = await ipcRenderer.invoke('check-backend-update');
+                    const variants = info.availableVariants || [];
+                    const optionsHtml = variants.map(v => {
+                        const sizeMb = v.size ? ` (${(v.size / (1024*1024)).toFixed(1)} MB)` : '';
+                        const rec = v.recommended ? ' ★ Recommended' : '';
+                        const selected = (v.name === info.defaultAsset || v.recommended) ? 'selected' : '';
+                        return `<option value="${escapeHtml(v.name)}" ${selected}>${escapeHtml(v.label)}${sizeMb}${rec}</option>`;
+                    }).join('');
+
                     if (!info.hasUpdate) {
-                        backendUpdateStatus.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);font-size:12.5px;color:#22c55e;"><i class="fa-solid fa-circle-check"></i> Already up to date — <strong>Build ${escapeHtml(String(info.currentBuild || 'unknown'))}</strong> (latest ${escapeHtml(info.latestTag)})</div>`;
-                    } else {
-                        backendUpdateStatus.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);">
-                            <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-main);"><i class="fa-solid fa-arrow-trend-up" style="color:#3b82f6;"></i> Update available: <strong>Build ${escapeHtml(String(info.currentBuild || 'none'))}</strong> → <strong style="color:#3b82f6;">${escapeHtml(String(info.latestBuild))} (${escapeHtml(info.latestTag)})</strong></div>
-                            <div style="display:flex;gap:8px;align-items:center;">
-                                <button class="btn primary" id="btn-do-update"><i class="fa-solid fa-download"></i> Install ${escapeHtml(info.latestTag)}</button>
-                                <span style="font-size:11.5px;color:var(--text-muted);">Downloads the correct asset for your system (adapts to new naming: <code>bin-win-cpu-x64</code> / <code>bin-win-cuda-12.4-x64</code>).</span>
+                        backendUpdateStatus.innerHTML = `
+                            <div style="display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);">
+                                <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#22c55e;">
+                                    <i class="fa-solid fa-circle-check"></i> Already up to date — <strong>Build ${escapeHtml(String(info.currentBuild || 'unknown'))}</strong> (latest ${escapeHtml(info.latestTag)})
+                                </div>
+                                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:2px;">
+                                    <span style="font-size:11.5px;color:var(--text-muted);">Re-install or switch variant:</span>
+                                    <select id="select-update-variant" style="padding: 5px 8px; font-size: 12px; border-radius: 6px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border); max-width: 340px;">
+                                        ${optionsHtml}
+                                    </select>
+                                    <button class="btn secondary" id="btn-do-update" style="padding: 5px 12px; font-size: 12px;"><i class="fa-solid fa-download"></i> Install Variant</button>
+                                </div>
                             </div>
-                        </div>`;
-                        const doBtn = document.getElementById('btn-do-update');
-                        if (doBtn) {
-                            doBtn.addEventListener('click', async () => {
-                                doBtn.disabled = true;
-                                doBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Updating...';
-                                try {
-                                    const res = await ipcRenderer.invoke('update-backend');
-                                    backendUpdateStatus.innerHTML = `<div style="padding:10px 12px;border-radius:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);font-size:12.5px;color:#22c55e;"><i class="fa-solid fa-circle-check"></i> Installed <strong>${escapeHtml(res.tag)}</strong> as new backend <strong>${escapeHtml(res.name || res.asset)}</strong> — activate it in Backend Manager, then restart the server.</div>`;
-                                    await checkBackend();
-                                    await loadBackends();
-                                } catch (e) {
-                                    backendUpdateStatus.innerHTML = `<div style="color:#ef4444;font-size:12px;"><i class="fa-solid fa-circle-xmark"></i> Update failed: ${escapeHtml(e.message)}</div>`;
-                                    doBtn.disabled = false;
-                                    doBtn.innerHTML = '<i class="fa-solid fa-download"></i> Install ' + escapeHtml(info.latestTag);
-                                }
-                            });
-                        }
+                        `;
+                    } else {
+                        backendUpdateStatus.innerHTML = `
+                            <div style="display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);">
+                                <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-main);">
+                                    <i class="fa-solid fa-arrow-trend-up" style="color:#3b82f6;"></i> Update available: <strong>Build ${escapeHtml(String(info.currentBuild || 'none'))}</strong> → <strong style="color:#3b82f6;">${escapeHtml(String(info.latestBuild))} (${escapeHtml(info.latestTag)})</strong>
+                                </div>
+                                <div style="font-size:11.5px;color:var(--text-muted);">
+                                    Select which binary variant to install (supports new architectures like Spark-X2.5 and auto-bundles CUDA runtime):
+                                </div>
+                                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                                    <select id="select-update-variant" style="padding: 6px 10px; font-size: 12.5px; border-radius: 6px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border); min-width: 280px; flex: 1;">
+                                        ${optionsHtml}
+                                    </select>
+                                    <button class="btn primary" id="btn-do-update" style="padding: 6px 14px; font-size: 12.5px; white-space: nowrap;"><i class="fa-solid fa-download"></i> Install & Activate</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    const doBtn = document.getElementById('btn-do-update');
+                    const selectVariant = document.getElementById('select-update-variant');
+                    if (doBtn && selectVariant) {
+                        doBtn.addEventListener('click', async () => {
+                            const chosenAsset = selectVariant.value;
+                            doBtn.disabled = true;
+                            doBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Downloading & Installing...';
+                            try {
+                                const res = await ipcRenderer.invoke('update-backend', chosenAsset);
+                                backendUpdateStatus.innerHTML = `<div style="padding:10px 12px;border-radius:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);font-size:12.5px;color:#22c55e;"><i class="fa-solid fa-circle-check"></i> Successfully installed and activated <strong>${escapeHtml(res.tag)}</strong> (${escapeHtml(res.name || res.asset)})! You can now run models with this backend.</div>`;
+                                await checkBackend();
+                                await loadBackends();
+                            } catch (e) {
+                                backendUpdateStatus.innerHTML = `<div style="color:#ef4444;font-size:12px;"><i class="fa-solid fa-circle-xmark"></i> Update failed: ${escapeHtml(e.message)}</div>`;
+                                doBtn.disabled = false;
+                                doBtn.innerHTML = '<i class="fa-solid fa-download"></i> Install & Activate';
+                            }
+                        });
                     }
                 } catch (e) {
                     backendUpdateStatus.innerHTML = `<div style="padding:10px 12px;border-radius:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);font-size:12px;color:#ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> Check failed: ${escapeHtml(e.message)}</div>`;
