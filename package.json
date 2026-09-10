@@ -1,6 +1,6 @@
 {
   "name": "llama-manager",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Simple Electron app to manage and run llama.cpp server",
   "license": "MIT",
   "main": "main.js",

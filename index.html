@@ -2829,6 +2829,71 @@
                         <i class="fa-solid fa-info-circle"></i>
                         <span><strong>CPU Only Mode Active:</strong> GPU offloading is completely disabled (<code style="font-family:'JetBrains Mono',monospace;">-ngl 0</code>). All model tensors and computations run in system RAM using CPU threads.</span>
                     </div>
+
+                    <!-- CPU Speed Optimization & Turbo Controls (Visible when CPU mode active) -->
+                    <div id="cpu-turbo-box" style="margin-top: 12px; padding: 12px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <label class="dash-switch" title="Toggle CPU Turbo Mode (auto thread tuning, high priority, and low-latency polling)">
+                                    <input type="checkbox" id="inp-cpu-turbo" checked>
+                                    <span class="dash-switch-slider"></span>
+                                </label>
+                                <div>
+                                    <span id="lbl-inp-cpu-turbo" style="font-weight: 600; font-size: 12.5px; cursor: pointer;">
+                                        <i class="fa-solid fa-bolt" style="color: #60a5fa;"></i> CPU Turbo Optimizer
+                                        <span id="badge-cpu-turbo" class="dash-mode-badge active-gpu" style="margin-left: 4px;">FASTEST</span>
+                                    </span>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                                        Auto-tunes threads to physical cores, enables High Process Priority (<code style="font-family:'JetBrains Mono',monospace;">--prio 2</code>), and zero-latency polling (<code style="font-family:'JetBrains Mono',monospace;">--poll 50</code>).
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn secondary" id="btn-apply-cpu-preset" style="font-size: 11.5px; padding: 5px 12px; height: 30px; display: inline-flex; align-items: center; gap: 6px;" title="Set Context Size to 4096, Threads to optimal physical cores, and enable Turbo">
+                                <i class="fa-solid fa-wand-magic-sparkles" style="color: #38bdf8;"></i> Auto-Tune For My CPU
+                            </button>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
+                            <div>
+                                <label style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Batch Threads (-tb)</label>
+                                <input type="number" id="inp-batch-threads" value="-1" min="-1" step="1" title="Number of threads for prompt evaluation. Recommended: All physical cores (e.g. 6). Default: -1 (Auto)">
+                                <span style="font-size: 10px; color: var(--text-muted);">Faster prompt processing</span>
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">KV Cache Precision (-ctk)</label>
+                                <select id="inp-cache-type-k" style="padding: 6px 8px; font-size: 11.5px; height: 32px;">
+                                    <option value="auto">Auto (Default f16)</option>
+                                    <option value="q8_0" selected>Q8_0 (Recommended - 50% RAM bandwidth)</option>
+                                    <option value="q4_0">Q4_0 (75% RAM bandwidth saving)</option>
+                                </select>
+                                <span style="font-size: 10px; color: var(--text-muted);">Key cache compression</span>
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">KV Cache Precision (-ctv)</label>
+                                <select id="inp-cache-type-v" style="padding: 6px 8px; font-size: 11.5px; height: 32px;">
+                                    <option value="auto">Auto (Default f16)</option>
+                                    <option value="q8_0" selected>Q8_0 (Recommended - 50% RAM bandwidth)</option>
+                                    <option value="q4_0">Q4_0 (75% RAM bandwidth saving)</option>
+                                </select>
+                                <span style="font-size: 10px; color: var(--text-muted);">Value cache compression</span>
+                            </div>
+                        </div>
+
+                        <!-- Detected CPU Advisor Info -->
+                        <div id="cpu-advisor-info" style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--text-muted);">
+                            <span><i class="fa-solid fa-microchip" style="color: #60a5fa;"></i> <span id="cpu-detected-model">Detecting CPU...</span></span>
+                            <span id="cpu-recommended-preset" style="color: #38bdf8;">Optimal: -t 4 | -tb 6 | Q8_0</span>
+                        </div>
+                    </div>
+
+                    <!-- High Context Warning on CPU -->
+                    <div id="cpu-ctx-warning" style="display: none; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 8px 12px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; font-size: 11.5px; color: #f87171;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span><strong>Context Size Warning:</strong> <span id="cpu-ctx-warning-val">40,000</span> context on CPU requires huge RAM bandwidth and slows down generation.</span>
+                        </div>
+                        <button type="button" class="btn secondary" id="btn-fix-cpu-ctx" style="font-size: 10.5px; padding: 2px 8px; height: 24px; white-space: nowrap;">Set to 4096</button>
+                    </div>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;">
                     <div>
@@ -4347,6 +4412,10 @@
                 gpuEnabled: gpuEnabled,
                 gpuLayers: gpuEnabled ? (parseInt(inpNgl?.value, 10) || 0) : 0,
                 threads: parseInt(document.getElementById('inp-threads')?.value, 10) || -1,
+                cpuTurbo: document.getElementById('inp-cpu-turbo') ? document.getElementById('inp-cpu-turbo').checked : true,
+                batchThreads: parseInt(document.getElementById('inp-batch-threads')?.value, 10) || -1,
+                cacheTypeK: document.getElementById('inp-cache-type-k')?.value || 'auto',
+                cacheTypeV: document.getElementById('inp-cache-type-v')?.value || 'auto',
                 extraArgs: document.getElementById('inp-extra').value,
                 model: dashModelSelect.value || '',
                 theme: themeSelect.value,
@@ -4403,6 +4472,10 @@
                 }
             }
             if (s.threads !== undefined && document.getElementById('inp-threads')) { document.getElementById('inp-threads').value = s.threads; if (document.getElementById('dash-threads')) document.getElementById('dash-threads').value = s.threads; }
+            if (s.cpuTurbo !== undefined && document.getElementById('inp-cpu-turbo')) document.getElementById('inp-cpu-turbo').checked = !!s.cpuTurbo;
+            if (s.batchThreads !== undefined && document.getElementById('inp-batch-threads')) document.getElementById('inp-batch-threads').value = s.batchThreads;
+            if (s.cacheTypeK && document.getElementById('inp-cache-type-k')) document.getElementById('inp-cache-type-k').value = s.cacheTypeK;
+            if (s.cacheTypeV && document.getElementById('inp-cache-type-v')) document.getElementById('inp-cache-type-v').value = s.cacheTypeV;
             if (s.extraArgs !== undefined) document.getElementById('inp-extra').value = s.extraArgs;
             if (s.temperature !== undefined) document.getElementById('inp-temp').value = s.temperature;
             if (s.topK !== undefined) document.getElementById('inp-topk').value = s.topK;
@@ -4647,6 +4720,37 @@
                 metricThr.textContent = (!isNaN(tv) && tv > 0) ? `${tv} threads` : 'Auto';
             }
 
+            // Sync CPU Turbo Optimizer & High Context Warning
+            const cpuTurboBox = document.getElementById('cpu-turbo-box');
+            const cpuCtxWarning = document.getElementById('cpu-ctx-warning');
+            const cpuCtxWarningVal = document.getElementById('cpu-ctx-warning-val');
+            const inpCpuTurbo = document.getElementById('inp-cpu-turbo');
+            const badgeCpuTurbo = document.getElementById('badge-cpu-turbo');
+
+            if (cpuTurboBox) {
+                cpuTurboBox.style.display = gpuActive ? 'none' : 'block';
+            }
+
+            if (inpCpuTurbo && badgeCpuTurbo) {
+                if (inpCpuTurbo.checked) {
+                    badgeCpuTurbo.textContent = 'FASTEST';
+                    badgeCpuTurbo.className = 'dash-mode-badge active-gpu';
+                } else {
+                    badgeCpuTurbo.textContent = 'OFF';
+                    badgeCpuTurbo.className = 'dash-mode-badge inactive';
+                }
+            }
+
+            const curCtx = parseInt((document.getElementById('dash-ctx') || {}).value || (document.getElementById('inp-ctx') || {}).value || '0', 10) || 0;
+            if (cpuCtxWarning) {
+                if (!gpuActive && curCtx > 8192) {
+                    cpuCtxWarning.style.display = 'flex';
+                    if (cpuCtxWarningVal) cpuCtxWarningVal.textContent = curCtx.toLocaleString();
+                } else {
+                    cpuCtxWarning.style.display = 'none';
+                }
+            }
+
             // If server is currently running, show restart required indicator when toggled from dashboard
             if (fromDashboard && typeof isServerOnline !== 'undefined' && isServerOnline) {
                 if (dashRestartRequiredPill) dashRestartRequiredPill.style.display = 'inline-flex';
@@ -4772,6 +4876,102 @@
                 await startServerFunc();
             });
         }
+
+        // CPU Turbo Optimizer and High Context fix listeners
+        const inpCpuTurboEl = document.getElementById('inp-cpu-turbo');
+        const lblCpuTurboEl = document.getElementById('lbl-inp-cpu-turbo');
+        const btnApplyCpuPreset = document.getElementById('btn-apply-cpu-preset');
+        const btnFixCpuCtx = document.getElementById('btn-fix-cpu-ctx');
+        const inpBatchThrEl = document.getElementById('inp-batch-threads');
+        const inpCacheKEl = document.getElementById('inp-cache-type-k');
+        const inpCacheVEl = document.getElementById('inp-cache-type-v');
+
+        if (inpCpuTurboEl) {
+            inpCpuTurboEl.addEventListener('change', () => {
+                syncDashboardModesUI(false);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (lblCpuTurboEl && inpCpuTurboEl) {
+            lblCpuTurboEl.addEventListener('click', () => {
+                inpCpuTurboEl.checked = !inpCpuTurboEl.checked;
+                inpCpuTurboEl.dispatchEvent(new Event('change'));
+            });
+        }
+        if (inpBatchThrEl) {
+            inpBatchThrEl.addEventListener('input', () => {
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (inpCacheKEl) {
+            inpCacheKEl.addEventListener('change', () => {
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (inpCacheVEl) {
+            inpCacheVEl.addEventListener('change', () => {
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+
+        if (btnFixCpuCtx) {
+            btnFixCpuCtx.addEventListener('click', () => {
+                if (dashCtxInput) dashCtxInput.value = 4096;
+                if (serverCtxInput) serverCtxInput.value = 4096;
+                syncDashboardModesUI(false);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+
+        if (btnApplyCpuPreset) {
+            btnApplyCpuPreset.addEventListener('click', async () => {
+                try {
+                    const origHtml = btnApplyCpuPreset.innerHTML;
+                    btnApplyCpuPreset.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Tuning...';
+                    const cpuInfo = await ipcRenderer.invoke('get-cpu-info');
+                    if (inpThreads && cpuInfo && cpuInfo.optimalGenThreads) {
+                        inpThreads.value = cpuInfo.optimalGenThreads;
+                        const dashThr = document.getElementById('dash-threads');
+                        if (dashThr) dashThr.value = cpuInfo.optimalGenThreads;
+                    }
+                    if (inpBatchThrEl && cpuInfo && cpuInfo.optimalBatchThreads) {
+                        inpBatchThrEl.value = cpuInfo.optimalBatchThreads;
+                    }
+                    if (inpCpuTurboEl) inpCpuTurboEl.checked = true;
+                    if (inpCacheKEl) inpCacheKEl.value = 'q8_0';
+                    if (inpCacheVEl) inpCacheVEl.value = 'q8_0';
+                    const curCtxVal = parseInt((dashCtxInput || {}).value || '0', 10);
+                    if (curCtxVal > 4096) {
+                        if (dashCtxInput) dashCtxInput.value = 4096;
+                        if (serverCtxInput) serverCtxInput.value = 4096;
+                    }
+                    syncDashboardModesUI(false);
+                    await ipcRenderer.invoke('save-settings', collectSettings());
+                    btnApplyCpuPreset.innerHTML = '<i class="fa-solid fa-check" style="color:#34d399;"></i> Applied!';
+                    setTimeout(() => { btnApplyCpuPreset.innerHTML = origHtml; }, 2000);
+                } catch(e) {
+                    console.error('Failed to apply CPU preset:', e);
+                }
+            });
+        }
+
+        async function loadCpuInfoAdvisor() {
+            try {
+                const info = await ipcRenderer.invoke('get-cpu-info');
+                const modelEl = document.getElementById('cpu-detected-model');
+                const presetEl = document.getElementById('cpu-recommended-preset');
+                if (info && modelEl) {
+                    const coreTxt = `${info.physicalCores} Cores / ${info.logicalThreads} Threads`;
+                    modelEl.textContent = `${info.model} (${coreTxt})`;
+                }
+                if (info && presetEl) {
+                    presetEl.textContent = `Optimal: -t ${info.optimalGenThreads} | -tb ${info.optimalBatchThreads} | Q8_0`;
+                }
+            } catch (e) {
+                console.warn('Failed to load CPU info:', e);
+            }
+        }
+        loadCpuInfoAdvisor();
 
         if (inpRouterMode) {
             inpRouterMode.addEventListener('change', () => syncDashboardModesUI(false));
@@ -7825,6 +8025,7 @@
                             modelsMeta[val] = modelsMeta[val] || {};
                             modelsMeta[val].ctxLength = detected;
                         }
+                        syncDashboardModesUI(false);
                     }
                 }).catch(() => {});
             }
@@ -7839,9 +8040,11 @@
         // Keep the context-size controls in the Dashboard and Server panels synchronized.
         dashCtxInput.addEventListener('input', () => {
             serverCtxInput.value = dashCtxInput.value;
+            syncDashboardModesUI(false);
         });
         serverCtxInput.addEventListener('input', () => {
             dashCtxInput.value = serverCtxInput.value;
+            syncDashboardModesUI(false);
         });
 
         btnAddModel.addEventListener('click', async () => {
@@ -8210,6 +8413,10 @@
                     gpuLayers: gpuLayers,
                     deviceMode: (isGpu && gpuLayers > 0) ? 'gpu' : 'cpu',
                     threads: parseInt((document.getElementById('inp-threads') || {}).value, 10) || parseInt((document.getElementById('dash-threads') || {}).value, 10) || -1,
+                    cpuTurbo: document.getElementById('inp-cpu-turbo') ? document.getElementById('inp-cpu-turbo').checked : true,
+                    batchThreads: parseInt((document.getElementById('inp-batch-threads') || {}).value, 10) || -1,
+                    cacheTypeK: (document.getElementById('inp-cache-type-k') || {}).value || 'auto',
+                    cacheTypeV: (document.getElementById('inp-cache-type-v') || {}).value || 'auto',
                     extraArgs: document.getElementById('inp-extra').value,
                     temperature: parseFloat(document.getElementById('inp-temp').value) || 0.8,
                     topK: parseInt(document.getElementById('inp-topk').value, 10) || 40,

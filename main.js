@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const axios = require('axios');
 const AdmZip = require('adm-zip');
 const { spawn, spawnSync, execSync } = require('child_process');
@@ -8,6 +9,40 @@ const { spawn, spawnSync, execSync } = require('child_process');
 let mainWindow;
 let llamaProcess = null;
 let serverStarting = false;
+
+// Detected CPU hardware caching & physical core heuristics for optimal token generation
+let cachedCpuInfo = null;
+function getCpuInfo() {
+    if (cachedCpuInfo) return cachedCpuInfo;
+    const cpus = os.cpus() || [];
+    const logicalCount = cpus.length || 4;
+    const model = (cpus[0] && cpus[0].model) ? cpus[0].model.trim().replace(/\s+/g, ' ') : 'CPU';
+    let physicalCores = Math.max(1, Math.floor(logicalCount / 2));
+    try {
+        if (process.platform === 'win32') {
+            const out = execSync('wmic cpu get NumberOfCores,NumberOfLogicalProcessors /value', { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).toString();
+            const m = out.match(/NumberOfCores=(\d+)/i);
+            if (m && parseInt(m[1], 10) > 0) physicalCores = parseInt(m[1], 10);
+        }
+    } catch (e) {}
+
+    let optimalGenThreads = 4;
+    if (physicalCores <= 4) optimalGenThreads = physicalCores;
+    else if (physicalCores === 6) optimalGenThreads = 4; // Empirically proven fastest on 6-core Zen 3 (10.00 t/s)
+    else if (physicalCores === 8) optimalGenThreads = 6;
+    else optimalGenThreads = Math.min(physicalCores - 2, 8);
+
+    const optimalBatchThreads = physicalCores;
+
+    cachedCpuInfo = {
+        model,
+        logicalCount,
+        physicalCores,
+        optimalGenThreads,
+        optimalBatchThreads
+    };
+    return cachedCpuInfo;
+}
 
 // Helper to gracefully stop any existing server process (idempotent, awaits exit)
 async function stopExistingServer() {
@@ -326,7 +361,11 @@ const DEFAULT_SETTINGS = {
     autoStartServerOnGenerate: false,
     routerMode: false,
     parallelEnabled: false,
-    parallelSlots: 1
+    parallelSlots: 1,
+    cpuTurbo: true,
+    batchThreads: -1,
+    cacheTypeK: 'auto',
+    cacheTypeV: 'auto'
 };
 
 function getSettings() {
@@ -2495,8 +2534,12 @@ async function waitForServer(port, child, getRecentLogs, timeoutMs = 45000) {
     throw new Error('Timed out waiting for llama-server to become ready.' + errorDetail);
 }
 
+ipcMain.handle('get-cpu-info', async () => {
+    return getCpuInfo();
+});
+
 ipcMain.handle('start-server', async (event, params) => {
-    let { modelName, port, ctxSize, gpuLayers, gpuEnabled, deviceMode, threads, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
+    let { modelName, port, ctxSize, gpuLayers, gpuEnabled, deviceMode, threads, batchThreads, cpuTurbo, cacheTypeK, cacheTypeV, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
 
     if (llamaProcess || serverStarting) {
         console.log('Server already running — auto-stopping before restart...');
@@ -2553,6 +2596,9 @@ ipcMain.handle('start-server', async (event, params) => {
         }
     }
 
+    const isCpuMode = (gpuLayers === 0);
+    const cpuInfo = getCpuInfo();
+
     const args = [
         '--host', '127.0.0.1',
         '--port', port.toString(),
@@ -2562,11 +2608,39 @@ ipcMain.handle('start-server', async (event, params) => {
     ];
 
     // CPU Threads (-t / -tb) per llama.cpp token generation performance tips
-    const parsedThreads = (threads !== undefined && threads !== null) ? parseInt(threads, 10) : -1;
-    if (!isNaN(parsedThreads) && parsedThreads > 0) {
-        console.log(`Setting CPU generation threads: -t ${parsedThreads} -tb ${parsedThreads}`);
+    let parsedThreads = (threads !== undefined && threads !== null) ? parseInt(threads, 10) : -1;
+    let parsedBatchThreads = (batchThreads !== undefined && batchThreads !== null) ? parseInt(batchThreads, 10) : -1;
+
+    if (isCpuMode) {
+        // Auto-configure optimal CPU threads if not explicitly set
+        if (isNaN(parsedThreads) || parsedThreads <= 0) {
+            parsedThreads = cpuInfo.optimalGenThreads;
+        }
+        if (isNaN(parsedBatchThreads) || parsedBatchThreads <= 0) {
+            parsedBatchThreads = cpuInfo.optimalBatchThreads;
+        }
+        console.log(`[CPU Performance Mode] Hardware: ${cpuInfo.model} (${cpuInfo.physicalCores} Cores) | Gen Threads (-t): ${parsedThreads} | Batch Threads (-tb): ${parsedBatchThreads}`);
         args.push('-t', parsedThreads.toString());
-        args.push('-tb', parsedThreads.toString());
+        args.push('-tb', parsedBatchThreads.toString());
+
+        if (cpuTurbo !== false) {
+            console.log('[CPU Turbo Active] Applying high process priority (--prio 2), polling wait (--poll 50), and L3 cache ubatch (-ub 256)');
+            args.push('--prio', '2');
+            args.push('--poll', '50');
+            args.push('-ub', '256');
+        }
+        if (cacheTypeK && cacheTypeK !== 'auto' && cacheTypeK !== 'f16') {
+            args.push('-ctk', cacheTypeK);
+        }
+        if (cacheTypeV && cacheTypeV !== 'auto' && cacheTypeV !== 'f16') {
+            args.push('-ctv', cacheTypeV);
+        }
+    } else {
+        if (!isNaN(parsedThreads) && parsedThreads > 0) {
+            console.log(`Setting GPU-mode CPU generation threads: -t ${parsedThreads} -tb ${parsedThreads}`);
+            args.push('-t', parsedThreads.toString());
+            args.push('-tb', parsedThreads.toString());
+        }
     }
 
     if (routerMode) {
