@@ -311,6 +311,7 @@ function getModelsMetaPath() { return path.join(getDataDir(), 'models-meta.json'
 const DEFAULT_SETTINGS = {
     port: 8080,
     ctxSize: 8192,
+    gpuEnabled: true,
     gpuLayers: 99,
     extraArgs: '',
     model: '',
@@ -2495,7 +2496,7 @@ async function waitForServer(port, child, getRecentLogs, timeoutMs = 45000) {
 }
 
 ipcMain.handle('start-server', async (event, params) => {
-    let { modelName, port, ctxSize, gpuLayers, threads, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
+    let { modelName, port, ctxSize, gpuLayers, gpuEnabled, deviceMode, threads, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
 
     if (llamaProcess || serverStarting) {
         console.log('Server already running — auto-stopping before restart...');
@@ -2508,9 +2509,14 @@ ipcMain.handle('start-server', async (event, params) => {
     ctxSize = parseInt(ctxSize, 10);
     if (isNaN(ctxSize) || ctxSize < 1) ctxSize = 8192;
 
-    gpuLayers = (gpuLayers !== undefined && gpuLayers !== null && !isNaN(parseInt(gpuLayers, 10)))
-        ? parseInt(gpuLayers, 10)
-        : 99;
+    if (gpuEnabled === false || deviceMode === 'cpu') {
+        gpuLayers = 0;
+        console.log('CPU-only execution mode active: forcing GPU layers to 0 (-ngl 0)');
+    } else {
+        gpuLayers = (gpuLayers !== undefined && gpuLayers !== null && !isNaN(parseInt(gpuLayers, 10)))
+            ? parseInt(gpuLayers, 10)
+            : 99;
+    }
 
     let exePath = findExecutable(getBinDir());
     if (!exePath) {

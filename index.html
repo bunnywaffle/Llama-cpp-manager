@@ -678,6 +678,18 @@
             border-color: rgba(96, 165, 250, 0.45) !important;
         }
 
+        .dash-mode-badge.active-gpu {
+            background: rgba(16, 185, 129, 0.18) !important;
+            color: #34d399 !important;
+            border-color: rgba(16, 185, 129, 0.45) !important;
+        }
+
+        .dash-mode-badge.active-cpu {
+            background: rgba(245, 158, 11, 0.18) !important;
+            color: #fbbf24 !important;
+            border-color: rgba(245, 158, 11, 0.45) !important;
+        }
+
         .dash-mode-badge.inactive {
             background: rgba(255, 255, 255, 0.05) !important;
             color: var(--text-muted) !important;
@@ -2627,6 +2639,25 @@
                                 <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Concurrent sequences processing (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-np</code>)</span>
                             </div>
                         </div>
+
+                        <div style="width: 1px; height: 30px; background: var(--border);"></div>
+
+                        <!-- Quick Hardware / GPU Acceleration Toggle -->
+                        <div class="dash-toggle-group">
+                            <label class="dash-switch" title="Toggle GPU Acceleration vs Pure CPU Mode">
+                                <input type="checkbox" id="dash-toggle-gpu-enabled" checked>
+                                <span class="dash-switch-slider"></span>
+                            </label>
+                            <div style="display: flex; flex-direction: column;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="dash-switch-label" id="lbl-dash-gpu-enabled" style="cursor: pointer;" title="Click to toggle between GPU Acceleration and CPU Only">
+                                        <i class="fa-solid fa-microchip" style="color: #10b981; font-size: 12px;"></i> Hardware
+                                        <span id="dash-badge-gpu-mode" class="dash-mode-badge active-gpu">⚡ GPU (99 L)</span>
+                                    </span>
+                                </div>
+                                <span id="dash-subtext-gpu-mode" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">GPU acceleration active (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-ngl 99</code>)</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Live Server Restart Hint (if changed while server is running) -->
@@ -2677,7 +2708,7 @@
                         <i class="fa-solid fa-microchip"></i>
                         <div>
                             <div class="metric-label">Backend</div>
-                            <div class="metric-val">CPU / GPU</div>
+                            <div class="metric-val" id="metric-backend"><span style="color:#34d399;"><i class="fa-solid fa-bolt"></i> GPU (99 L)</span></div>
                         </div>
                     </div>
                     <div class="metric-card">
@@ -2750,18 +2781,53 @@
                         <input type="number" id="inp-port" value="8080">
                     </div>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
-                    <div>
-                        <label>Context Size (-c)</label>
-                        <input type="number" id="inp-ctx" value="8192" min="1" step="1">
+                <div style="margin-top: 14px; margin-bottom: 6px; padding: 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-microchip" style="color: #10b981;"></i> Compute Device & Hardware Mode
+                                <span id="server-badge-gpu-mode" class="dash-mode-badge active-gpu">⚡ GPU ACCELERATED</span>
+                            </div>
+                            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">
+                                Choose whether to run LLMs using GPU offloading (CUDA / Vulkan) or pure CPU execution.
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label class="dash-switch" title="Toggle GPU Acceleration vs CPU Only">
+                                <input type="checkbox" id="inp-gpu-enabled" checked>
+                                <span class="dash-switch-slider"></span>
+                            </label>
+                            <span id="lbl-inp-gpu-enabled" style="font-size: 12.5px; font-weight: 500; cursor: pointer;" title="Toggle GPU acceleration">Enable GPU Offload</span>
+                        </div>
                     </div>
-                    <div>
-                        <label>GPU Layers (-ngl)</label>
-                        <input type="number" id="inp-ngl" value="99">
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                        <div>
+                            <label>Context Size (-c)</label>
+                            <input type="number" id="inp-ctx" value="8192" min="1" step="1">
+                        </div>
+                        <div id="gpu-layers-container">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <label style="margin-bottom: 0;">GPU Layers (-ngl)</label>
+                                <div style="display: flex; gap: 4px;">
+                                    <button type="button" class="btn secondary" id="btn-ngl-max" style="padding: 1px 6px; font-size: 10px; height: 18px;" title="Offload all layers to GPU">Max (99)</button>
+                                    <button type="button" class="btn secondary" id="btn-ngl-zero" style="padding: 1px 6px; font-size: 10px; height: 18px;" title="Zero GPU layers (CPU inference)">CPU (0)</button>
+                                </div>
+                            </div>
+                            <input type="number" id="inp-ngl" value="99" min="0" step="1" style="margin-top: 6px;">
+                            <span id="hint-ngl" style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">99 = offload all layers to GPU VRAM</span>
+                        </div>
+                        <div>
+                            <label>CPU Threads (-t) <span style="font-size:10.5px;color:var(--text-muted);font-weight:normal;">(-1 = Auto)</span></label>
+                            <input type="number" id="inp-threads" value="-1" min="-1" step="1" title="Number of CPU threads to use (-t). Setting to physical core count (e.g. 4, 6, 8) avoids oversaturation and maximizes CPU speed per llama.cpp performance guidelines.">
+                            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">-1 = Auto (recommended: physical cores)</span>
+                        </div>
                     </div>
-                    <div>
-                        <label>CPU Threads (-t) <span style="font-size:10.5px;color:var(--text-muted);font-weight:normal;">(-1 = Auto)</span></label>
-                        <input type="number" id="inp-threads" value="-1" min="-1" step="1" title="Number of CPU threads to use (-t). Setting to physical core count (e.g. 4 or 6) avoids oversaturation and can boost speed significantly per llama.cpp performance tips.">
+
+                    <!-- Informational Notice for CPU Only mode -->
+                    <div id="cpu-only-notice" style="display: none; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; font-size: 11.5px; color: #fbbf24;">
+                        <i class="fa-solid fa-info-circle"></i>
+                        <span><strong>CPU Only Mode Active:</strong> GPU offloading is completely disabled (<code style="font-family:'JetBrains Mono',monospace;">-ngl 0</code>). All model tensors and computations run in system RAM using CPU threads.</span>
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;">
@@ -4272,10 +4338,14 @@
         const settingsFeedback = document.getElementById('settings-feedback');
 
         function collectSettings() {
+            const inpGpu = document.getElementById('inp-gpu-enabled');
+            const inpNgl = document.getElementById('inp-ngl');
+            const gpuEnabled = inpGpu ? inpGpu.checked : (parseInt(inpNgl?.value, 10) > 0);
             return {
                 port: parseInt(document.getElementById('inp-port').value, 10) || 8080,
                 ctxSize: parseInt(dashCtxInput.value, 10) || 8192,
-                gpuLayers: parseInt(document.getElementById('inp-ngl').value, 10) || 0,
+                gpuEnabled: gpuEnabled,
+                gpuLayers: gpuEnabled ? (parseInt(inpNgl?.value, 10) || 0) : 0,
                 threads: parseInt(document.getElementById('inp-threads')?.value, 10) || -1,
                 extraArgs: document.getElementById('inp-extra').value,
                 model: dashModelSelect.value || '',
@@ -4316,7 +4386,22 @@
             if (!s) return;
             if (s.port) document.getElementById('inp-port').value = s.port;
             if (s.ctxSize) { dashCtxInput.value = s.ctxSize; serverCtxInput.value = s.ctxSize; }
-            if (s.gpuLayers !== undefined) document.getElementById('inp-ngl').value = s.gpuLayers;
+            if (s.gpuEnabled !== undefined) {
+                const isGpu = !!s.gpuEnabled;
+                if (document.getElementById('inp-gpu-enabled')) document.getElementById('inp-gpu-enabled').checked = isGpu;
+                if (document.getElementById('dash-toggle-gpu-enabled')) document.getElementById('dash-toggle-gpu-enabled').checked = isGpu;
+            } else if (s.gpuLayers !== undefined) {
+                const isGpu = s.gpuLayers > 0;
+                if (document.getElementById('inp-gpu-enabled')) document.getElementById('inp-gpu-enabled').checked = isGpu;
+                if (document.getElementById('dash-toggle-gpu-enabled')) document.getElementById('dash-toggle-gpu-enabled').checked = isGpu;
+            }
+            if (s.gpuLayers !== undefined) {
+                const inpNgl = document.getElementById('inp-ngl');
+                if (inpNgl) {
+                    inpNgl.value = s.gpuLayers;
+                    if (s.gpuLayers > 0) inpNgl.dataset.prevNgl = s.gpuLayers;
+                }
+            }
             if (s.threads !== undefined && document.getElementById('inp-threads')) { document.getElementById('inp-threads').value = s.threads; if (document.getElementById('dash-threads')) document.getElementById('dash-threads').value = s.threads; }
             if (s.extraArgs !== undefined) document.getElementById('inp-extra').value = s.extraArgs;
             if (s.temperature !== undefined) document.getElementById('inp-temp').value = s.temperature;
@@ -4420,19 +4505,46 @@
         const lblDashRouterMode = document.getElementById('lbl-dash-router-mode');
         const lblDashParallelEnabled = document.getElementById('lbl-dash-parallel-enabled');
 
+        const dashToggleGpuEnabled = document.getElementById('dash-toggle-gpu-enabled');
+        const dashBadgeGpuMode = document.getElementById('dash-badge-gpu-mode');
+        const dashSubtextGpuMode = document.getElementById('dash-subtext-gpu-mode');
+        const lblDashGpuEnabled = document.getElementById('lbl-dash-gpu-enabled');
+        const inpGpuEnabled = document.getElementById('inp-gpu-enabled');
+        const lblInpGpuEnabled = document.getElementById('lbl-inp-gpu-enabled');
+        const serverBadgeGpuMode = document.getElementById('server-badge-gpu-mode');
+        const cpuOnlyNotice = document.getElementById('cpu-only-notice');
+        const btnNglMax = document.getElementById('btn-ngl-max');
+        const btnNglZero = document.getElementById('btn-ngl-zero');
+        const hintNgl = document.getElementById('hint-ngl');
+        const inpNgl = document.getElementById('inp-ngl');
+        const inpThreads = document.getElementById('inp-threads');
+
         function syncDashboardModesUI(fromDashboard = false) {
             const inpRouter = document.getElementById('inp-router-mode');
             const inpParEnabled = document.getElementById('inp-parallel-enabled');
             const inpParSlots = document.getElementById('inp-parallel-slots');
+            const inpGpu = document.getElementById('inp-gpu-enabled');
+            const dashGpu = document.getElementById('dash-toggle-gpu-enabled');
+            const inpNglEl = document.getElementById('inp-ngl');
+            const inpThrEl = document.getElementById('inp-threads');
+            const serverBadgeGpu = document.getElementById('server-badge-gpu-mode');
+            const dashBadgeGpu = document.getElementById('dash-badge-gpu-mode');
+            const dashSubtextGpu = document.getElementById('dash-subtext-gpu-mode');
+            const cpuNotice = document.getElementById('cpu-only-notice');
+            const hintNglEl = document.getElementById('hint-ngl');
+            const metricBackend = document.getElementById('metric-backend');
+            const metricThr = document.getElementById('metric-threads');
 
             if (fromDashboard) {
                 if (dashToggleRouterMode && inpRouter) inpRouter.checked = dashToggleRouterMode.checked;
                 if (dashToggleParallelEnabled && inpParEnabled) inpParEnabled.checked = dashToggleParallelEnabled.checked;
                 if (dashParallelSlots && inpParSlots) inpParSlots.value = dashParallelSlots.value;
+                if (dashGpu && inpGpu) inpGpu.checked = dashGpu.checked;
             } else {
                 if (dashToggleRouterMode && inpRouter) dashToggleRouterMode.checked = inpRouter.checked;
                 if (dashToggleParallelEnabled && inpParEnabled) dashToggleParallelEnabled.checked = inpParEnabled.checked;
                 if (dashParallelSlots && inpParSlots) dashParallelSlots.value = inpParSlots.value;
+                if (dashGpu && inpGpu) dashGpu.checked = inpGpu.checked;
             }
 
             // Sync Router Mode badge & visual state
@@ -4460,6 +4572,79 @@
             }
             if (inpParSlots && inpParEnabled) {
                 inpParSlots.disabled = !inpParEnabled.checked;
+            }
+
+            // Sync GPU Acceleration / CPU Only State
+            const isGpu = dashGpu ? dashGpu.checked : (inpGpu ? inpGpu.checked : true);
+
+            if (inpNglEl) {
+                if (!isGpu) {
+                    if (inpNglEl.value !== '0' && inpNglEl.value !== '') {
+                        inpNglEl.dataset.prevNgl = inpNglEl.value;
+                    }
+                    inpNglEl.value = 0;
+                    inpNglEl.disabled = true;
+                    inpNglEl.style.opacity = '0.6';
+                    if (hintNglEl) hintNglEl.textContent = '0 = GPU offloading disabled (pure CPU)';
+                } else {
+                    inpNglEl.disabled = false;
+                    inpNglEl.style.opacity = '1';
+                    if (inpNglEl.value === '0' || inpNglEl.value === '') {
+                        inpNglEl.value = (inpNglEl.dataset.prevNgl && inpNglEl.dataset.prevNgl !== '0') ? inpNglEl.dataset.prevNgl : '99';
+                    }
+                    if (hintNglEl) hintNglEl.textContent = '99 = offload all layers to GPU VRAM';
+                }
+            }
+
+            const currentLayers = inpNglEl ? (parseInt(inpNglEl.value, 10) || 0) : (isGpu ? 99 : 0);
+            const gpuActive = isGpu && currentLayers > 0;
+
+            if (dashBadgeGpu) {
+                if (gpuActive) {
+                    dashBadgeGpu.textContent = `⚡ GPU (${currentLayers} L)`;
+                    dashBadgeGpu.className = 'dash-mode-badge active-gpu';
+                } else {
+                    dashBadgeGpu.textContent = '💻 CPU ONLY';
+                    dashBadgeGpu.className = 'dash-mode-badge active-cpu';
+                }
+            }
+            if (dashSubtextGpu) {
+                if (gpuActive) {
+                    dashSubtextGpu.innerHTML = `GPU acceleration active (<code style="font-family:'JetBrains Mono',monospace;font-size:10.5px;">-ngl ${currentLayers}</code>)`;
+                } else {
+                    dashSubtextGpu.innerHTML = `Pure CPU inference (<code style="font-family:'JetBrains Mono',monospace;font-size:10.5px;">-ngl 0</code>)`;
+                }
+            }
+            if (serverBadgeGpu) {
+                if (gpuActive) {
+                    serverBadgeGpu.textContent = `⚡ GPU ACCELERATED (${currentLayers} L)`;
+                    serverBadgeGpu.className = 'dash-mode-badge active-gpu';
+                } else {
+                    serverBadgeGpu.textContent = '💻 CPU ONLY MODE';
+                    serverBadgeGpu.className = 'dash-mode-badge active-cpu';
+                }
+            }
+            if (cpuNotice) {
+                cpuNotice.style.display = gpuActive ? 'none' : 'flex';
+            }
+            if (dashGpu && dashGpu.nextElementSibling) {
+                dashGpu.nextElementSibling.classList.toggle('active', gpuActive);
+            }
+            if (inpGpu && inpGpu.nextElementSibling) {
+                inpGpu.nextElementSibling.classList.toggle('active', gpuActive);
+            }
+
+            // Sync Metric Cards on Dashboard
+            if (metricBackend) {
+                if (gpuActive) {
+                    metricBackend.innerHTML = `<span style="color:#34d399;"><i class="fa-solid fa-bolt"></i> GPU (${currentLayers} L)</span>`;
+                } else {
+                    metricBackend.innerHTML = `<span style="color:#fbbf24;"><i class="fa-solid fa-microchip"></i> CPU Only</span>`;
+                }
+            }
+            if (metricThr && inpThrEl) {
+                const tv = parseInt(inpThrEl.value, 10);
+                metricThr.textContent = (!isNaN(tv) && tv > 0) ? `${tv} threads` : 'Auto';
             }
 
             // If server is currently running, show restart required indicator when toggled from dashboard
@@ -4501,6 +4686,78 @@
                 if (isNaN(v) || v < 1) v = 1;
                 dashParallelSlots.value = v;
                 syncDashboardModesUI(true);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+
+        // Hardware GPU / CPU quick toggle listeners
+        if (dashToggleGpuEnabled) {
+            dashToggleGpuEnabled.addEventListener('change', () => {
+                syncDashboardModesUI(true);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (lblDashGpuEnabled && dashToggleGpuEnabled) {
+            lblDashGpuEnabled.addEventListener('click', () => {
+                dashToggleGpuEnabled.checked = !dashToggleGpuEnabled.checked;
+                dashToggleGpuEnabled.dispatchEvent(new Event('change'));
+            });
+        }
+
+        if (inpGpuEnabled) {
+            inpGpuEnabled.addEventListener('change', () => {
+                syncDashboardModesUI(false);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (lblInpGpuEnabled && inpGpuEnabled) {
+            lblInpGpuEnabled.addEventListener('click', () => {
+                inpGpuEnabled.checked = !inpGpuEnabled.checked;
+                inpGpuEnabled.dispatchEvent(new Event('change'));
+            });
+        }
+
+        if (btnNglMax && inpNgl && inpGpuEnabled) {
+            btnNglMax.addEventListener('click', () => {
+                inpNgl.value = 99;
+                inpNgl.dataset.prevNgl = 99;
+                inpGpuEnabled.checked = true;
+                syncDashboardModesUI(false);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (btnNglZero && inpNgl && inpGpuEnabled) {
+            btnNglZero.addEventListener('click', () => {
+                inpNgl.value = 0;
+                inpGpuEnabled.checked = false;
+                syncDashboardModesUI(false);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+
+        if (inpNgl) {
+            inpNgl.addEventListener('input', () => {
+                const val = parseInt(inpNgl.value, 10);
+                if (val === 0) {
+                    if (inpGpuEnabled) inpGpuEnabled.checked = false;
+                    if (dashToggleGpuEnabled) dashToggleGpuEnabled.checked = false;
+                } else if (!isNaN(val) && val > 0) {
+                    inpNgl.dataset.prevNgl = val;
+                    if (inpGpuEnabled) inpGpuEnabled.checked = true;
+                    if (dashToggleGpuEnabled) dashToggleGpuEnabled.checked = true;
+                }
+                syncDashboardModesUI(false);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+
+        if (inpThreads) {
+            inpThreads.addEventListener('input', () => {
+                const metricThr = document.getElementById('metric-threads');
+                if (metricThr) {
+                    const tv = parseInt(inpThreads.value, 10);
+                    metricThr.textContent = (!isNaN(tv) && tv > 0) ? `${tv} threads` : 'Auto';
+                }
                 ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
             });
         }
@@ -7922,8 +8179,10 @@
             try {
                 const port = parseInt(document.getElementById('inp-port').value, 10) || 8080;
                 const ctx = parseInt(dashCtxInput.value || serverCtxInput.value, 10) || 8192;
+                const inpGpu = document.getElementById('inp-gpu-enabled');
+                const isGpu = inpGpu ? inpGpu.checked : true;
                 const nglVal = parseInt(document.getElementById('inp-ngl').value, 10);
-                const gpuLayers = (!isNaN(nglVal) && nglVal >= 0) ? nglVal : 99;
+                const gpuLayers = (isGpu && !isNaN(nglVal) && nglVal > 0) ? nglVal : 0;
                 if (!Number.isInteger(ctx) || ctx < 1) {
                     alert('Context size must be a positive whole number.');
                     return;
@@ -7947,7 +8206,9 @@
                     parallelSlots: parseInt((document.getElementById('inp-parallel-slots') || {}).value, 10) || 1,
                     port: port,
                     ctxSize: ctx,
+                    gpuEnabled: isGpu && gpuLayers > 0,
                     gpuLayers: gpuLayers,
+                    deviceMode: (isGpu && gpuLayers > 0) ? 'gpu' : 'cpu',
                     threads: parseInt((document.getElementById('inp-threads') || {}).value, 10) || parseInt((document.getElementById('dash-threads') || {}).value, 10) || -1,
                     extraArgs: document.getElementById('inp-extra').value,
                     temperature: parseFloat(document.getElementById('inp-temp').value) || 0.8,
@@ -7980,6 +8241,14 @@
                 const threadVal = parseInt((document.getElementById('inp-threads') || {}).value, 10) || -1;
                 const metricThr = document.getElementById('metric-threads');
                 if (metricThr) metricThr.textContent = threadVal > 0 ? `${threadVal} threads` : 'Auto';
+                const metricBackend = document.getElementById('metric-backend');
+                if (metricBackend) {
+                    if (gpuLayers > 0) {
+                        metricBackend.innerHTML = `<span style="color:#34d399;"><i class="fa-solid fa-bolt"></i> GPU (${gpuLayers} L)</span>`;
+                    } else {
+                        metricBackend.innerHTML = `<span style="color:#fbbf24;"><i class="fa-solid fa-microchip"></i> CPU Only</span>`;
+                    }
+                }
                 metricAddr.textContent = `127.0.0.1:${port}`;
 
                 startTime = Date.now();
