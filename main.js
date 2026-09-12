@@ -365,7 +365,8 @@ const DEFAULT_SETTINGS = {
     cpuTurbo: true,
     batchThreads: -1,
     cacheTypeK: 'auto',
-    cacheTypeV: 'auto'
+    cacheTypeV: 'auto',
+    flashAttn: 'auto'
 };
 
 function getSettings() {
@@ -2539,7 +2540,7 @@ ipcMain.handle('get-cpu-info', async () => {
 });
 
 ipcMain.handle('start-server', async (event, params) => {
-    let { modelName, port, ctxSize, gpuLayers, gpuEnabled, deviceMode, threads, batchThreads, cpuTurbo, cacheTypeK, cacheTypeV, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
+    let { modelName, port, ctxSize, gpuLayers, gpuEnabled, deviceMode, threads, batchThreads, cpuTurbo, cacheTypeK, cacheTypeV, flashAttn, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
 
     if (llamaProcess || serverStarting) {
         console.log('Server already running — auto-stopping before restart...');
@@ -2603,9 +2604,30 @@ ipcMain.handle('start-server', async (event, params) => {
         '--host', '127.0.0.1',
         '--port', port.toString(),
         '-c', ctxSize.toString(),
-        '-ngl', gpuLayers.toString(),
-        '-fa', 'auto'
+        '-ngl', gpuLayers.toString()
     ];
+
+    // Flash Attention handling (-fa [on|off|auto])
+    const buildNum = getBackendBuildNumber(exePath);
+    const selectedFlashAttn = (flashAttn || 'auto').toString().toLowerCase();
+    if (selectedFlashAttn === 'off') {
+        if (!buildNum || buildNum >= 3500) {
+            args.push('-fa', 'off');
+        }
+        console.log('[Flash Attention] Explicitly disabled (-fa off)');
+    } else if (selectedFlashAttn === 'on') {
+        if (buildNum && buildNum < 3500) {
+            args.push('-fa');
+        } else {
+            args.push('-fa', 'on');
+        }
+        console.log('[Flash Attention] Force enabled (-fa on)');
+    } else { // 'auto'
+        if (!buildNum || buildNum >= 3500) {
+            args.push('-fa', 'auto');
+        }
+        console.log('[Flash Attention] Auto mode (-fa auto)');
+    }
 
     // CPU Threads (-t / -tb) per llama.cpp token generation performance tips
     let parsedThreads = (threads !== undefined && threads !== null) ? parseInt(threads, 10) : -1;

@@ -2543,7 +2543,7 @@
             </button>
             <div class="version-area">
                 <div class="version-dot"></div>
-                <span>v1.0.4</span>
+                <span>v1.0.6</span>
             </div>
         </div>
     </div>
@@ -2600,7 +2600,7 @@
 
                 <!-- DASHBOARD QUICK TOGGLES (Router Mode & Parallel Slots) -->
                 <div class="dash-quick-toggles-bar">
-                    <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
                         <!-- Quick Router Mode Toggle -->
                         <div class="dash-toggle-group">
                             <label class="dash-switch" title="Toggle Router Mode (serve all imported models with live switching)">
@@ -2612,11 +2612,11 @@
                                     <i class="fa-solid fa-route" style="color: var(--accent); font-size: 12px;"></i> Router Mode
                                     <span id="dash-badge-router-mode" class="dash-mode-badge inactive">OFF</span>
                                 </span>
-                                <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Serve all models in folder with live switching</span>
+                                <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Serve all models in folder</span>
                             </div>
                         </div>
 
-                        <div style="width: 1px; height: 30px; background: var(--border);"></div>
+                        <div style="width: 1px; height: 28px; background: var(--border);"></div>
 
                         <!-- Quick Parallel Slots Toggle & Counter -->
                         <div class="dash-toggle-group">
@@ -2625,22 +2625,22 @@
                                 <span class="dash-switch-slider"></span>
                             </label>
                             <div style="display: flex; flex-direction: column;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
                                     <span class="dash-switch-label" id="lbl-dash-parallel-enabled">
                                         <i class="fa-solid fa-network-wired" style="color: #60a5fa; font-size: 12px;"></i> Parallel Slots
                                         <span id="dash-badge-parallel-enabled" class="dash-mode-badge inactive">OFF</span>
                                     </span>
                                     <!-- Compact Slots Input -->
-                                    <div id="dash-parallel-slots-box" style="display: flex; align-items: center; gap: 5px; margin-left: 4px; opacity: 0.4;">
+                                    <div id="dash-parallel-slots-box" style="display: flex; align-items: center; gap: 4px; margin-left: 2px; opacity: 0.4;">
                                         <span style="font-size: 11px; font-family: 'JetBrains Mono', Consolas, monospace; color: var(--text-muted);">-np</span>
-                                        <input type="number" id="dash-parallel-slots" min="1" max="512" step="1" value="1" style="width: 58px; padding: 4px 6px; font-size: 12px; text-align: center; height: 26px; border-radius: 6px;" disabled title="Number of parallel sequences (--parallel / -np)">
+                                        <input type="number" id="dash-parallel-slots" min="1" max="512" step="1" value="1" style="width: 52px; padding: 3px 5px; font-size: 12px; text-align: center; height: 24px; border-radius: 6px;" disabled title="Number of parallel sequences (--parallel / -np)">
                                     </div>
                                 </div>
-                                <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Concurrent sequences processing (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-np</code>)</span>
+                                <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Concurrent sequences processing</span>
                             </div>
                         </div>
 
-                        <div style="width: 1px; height: 30px; background: var(--border);"></div>
+                        <div style="width: 1px; height: 28px; background: var(--border);"></div>
 
                         <!-- Quick Hardware / GPU Acceleration Toggle -->
                         <div class="dash-toggle-group">
@@ -2656,6 +2656,25 @@
                                     </span>
                                 </div>
                                 <span id="dash-subtext-gpu-mode" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">GPU acceleration active (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-ngl 99</code>)</span>
+                            </div>
+                        </div>
+
+                        <div style="width: 1px; height: 28px; background: var(--border);"></div>
+
+                        <!-- Quick Flash Attention Toggle -->
+                        <div class="dash-toggle-group">
+                            <label class="dash-switch" title="Toggle Flash Attention (-fa) for faster inference and reduced VRAM/RAM memory">
+                                <input type="checkbox" id="dash-toggle-flash-attn" checked>
+                                <span class="dash-switch-slider"></span>
+                            </label>
+                            <div style="display: flex; flex-direction: column;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="dash-switch-label" id="lbl-dash-flash-attn" style="cursor: pointer;" title="Click to toggle Flash Attention">
+                                        <i class="fa-solid fa-bolt-lightning" style="color: #38bdf8; font-size: 12px;"></i> Flash Attention
+                                        <span id="dash-badge-flash-attn" class="dash-mode-badge active-gpu">⚡ ON</span>
+                                    </span>
+                                </div>
+                                <span id="dash-subtext-flash-attn" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Accelerated attention (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-fa auto</code>)</span>
                             </div>
                         </div>
                     </div>
@@ -2801,7 +2820,7 @@
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
                         <div>
                             <label>Context Size (-c)</label>
                             <input type="number" id="inp-ctx" value="8192" min="1" step="1">
@@ -2821,6 +2840,15 @@
                             <label>CPU Threads (-t) <span style="font-size:10.5px;color:var(--text-muted);font-weight:normal;">(-1 = Auto)</span></label>
                             <input type="number" id="inp-threads" value="-1" min="-1" step="1" title="Number of CPU threads to use (-t). Setting to physical core count (e.g. 4, 6, 8) avoids oversaturation and maximizes CPU speed per llama.cpp performance guidelines.">
                             <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">-1 = Auto (recommended: physical cores)</span>
+                        </div>
+                        <div>
+                            <label>Flash Attention (-fa)</label>
+                            <select id="inp-flash-attn" style="padding: 6px 8px; font-size: 11.5px; height: 32px; margin-top: 6px;">
+                                <option value="auto" selected>Auto (-fa auto)</option>
+                                <option value="on">Enabled (-fa on)</option>
+                                <option value="off">Disabled (-fa off)</option>
+                            </select>
+                            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">Faster eval & lower VRAM usage</span>
                         </div>
                     </div>
 
@@ -4416,6 +4444,7 @@
                 batchThreads: parseInt(document.getElementById('inp-batch-threads')?.value, 10) || -1,
                 cacheTypeK: document.getElementById('inp-cache-type-k')?.value || 'auto',
                 cacheTypeV: document.getElementById('inp-cache-type-v')?.value || 'auto',
+                flashAttn: document.getElementById('inp-flash-attn')?.value || 'auto',
                 extraArgs: document.getElementById('inp-extra').value,
                 model: dashModelSelect.value || '',
                 theme: themeSelect.value,
@@ -4476,6 +4505,12 @@
             if (s.batchThreads !== undefined && document.getElementById('inp-batch-threads')) document.getElementById('inp-batch-threads').value = s.batchThreads;
             if (s.cacheTypeK && document.getElementById('inp-cache-type-k')) document.getElementById('inp-cache-type-k').value = s.cacheTypeK;
             if (s.cacheTypeV && document.getElementById('inp-cache-type-v')) document.getElementById('inp-cache-type-v').value = s.cacheTypeV;
+            if (s.flashAttn && document.getElementById('inp-flash-attn')) {
+                document.getElementById('inp-flash-attn').value = s.flashAttn;
+                if (document.getElementById('dash-toggle-flash-attn')) {
+                    document.getElementById('dash-toggle-flash-attn').checked = (s.flashAttn !== 'off');
+                }
+            }
             if (s.extraArgs !== undefined) document.getElementById('inp-extra').value = s.extraArgs;
             if (s.temperature !== undefined) document.getElementById('inp-temp').value = s.temperature;
             if (s.topK !== undefined) document.getElementById('inp-topk').value = s.topK;
@@ -4751,6 +4786,52 @@
                 }
             }
 
+            // Sync Flash Attention State
+            const inpFlashAttn = document.getElementById('inp-flash-attn');
+            const dashFlashAttn = document.getElementById('dash-toggle-flash-attn');
+            const dashBadgeFlashAttn = document.getElementById('dash-badge-flash-attn');
+            const dashSubtextFlashAttn = document.getElementById('dash-subtext-flash-attn');
+
+            if (fromDashboard) {
+                if (dashFlashAttn && inpFlashAttn) {
+                    if (!dashFlashAttn.checked) {
+                        inpFlashAttn.value = 'off';
+                    } else if (inpFlashAttn.value === 'off') {
+                        inpFlashAttn.value = 'auto';
+                    }
+                }
+            } else {
+                if (dashFlashAttn && inpFlashAttn) {
+                    dashFlashAttn.checked = (inpFlashAttn.value !== 'off');
+                }
+            }
+
+            const faVal = inpFlashAttn ? inpFlashAttn.value : (dashFlashAttn && dashFlashAttn.checked ? 'auto' : 'off');
+            if (dashBadgeFlashAttn) {
+                if (faVal === 'on') {
+                    dashBadgeFlashAttn.textContent = '⚡ ON';
+                    dashBadgeFlashAttn.className = 'dash-mode-badge active-gpu';
+                } else if (faVal === 'auto') {
+                    dashBadgeFlashAttn.textContent = '⚡ AUTO';
+                    dashBadgeFlashAttn.className = 'dash-mode-badge active-router';
+                } else {
+                    dashBadgeFlashAttn.textContent = 'OFF';
+                    dashBadgeFlashAttn.className = 'dash-mode-badge inactive';
+                }
+            }
+            if (dashSubtextFlashAttn) {
+                if (faVal === 'on') {
+                    dashSubtextFlashAttn.innerHTML = `Flash attention force enabled (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-fa on</code>)`;
+                } else if (faVal === 'auto') {
+                    dashSubtextFlashAttn.innerHTML = `Auto hardware attention (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-fa auto</code>)`;
+                } else {
+                    dashSubtextFlashAttn.innerHTML = `Standard attention (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-fa off</code>)`;
+                }
+            }
+            if (dashFlashAttn && dashFlashAttn.nextElementSibling) {
+                dashFlashAttn.nextElementSibling.classList.toggle('active', faVal !== 'off');
+            }
+
             // If server is currently running, show restart required indicator when toggled from dashboard
             if (fromDashboard && typeof isServerOnline !== 'undefined' && isServerOnline) {
                 if (dashRestartRequiredPill) dashRestartRequiredPill.style.display = 'inline-flex';
@@ -4805,6 +4886,30 @@
             lblDashGpuEnabled.addEventListener('click', () => {
                 dashToggleGpuEnabled.checked = !dashToggleGpuEnabled.checked;
                 dashToggleGpuEnabled.dispatchEvent(new Event('change'));
+            });
+        }
+
+        // Flash Attention quick toggle and selector listeners
+        const dashToggleFlashAttn = document.getElementById('dash-toggle-flash-attn');
+        const lblDashFlashAttn = document.getElementById('lbl-dash-flash-attn');
+        const inpFlashAttnEl = document.getElementById('inp-flash-attn');
+
+        if (dashToggleFlashAttn) {
+            dashToggleFlashAttn.addEventListener('change', () => {
+                syncDashboardModesUI(true);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (lblDashFlashAttn && dashToggleFlashAttn) {
+            lblDashFlashAttn.addEventListener('click', () => {
+                dashToggleFlashAttn.checked = !dashToggleFlashAttn.checked;
+                dashToggleFlashAttn.dispatchEvent(new Event('change'));
+            });
+        }
+        if (inpFlashAttnEl) {
+            inpFlashAttnEl.addEventListener('change', () => {
+                syncDashboardModesUI(false);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
             });
         }
 
@@ -8417,6 +8522,7 @@
                     batchThreads: parseInt((document.getElementById('inp-batch-threads') || {}).value, 10) || -1,
                     cacheTypeK: (document.getElementById('inp-cache-type-k') || {}).value || 'auto',
                     cacheTypeV: (document.getElementById('inp-cache-type-v') || {}).value || 'auto',
+                    flashAttn: (document.getElementById('inp-flash-attn') || {}).value || ((document.getElementById('dash-toggle-flash-attn') || {}).checked ? 'auto' : 'off'),
                     extraArgs: document.getElementById('inp-extra').value,
                     temperature: parseFloat(document.getElementById('inp-temp').value) || 0.8,
                     topK: parseInt(document.getElementById('inp-topk').value, 10) || 40,
