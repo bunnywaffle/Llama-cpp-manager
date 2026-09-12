@@ -769,6 +769,7 @@ function createWindow() {
         width: 1200,
         height: 800,
         frame: true,
+        icon: path.join(__dirname, 'build', 'icon.ico'),
         backgroundColor: '#0f172a',
         webPreferences: {
             nodeIntegration: true,

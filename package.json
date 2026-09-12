@@ -1,6 +1,6 @@
 {
   "name": "llama-manager",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Desktop manager for llama.cpp binary and models",
   "license": "MIT",
   "main": "main.js",
