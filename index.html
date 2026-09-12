@@ -2543,7 +2543,7 @@
             </button>
             <div class="version-area">
                 <div class="version-dot"></div>
-                <span>v1.0.6</span>
+                <span>v1.0.7</span>
             </div>
         </div>
     </div>
@@ -2675,6 +2675,25 @@
                                     </span>
                                 </div>
                                 <span id="dash-subtext-flash-attn" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Accelerated attention (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-fa auto</code>)</span>
+                            </div>
+                        </div>
+
+                        <div style="width: 1px; height: 28px; background: var(--border);"></div>
+
+                        <!-- Quick RAM Lock (--mlock) Toggle -->
+                        <div class="dash-toggle-group">
+                            <label class="dash-switch" title="Toggle Lock Model in RAM (--mlock) to prevent OS pagefile disk swapping">
+                                <input type="checkbox" id="dash-toggle-mlock">
+                                <span class="dash-switch-slider"></span>
+                            </label>
+                            <div style="display: flex; flex-direction: column;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="dash-switch-label" id="lbl-dash-mlock" style="cursor: pointer;" title="Click to toggle Lock Model in RAM (--mlock)">
+                                        <i class="fa-solid fa-lock" style="color: #a78bfa; font-size: 12px;"></i> RAM Lock
+                                        <span id="dash-badge-mlock" class="dash-mode-badge inactive">OFF</span>
+                                    </span>
+                                </div>
+                                <span id="dash-subtext-mlock" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Prevent disk swapping (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">--mlock</code>)</span>
                             </div>
                         </div>
                     </div>
@@ -2811,12 +2830,21 @@
                                 Choose whether to run LLMs using GPU offloading (CUDA / Vulkan) or pure CPU execution.
                             </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <label class="dash-switch" title="Toggle GPU Acceleration vs CPU Only">
-                                <input type="checkbox" id="inp-gpu-enabled" checked>
-                                <span class="dash-switch-slider"></span>
-                            </label>
-                            <span id="lbl-inp-gpu-enabled" style="font-size: 12.5px; font-weight: 500; cursor: pointer;" title="Toggle GPU acceleration">Enable GPU Offload</span>
+                        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <label class="dash-switch" title="Toggle GPU Acceleration vs CPU Only">
+                                    <input type="checkbox" id="inp-gpu-enabled" checked>
+                                    <span class="dash-switch-slider"></span>
+                                </label>
+                                <span id="lbl-inp-gpu-enabled" style="font-size: 12.5px; font-weight: 500; cursor: pointer;" title="Toggle GPU acceleration">Enable GPU Offload</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px; padding-left: 14px; border-left: 1px solid var(--border);">
+                                <label class="dash-switch" title="Toggle Lock Model in RAM (--mlock) to prevent OS swapping weights to disk pagefile">
+                                    <input type="checkbox" id="inp-mlock">
+                                    <span class="dash-switch-slider"></span>
+                                </label>
+                                <span id="lbl-inp-mlock" style="font-size: 12.5px; font-weight: 500; cursor: pointer;" title="Lock model memory in physical RAM (--mlock)">Lock in RAM (--mlock)</span>
+                            </div>
                         </div>
                     </div>
 
@@ -2912,6 +2940,10 @@
                             <span><i class="fa-solid fa-microchip" style="color: #60a5fa;"></i> <span id="cpu-detected-model">Detecting CPU...</span></span>
                             <span id="cpu-recommended-preset" style="color: #38bdf8;">Optimal: -t 4 | -tb 6 | Q8_0</span>
                         </div>
+                        <div id="cpu-native-simd-info" style="margin-top: 8px; padding: 6px 10px; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-bolt" style="color: #38bdf8;"></i>
+                            <span><strong>SIMD Acceleration:</strong> Binaries built with <code style="font-family:'JetBrains Mono',monospace;">GGML_NATIVE=ON</code> auto-detect <strong>AVX2, AVX-512, AMX, VNNI</strong> on your chip — delivering <strong>2-3x faster generation</strong> vs generic CPU builds.</span>
+                        </div>
                     </div>
 
                     <!-- High Context Warning on CPU -->
@@ -2921,6 +2953,86 @@
                             <span><strong>Context Size Warning:</strong> <span id="cpu-ctx-warning-val">40,000</span> context on CPU requires huge RAM bandwidth and slows down generation.</span>
                         </div>
                         <button type="button" class="btn secondary" id="btn-fix-cpu-ctx" style="font-size: 10.5px; padding: 2px 8px; height: 24px; white-space: nowrap;">Set to 4096</button>
+                    </div>
+                </div>
+
+                <!-- Speculative Drafter Settings Card -->
+                <div id="drafter-settings-card" style="margin-top: 14px; margin-bottom: 14px; padding: 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-bolt" style="color: #fb923c;"></i> Speculative Decoding Drafter
+                                <span id="drafter-status-badge" class="dash-mode-badge inactive">No Drafter Linked</span>
+                            </div>
+                            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">
+                                Accelerate token generation up to 2-3x by letting a lightweight companion model propose draft tokens for parallel verification.
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button type="button" class="btn secondary" id="btn-server-link-drafter" style="font-size: 11.5px; padding: 4px 10px; height: 28px; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-bolt" style="color: #fb923c;"></i> Link Companion Drafter (.gguf)
+                            </button>
+                            <button type="button" class="btn secondary" id="btn-server-unlink-drafter" style="font-size: 11.5px; padding: 4px 10px; height: 28px; display: none; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-unlink"></i> Unlink Drafter
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Active Drafter Details Info Box -->
+                    <div id="drafter-active-box" style="display: none; margin-bottom: 12px; padding: 10px 12px; background: rgba(251, 146, 60, 0.07); border: 1px solid rgba(251, 146, 60, 0.25); border-radius: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                                <i class="fa-solid fa-file-shield" style="color: #fb923c;"></i>
+                                <span>Companion Drafter: <strong id="drafter-active-name" style="font-family: 'JetBrains Mono', monospace; color: #fdba74;">MiniCPM5-2B-DSpark-Q8_0.gguf</strong></span>
+                            </div>
+                            <span id="drafter-active-spectype" class="vision-adapter-badge" style="border-color: rgba(251, 146, 60, 0.4); color: #fb923c; margin: 0;">draft-dspark (DSpark)</span>
+                        </div>
+                    </div>
+
+                    <!-- Empty State Hint when no drafter is linked -->
+                    <div id="drafter-empty-box" style="margin-bottom: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--border); border-radius: 8px; font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                        <span><i class="fa-solid fa-info-circle" style="color: var(--text-muted); margin-right: 6px;"></i>No companion drafter linked to current model. Speculative decoding provides up to 2-3x faster inference when using matched companion models (e.g. Spark-X2.5 / DSpark or Llama-MTP).</span>
+                    </div>
+
+                    <!-- Configurable Drafter Parameters Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
+                        <div>
+                            <label style="font-size: 11.5px;">Draft Max Tokens (<code style="font-size: 10px; font-family: 'JetBrains Mono', monospace;">--spec-draft-n-max</code>)</label>
+                            <input type="number" id="inp-draft-max-tokens" value="4" min="1" max="16" step="1" title="Number of speculative tokens to draft per step (recommended: 4 to 8)">
+                            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 3px;">Default: 4 tokens ahead</span>
+                        </div>
+                        <div>
+                            <label style="font-size: 11.5px;">Draft GPU Layers (<code style="font-size: 10px; font-family: 'JetBrains Mono', monospace;">-ngld</code>)</label>
+                            <select id="inp-draft-gpu-layers" style="padding: 6px 8px; font-size: 11.5px; height: 32px;">
+                                <option value="auto" selected>Auto (Match Base Model)</option>
+                                <option value="0">0 (Drafter on CPU Only)</option>
+                                <option value="99">Max / 99 (All Layers on GPU)</option>
+                            </select>
+                            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 3px;">Offload drafter to VRAM or RAM</span>
+                        </div>
+                        <div>
+                            <label style="font-size: 11.5px;">Min Probability (<code style="font-size: 10px; font-family: 'JetBrains Mono', monospace;">--spec-draft-p-min</code>)</label>
+                            <input type="number" id="inp-draft-min-prob" value="0.0" min="0.0" max="1.0" step="0.05" title="Minimum acceptance probability for drafting tokens (default: 0.0)">
+                            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 3px;">0.0 = Draft all proposed tokens</span>
+                        </div>
+                        <div>
+                            <label style="font-size: 11.5px;">Drafter KV Cache (<code style="font-size: 10px; font-family: 'JetBrains Mono', monospace;">-ctkd / -ctvd</code>)</label>
+                            <div style="display: flex; gap: 6px;">
+                                <select id="inp-draft-cache-k" style="padding: 6px 8px; font-size: 11px; height: 32px; flex: 1;" title="Drafter K Cache Type">
+                                    <option value="auto" selected>K: Auto</option>
+                                    <option value="q8_0">K: Q8_0</option>
+                                    <option value="q4_0">K: Q4_0</option>
+                                    <option value="f16">K: F16</option>
+                                </select>
+                                <select id="inp-draft-cache-v" style="padding: 6px 8px; font-size: 11px; height: 32px; flex: 1;" title="Drafter V Cache Type">
+                                    <option value="auto" selected>V: Auto</option>
+                                    <option value="q8_0">V: Q8_0</option>
+                                    <option value="q4_0">V: Q4_0</option>
+                                    <option value="f16">V: F16</option>
+                                </select>
+                            </div>
+                            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 3px;">Drafter KV memory precision</span>
+                        </div>
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;">
@@ -3488,6 +3600,13 @@
                     </div>
                 </div>
                 <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">Browse official <code>llama.cpp</code> releases. Select any release and install your preferred binary variant (CUDA 12.4, CUDA 13.3, Vulkan, CPU) with companion runtime DLLs directly into Backend Manager.</div>
+                <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; font-size: 12px; display: flex; align-items: flex-start; gap: 10px;">
+                    <i class="fa-solid fa-microchip" style="color: #38bdf8; margin-top: 2px; font-size: 14px;"></i>
+                    <div>
+                        <strong style="color: #38bdf8;">Native SIMD Acceleration (<code style="font-family:'JetBrains Mono',monospace;">GGML_NATIVE=ON</code>):</strong>
+                        <span>Binaries built with AVX-512 or AVX2 auto-detect SIMD features (AVX2, AVX-512, AMX, VNNI) on your processor. Running an AVX-512 or AVX2 native CPU build provides <strong>2-3x faster token generation</strong> over generic builds.</span>
+                    </div>
+                </div>
                 <div id="releases-container"></div>
             </div>
         </div>
@@ -4445,6 +4564,12 @@
                 cacheTypeK: document.getElementById('inp-cache-type-k')?.value || 'auto',
                 cacheTypeV: document.getElementById('inp-cache-type-v')?.value || 'auto',
                 flashAttn: document.getElementById('inp-flash-attn')?.value || 'auto',
+                mlock: document.getElementById('inp-mlock') ? document.getElementById('inp-mlock').checked : (document.getElementById('dash-toggle-mlock') ? document.getElementById('dash-toggle-mlock').checked : false),
+                draftMaxTokens: parseInt(document.getElementById('inp-draft-max-tokens')?.value, 10) || 4,
+                draftGpuLayers: document.getElementById('inp-draft-gpu-layers')?.value || 'auto',
+                draftMinProb: parseFloat(document.getElementById('inp-draft-min-prob')?.value) || 0.0,
+                draftCacheTypeK: document.getElementById('inp-draft-cache-k')?.value || 'auto',
+                draftCacheTypeV: document.getElementById('inp-draft-cache-v')?.value || 'auto',
                 extraArgs: document.getElementById('inp-extra').value,
                 model: dashModelSelect.value || '',
                 theme: themeSelect.value,
@@ -4511,6 +4636,15 @@
                     document.getElementById('dash-toggle-flash-attn').checked = (s.flashAttn !== 'off');
                 }
             }
+            if (s.mlock !== undefined) {
+                if (document.getElementById('inp-mlock')) document.getElementById('inp-mlock').checked = !!s.mlock;
+                if (document.getElementById('dash-toggle-mlock')) document.getElementById('dash-toggle-mlock').checked = !!s.mlock;
+            }
+            if (s.draftMaxTokens !== undefined && document.getElementById('inp-draft-max-tokens')) document.getElementById('inp-draft-max-tokens').value = s.draftMaxTokens;
+            if (s.draftGpuLayers !== undefined && document.getElementById('inp-draft-gpu-layers')) document.getElementById('inp-draft-gpu-layers').value = s.draftGpuLayers;
+            if (s.draftMinProb !== undefined && document.getElementById('inp-draft-min-prob')) document.getElementById('inp-draft-min-prob').value = s.draftMinProb;
+            if (s.draftCacheTypeK && document.getElementById('inp-draft-cache-k')) document.getElementById('inp-draft-cache-k').value = s.draftCacheTypeK;
+            if (s.draftCacheTypeV && document.getElementById('inp-draft-cache-v')) document.getElementById('inp-draft-cache-v').value = s.draftCacheTypeV;
             if (s.extraArgs !== undefined) document.getElementById('inp-extra').value = s.extraArgs;
             if (s.temperature !== undefined) document.getElementById('inp-temp').value = s.temperature;
             if (s.topK !== undefined) document.getElementById('inp-topk').value = s.topK;
@@ -4832,6 +4966,46 @@
                 dashFlashAttn.nextElementSibling.classList.toggle('active', faVal !== 'off');
             }
 
+            // Sync RAM Lock (--mlock) State
+            const inpMlock = document.getElementById('inp-mlock');
+            const dashMlock = document.getElementById('dash-toggle-mlock');
+            const dashBadgeMlock = document.getElementById('dash-badge-mlock');
+            const dashSubtextMlock = document.getElementById('dash-subtext-mlock');
+
+            if (fromDashboard) {
+                if (dashMlock && inpMlock) {
+                    inpMlock.checked = dashMlock.checked;
+                }
+            } else {
+                if (dashMlock && inpMlock) {
+                    dashMlock.checked = inpMlock.checked;
+                }
+            }
+
+            const isLocked = inpMlock ? inpMlock.checked : (dashMlock ? dashMlock.checked : false);
+            if (dashBadgeMlock) {
+                if (isLocked) {
+                    dashBadgeMlock.textContent = 'LOCKED';
+                    dashBadgeMlock.className = 'dash-mode-badge active-gpu';
+                } else {
+                    dashBadgeMlock.textContent = 'OFF';
+                    dashBadgeMlock.className = 'dash-mode-badge inactive';
+                }
+            }
+            if (dashSubtextMlock) {
+                if (isLocked) {
+                    dashSubtextMlock.innerHTML = `Model locked in RAM (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">--mlock</code>)`;
+                } else {
+                    dashSubtextMlock.innerHTML = `Prevent disk swapping (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">--mlock</code>)`;
+                }
+            }
+            if (dashMlock && dashMlock.nextElementSibling) {
+                dashMlock.nextElementSibling.classList.toggle('active', isLocked);
+            }
+            if (inpMlock && inpMlock.nextElementSibling) {
+                inpMlock.nextElementSibling.classList.toggle('active', isLocked);
+            }
+
             // If server is currently running, show restart required indicator when toggled from dashboard
             if (fromDashboard && typeof isServerOnline !== 'undefined' && isServerOnline) {
                 if (dashRestartRequiredPill) dashRestartRequiredPill.style.display = 'inline-flex';
@@ -5059,6 +5233,138 @@
                 }
             });
         }
+
+        // RAM Lock (--mlock) listeners
+        const dashToggleMlock = document.getElementById('dash-toggle-mlock');
+        const lblDashMlock = document.getElementById('lbl-dash-mlock');
+        const inpMlockEl = document.getElementById('inp-mlock');
+        const lblInpMlock = document.getElementById('lbl-inp-mlock');
+
+        if (dashToggleMlock) {
+            dashToggleMlock.addEventListener('change', () => {
+                syncDashboardModesUI(true);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (lblDashMlock && dashToggleMlock) {
+            lblDashMlock.addEventListener('click', () => {
+                dashToggleMlock.checked = !dashToggleMlock.checked;
+                dashToggleMlock.dispatchEvent(new Event('change'));
+            });
+        }
+        if (inpMlockEl) {
+            inpMlockEl.addEventListener('change', () => {
+                syncDashboardModesUI(false);
+                ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+            });
+        }
+        if (lblInpMlock && inpMlockEl) {
+            lblInpMlock.addEventListener('click', () => {
+                inpMlockEl.checked = !inpMlockEl.checked;
+                inpMlockEl.dispatchEvent(new Event('change'));
+            });
+        }
+
+        // Speculative Drafter Settings UI sync & listeners
+        function updateDrafterSettingsUI(modelName) {
+            const card = document.getElementById('drafter-settings-card');
+            if (!card) return;
+            const selected = modelName || (dashModelSelect && dashModelSelect.value) || (serverModelSelect && serverModelSelect.value);
+            const metaMap = (modelsMeta && Object.keys(modelsMeta).length > 0) ? modelsMeta : (window.modelsMeta || {});
+            const info = (selected && metaMap[selected]) || {};
+            const drafterFile = info.mtpDrafter || (info.drafter && info.drafter.file);
+            const drafterLabel = info.drafterLabel || (info.drafter && info.drafter.label) || (drafterFile && /dspark/i.test(drafterFile) ? 'DSpark' : 'MTP');
+            const drafterSpecType = info.drafterSpecType || (info.drafter && info.drafter.specType) || (drafterFile && /dspark/i.test(drafterFile) ? 'draft-dspark' : 'draft-simple');
+
+            const badge = document.getElementById('drafter-status-badge');
+            const activeBox = document.getElementById('drafter-active-box');
+            const emptyBox = document.getElementById('drafter-empty-box');
+            const nameEl = document.getElementById('drafter-active-name');
+            const specEl = document.getElementById('drafter-active-spectype');
+            const btnLink = document.getElementById('btn-server-link-drafter');
+            const btnUnlink = document.getElementById('btn-server-unlink-drafter');
+
+            if (drafterFile) {
+                if (badge) {
+                    badge.textContent = `⚡ ${drafterLabel} Drafter Active`;
+                    badge.className = 'dash-mode-badge active-gpu';
+                }
+                if (activeBox) activeBox.style.display = 'block';
+                if (emptyBox) emptyBox.style.display = 'none';
+                if (nameEl) nameEl.textContent = drafterFile;
+                if (specEl) {
+                    specEl.textContent = `${drafterSpecType} (${drafterLabel})`;
+                    specEl.style.color = drafterLabel === 'DSpark' ? '#fb923c' : '#56d364';
+                    specEl.style.borderColor = drafterLabel === 'DSpark' ? 'rgba(251, 146, 60, 0.4)' : 'rgba(86, 211, 100, 0.4)';
+                }
+                if (btnLink) btnLink.style.display = 'none';
+                if (btnUnlink) {
+                    btnUnlink.style.display = 'inline-flex';
+                    btnUnlink.innerHTML = `<i class="fa-solid fa-unlink"></i> Unlink ${escapeHtml(drafterLabel)}`;
+                }
+            } else {
+                if (badge) {
+                    badge.textContent = 'No Drafter Linked';
+                    badge.className = 'dash-mode-badge inactive';
+                }
+                if (activeBox) activeBox.style.display = 'none';
+                if (emptyBox) emptyBox.style.display = 'flex';
+                if (btnLink) {
+                    btnLink.style.display = 'inline-flex';
+                    btnLink.innerHTML = `<i class="fa-solid fa-bolt" style="color: #fb923c;"></i> Link Companion Drafter (.gguf)`;
+                }
+                if (btnUnlink) btnUnlink.style.display = 'none';
+            }
+        }
+
+        const btnServerLinkDrafter = document.getElementById('btn-server-link-drafter');
+        const btnServerUnlinkDrafter = document.getElementById('btn-server-unlink-drafter');
+
+        if (btnServerLinkDrafter) {
+            btnServerLinkDrafter.addEventListener('click', async () => {
+                const cur = (dashModelSelect && dashModelSelect.value) || (serverModelSelect && serverModelSelect.value);
+                if (!cur) return alert('Please select a base model first.');
+                try {
+                    const updated = await ipcRenderer.invoke('link-drafter-dialog', cur);
+                    if (updated) {
+                        modelsMeta = updated;
+                        loadModels();
+                        updateDrafterSettingsUI(cur);
+                    }
+                } catch (err) {
+                    alert('Error linking speculative drafter: ' + err.message);
+                }
+            });
+        }
+
+        if (btnServerUnlinkDrafter) {
+            btnServerUnlinkDrafter.addEventListener('click', async () => {
+                const cur = (dashModelSelect && dashModelSelect.value) || (serverModelSelect && serverModelSelect.value);
+                if (!cur) return;
+                const curLabel = (modelsMeta[cur] && modelsMeta[cur].drafterLabel) || 'drafter';
+                if (!confirm(`Unlink ${curLabel} speculative drafter from ${cur}?`)) return;
+                try {
+                    const updated = await ipcRenderer.invoke('unlink-drafter', cur);
+                    if (updated) {
+                        modelsMeta = updated;
+                        loadModels();
+                        updateDrafterSettingsUI(cur);
+                    }
+                } catch (err) {
+                    alert('Error unlinking drafter: ' + err.message);
+                }
+            });
+        }
+
+        // Auto-save Drafter Configuration changes
+        ['inp-draft-max-tokens', 'inp-draft-gpu-layers', 'inp-draft-min-prob', 'inp-draft-cache-k', 'inp-draft-cache-v'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => {
+                    ipcRenderer.invoke('save-settings', collectSettings()).catch(() => {});
+                });
+            }
+        });
 
         async function loadCpuInfoAdvisor() {
             try {
@@ -8078,6 +8384,7 @@
             const activeModel = dashModelSelect.value || serverModelSelect.value;
             if (activeModel) {
                 await applyModelSampling(activeModel);
+                updateDrafterSettingsUI(activeModel);
             }
         }
 
@@ -8115,7 +8422,10 @@
             // 2. Immediately apply sampling parameters synchronously from memory
             applyModelSampling(val);
 
-            // 3. Immediately set context size from memory if cached
+            // 3. Update speculative drafter settings UI
+            updateDrafterSettingsUI(val);
+
+            // 4. Immediately set context size from memory if cached
             if (modelsMeta && modelsMeta[val] && modelsMeta[val].ctxLength) {
                 const ctx = modelsMeta[val].ctxLength;
                 dashCtxInput.value = ctx;
@@ -8135,7 +8445,7 @@
                 }).catch(() => {});
             }
 
-            // 4. Save selected model in settings in background
+            // 5. Save selected model in settings in background
             ipcRenderer.invoke('save-settings', { model: val }).catch(() => {});
         }
 
@@ -8523,6 +8833,12 @@
                     cacheTypeK: (document.getElementById('inp-cache-type-k') || {}).value || 'auto',
                     cacheTypeV: (document.getElementById('inp-cache-type-v') || {}).value || 'auto',
                     flashAttn: (document.getElementById('inp-flash-attn') || {}).value || ((document.getElementById('dash-toggle-flash-attn') || {}).checked ? 'auto' : 'off'),
+                    mlock: document.getElementById('inp-mlock') ? document.getElementById('inp-mlock').checked : ((document.getElementById('dash-toggle-mlock') || {}).checked || false),
+                    draftMaxTokens: parseInt((document.getElementById('inp-draft-max-tokens') || {}).value, 10) || 4,
+                    draftGpuLayers: (document.getElementById('inp-draft-gpu-layers') || {}).value || 'auto',
+                    draftMinProb: parseFloat((document.getElementById('inp-draft-min-prob') || {}).value) || 0.0,
+                    draftCacheTypeK: (document.getElementById('inp-draft-cache-k') || {}).value || 'auto',
+                    draftCacheTypeV: (document.getElementById('inp-draft-cache-v') || {}).value || 'auto',
                     extraArgs: document.getElementById('inp-extra').value,
                     temperature: parseFloat(document.getElementById('inp-temp').value) || 0.8,
                     topK: parseInt(document.getElementById('inp-topk').value, 10) || 40,

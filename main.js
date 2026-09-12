@@ -366,7 +366,13 @@ const DEFAULT_SETTINGS = {
     batchThreads: -1,
     cacheTypeK: 'auto',
     cacheTypeV: 'auto',
-    flashAttn: 'auto'
+    flashAttn: 'auto',
+    mlock: false,
+    draftMaxTokens: 4,
+    draftGpuLayers: 'auto',
+    draftMinProb: 0.0,
+    draftCacheTypeK: 'auto',
+    draftCacheTypeV: 'auto'
 };
 
 function getSettings() {
@@ -1319,9 +1325,21 @@ function classifyBinaryAsset(assetName) {
         variantKey = 'vulkan';
         label = 'Vulkan (AMD / Intel / Universal GPU)';
         badge = 'Vulkan';
+    } else if (lc.includes('avx512')) {
+        variantKey = 'cpu-avx512';
+        label = 'CPU (AVX-512 Native SIMD — 2-3x Faster)';
+        badge = 'AVX-512';
+    } else if (lc.includes('avx2')) {
+        variantKey = 'cpu-avx2';
+        label = 'CPU (AVX2 + FMA Native — High Performance)';
+        badge = 'AVX2';
+    } else if (lc.includes('avx') && !lc.includes('avx2') && !lc.includes('avx512')) {
+        variantKey = 'cpu-avx';
+        label = 'CPU (Standard AVX)';
+        badge = 'AVX';
     } else if (lc.includes('cpu-x64') || (lc.includes('bin-win-cpu') && !lc.includes('arm64'))) {
         variantKey = 'cpu-x64';
-        label = 'CPU (Standard x64 / AVX2)';
+        label = 'CPU (Standard x64)';
         badge = 'CPU';
     } else if (lc.includes('rocm')) {
         variantKey = 'rocm';
@@ -1433,8 +1451,8 @@ ipcMain.handle('get-releases', async () => {
                 });
             }
 
-            // Sort: recommended first, then CUDA, Vulkan, CPU, then others
-            const priority = { 'cuda-12.4': 1, 'cuda-13.3': 2, 'vulkan': 3, 'cpu-x64': 4, 'rocm': 5, 'sycl': 6, 'openvino': 7 };
+            // Sort: recommended first, then CUDA, Vulkan, CPU (AVX-512, AVX2, AVX, x64), then others
+            const priority = { 'cuda-12.4': 1, 'cuda-13.3': 2, 'vulkan': 3, 'cpu-avx512': 4, 'cpu-avx2': 5, 'cpu-avx': 6, 'cpu-x64': 7, 'rocm': 8, 'sycl': 9, 'openvino': 10 };
             binaryAssets.sort((x, y) => (priority[x.variantKey] || 99) - (priority[y.variantKey] || 99));
 
             return {
@@ -2540,7 +2558,7 @@ ipcMain.handle('get-cpu-info', async () => {
 });
 
 ipcMain.handle('start-server', async (event, params) => {
-    let { modelName, port, ctxSize, gpuLayers, gpuEnabled, deviceMode, threads, batchThreads, cpuTurbo, cacheTypeK, cacheTypeV, flashAttn, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
+    let { modelName, port, ctxSize, gpuLayers, gpuEnabled, deviceMode, threads, batchThreads, cpuTurbo, cacheTypeK, cacheTypeV, flashAttn, mlock, draftMaxTokens, draftGpuLayers, draftMinProb, draftCacheTypeK, draftCacheTypeV, extraArgs, temperature, topK, topP, minP, repeatPenalty, maxTokens, maxTokensUnlimited, routerMode, parallelEnabled, parallelSlots } = params || {};
 
     if (llamaProcess || serverStarting) {
         console.log('Server already running — auto-stopping before restart...');
@@ -2606,6 +2624,12 @@ ipcMain.handle('start-server', async (event, params) => {
         '-c', ctxSize.toString(),
         '-ngl', gpuLayers.toString()
     ];
+
+    // Memory Lock (--mlock): Pin model weights in physical RAM to prevent OS swapping/pagefile thrashing
+    if (mlock === true) {
+        console.log('[RAM Lock] Pinning model memory in RAM (--mlock)');
+        args.push('--mlock');
+    }
 
     // Flash Attention handling (-fa [on|off|auto])
     const buildNum = getBackendBuildNumber(exePath);
@@ -2751,6 +2775,35 @@ ipcMain.handle('start-server', async (event, params) => {
                 console.log(`Loading Speculative Drafter (${specType}):`, drafterPath);
                 args.push('--spec-type', specType);
                 args.push('--spec-draft-model', drafterPath);
+
+                // Configurable Speculative Drafter Parameters
+                const draftNMax = (draftMaxTokens !== undefined && draftMaxTokens !== null && !isNaN(parseInt(draftMaxTokens, 10)))
+                    ? parseInt(draftMaxTokens, 10)
+                    : 4;
+                if (buildNum && buildNum < 3600) {
+                    args.push('--draft-max', draftNMax.toString());
+                } else {
+                    args.push('--spec-draft-n-max', draftNMax.toString());
+                }
+
+                if (draftGpuLayers !== undefined && draftGpuLayers !== null && draftGpuLayers !== 'auto') {
+                    const parsedGpuLayers = parseInt(draftGpuLayers, 10);
+                    if (!isNaN(parsedGpuLayers)) {
+                        args.push('-ngld', parsedGpuLayers.toString());
+                    }
+                }
+
+                const minProb = parseFloat(draftMinProb);
+                if (!isNaN(minProb) && minProb > 0) {
+                    args.push('--spec-draft-p-min', minProb.toString());
+                }
+
+                if (draftCacheTypeK && draftCacheTypeK !== 'auto' && draftCacheTypeK !== 'f16') {
+                    args.push('-ctkd', draftCacheTypeK);
+                }
+                if (draftCacheTypeV && draftCacheTypeV !== 'auto' && draftCacheTypeV !== 'f16') {
+                    args.push('-ctvd', draftCacheTypeV);
+                }
             }
         }
     }
