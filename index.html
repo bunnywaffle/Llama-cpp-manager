@@ -1492,7 +1492,7 @@
         }
 
         .param-val {
-            color: var(--accent);
+            color: #ffffff;
             font-weight: 600;
         }
 
@@ -1506,7 +1506,7 @@
             background: var(--bg-base);
             border: 1px solid var(--border);
             border-radius: 5px;
-            color: var(--accent);
+            color: #ffffff;
             outline: none;
             box-sizing: border-box;
             transition: border-color 0.15s, box-shadow 0.15s;
@@ -1633,12 +1633,12 @@
 
         .chat-session-item:hover {
             background: var(--bg-card);
-            color: var(--accent);
+            color: #ffffff;
         }
 
         .chat-session-item.active {
             background: var(--glow-color);
-            color: var(--accent);
+            color: #ffffff;
             font-weight: 600;
             border: 1px solid var(--border);
         }
@@ -1888,28 +1888,38 @@
             font-size: 11px;
             color: var(--text-muted);
             margin-top: 6px;
-            padding: 0 2px;
+            padding: 5px 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             width: 100%;
             gap: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            box-sizing: border-box;
         }
 
-        .chat-msg.user .chat-meta { justify-content: flex-end; padding-right: 2px; }
+        .chat-msg.user .chat-meta {
+            justify-content: flex-end;
+            background: transparent;
+            border: none;
+            padding: 2px 4px;
+        }
 
         .chat-meta-actions {
-            display: flex;
+            display: inline-flex;
+            align-items: center;
             gap: 5px;
-            opacity: 0;
-            transform: translateY(2px);
-            transition: opacity 0.18s, transform 0.18s;
+            opacity: 0.9;
+            transform: none;
+            transition: opacity 0.15s ease;
         }
 
         .chat-msg:hover .chat-meta-actions,
         .chat-msg:focus-within .chat-meta-actions {
             opacity: 1;
-            transform: translateY(0);
+            transform: none;
         }
 
         @media (max-width: 700px) {
@@ -1917,26 +1927,26 @@
         }
 
         .chat-action-btn {
-            background: var(--bg-surface);
+            background: rgba(255, 255, 255, 0.04);
             border: 1px solid var(--border);
             color: var(--text-muted);
-            border-radius: 8px;
-            padding: 4px 9px;
+            border-radius: 6px;
+            padding: 3px 8px;
             font-size: 11px;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            transition: all 0.14s;
+            transition: all 0.14s ease;
             font-weight: 500;
         }
 
         .chat-action-btn:hover {
-            color: var(--text-main);
+            color: #ffffff;
             border-color: var(--border-hover);
-            background: var(--bg-card);
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            background: rgba(255, 255, 255, 0.10);
+            transform: none;
+            box-shadow: none;
         }
 
         .chat-action-btn.danger:hover {
@@ -2511,7 +2521,7 @@
         @keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
     
         .sampling-tag { display:inline-flex;align-items:center;gap:4px;background:var(--bg-card);border:1px solid var(--border);padding:3px 8px;border-radius:12px;font-size:10.5px;color:var(--text-muted);transition:all 0.12s; }
-        .sampling-tag strong { color:var(--accent); font-weight:700; }
+        .sampling-tag strong { color:#ffffff; font-weight:700; }
         .sampling-tag.active { background:var(--accent);color:#fff;border-color:var(--accent); }
         .sampling-tag.active strong { color:#fff; }
         
@@ -2575,7 +2585,7 @@
             font-family: 'Inter', system-ui, sans-serif;
         }
         .stitch-brand-text .stitch-brand-mode {
-            color: var(--accent);
+            color: #ffffff;
             font-weight: 600;
         }
         .stitch-version-tag {
@@ -3021,7 +3031,7 @@
             font-family: 'JetBrains Mono', monospace !important;
             font-size: 12px !important;
             font-weight: 600 !important;
-            color: var(--accent) !important;
+            color: #ffffff !important;
             outline: none !important;
             box-shadow: none !important;
         }
@@ -3363,7 +3373,44 @@
         #btn-universal-sidebar-toggle {
             display: none !important;
         }
-    </style>
+    
+        /* Model Manager Collapsible Connected Section */
+        .model-connected-section {
+            margin-top: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.22);
+            overflow: hidden;
+            transition: border-color 0.15s ease;
+        }
+        .model-connected-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            cursor: pointer;
+            user-select: none;
+            background: rgba(255, 255, 255, 0.02);
+            transition: background 0.15s ease;
+        }
+        .model-connected-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .model-connected-chevron {
+            font-size: 10px;
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+        }
+        .model-connected-section.collapsed .model-connected-chevron {
+            transform: rotate(-90deg);
+        }
+        .model-connected-section.collapsed .model-connected-body {
+            display: none !important;
+        }
+        .model-connected-section.collapsed .model-connected-summary {
+            display: flex !important;
+        }
+</style>
 </head>
 <body>
 
@@ -3564,7 +3611,7 @@
                         </div>
                         <div class="stitch-hero-chip">
                             <span class="stitch-hero-chip-lbl">Port:</span>
-                            <span class="stitch-hero-chip-val" style="color:#f43f5e;" id="hero-chip-port">8080</span>
+                            <span class="stitch-hero-chip-val" style="color:#f1f5f9;" id="hero-chip-port">8080</span>
                         </div>
                         <div class="stitch-hero-chip">
                             <span class="stitch-hero-chip-lbl">API:</span>
@@ -3751,7 +3798,7 @@
                 <div class="stitch-diagnostic-card">
                     <div class="stitch-diag-left">
                         <span class="stitch-diag-label">Model Mounted</span>
-                        <div class="stitch-diag-val" id="metric-model" style="color:#f43f5e;">Standby (None)</div>
+                        <div class="stitch-diag-val" id="metric-model" style="color:#f1f5f9;">Standby (None)</div>
                     </div>
                     <button type="button" class="btn secondary" id="btn-stitch-mount-model" style="padding: 3px 8px; font-size: 10.5px; border-radius: 5px;">Load</button>
                 </div>
@@ -3807,7 +3854,7 @@
                     </div>
                 </div>
                 <div class="stitch-log-body" id="dash-embedded-log-box">
-                    <p style="color: #64748b; margin: 0;"><span style="color: #475569;">[00:00:00]</span> <span style="color: #f43f5e;">[daemon-idle]</span> Server standby. Awaiting launch command on port 8080...</p>
+                    <p style="color: #64748b; margin: 0;"><span style="color: #475569;">[00:00:00]</span> <span style="color: #94a3b8;">[daemon-idle]</span> Server standby. Awaiting launch command on port 8080...</p>
                 </div>
             </div>
         </div>
@@ -3822,7 +3869,8 @@
                         <p class="subtitle">Manage local GGUF model files and folders</p>
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn secondary" id="btn-toggle-all-models-connected" title="Collapse or expand all connected adapters & companion models" style="font-size: 12px; padding: 6px 12px;"><i class="fa-solid fa-arrows-up-down"></i> <span id="lbl-toggle-all-connected">Collapse All</span></button>
                     <button class="btn secondary" id="btn-link-models-folder"><i class="fa-solid fa-folder-tree"></i> Link Folder</button>
                     <button class="btn primary" id="btn-add-model"><i class="fa-solid fa-plus"></i> Import Model</button>
                 </div>
@@ -9100,7 +9148,7 @@
             try {
                 const info = await ipcRenderer.invoke('get-backend-info');
                 if (info.installed) {
-                    backendStatusText.innerHTML = '<span style="color: var(--accent);"><i class="fa-solid fa-check-circle"></i> Installed & Ready</span>';
+                    backendStatusText.innerHTML = '<span style="color: #10b981;"><i class="fa-solid fa-check-circle"></i> Installed & Ready</span>';
                 } else {
                     backendStatusText.innerHTML = '<span style="color: #ef4444;">Not installed</span>';
                 }
@@ -9133,7 +9181,7 @@
                             <div style="font-size: 11.5px; color: var(--text-muted); word-break: break-all;">${escapeHtml(info.exePath)}</div>
                         </div>
                         <div style="text-align: right;">
-                            ${info.version ? `<div style="font-size: 12px; font-weight: 600; color: var(--accent);">Build ${escapeHtml(info.version)}</div>` : ''}
+                            ${info.version ? `<div style="font-size: 12px; font-weight: 600; color: #ffffff;">Build ${escapeHtml(info.version)}</div>` : ''}
                             <div style="font-size: 11px; color: var(--text-muted);">${info.fileCount} files · ${formatBytes(info.dirSize)}</div>
                         </div>
                     </div>`;
@@ -9272,6 +9320,15 @@
                     row.style.alignItems = 'stretch';
                     row.style.gap = '8px';
 
+                    const connectedItems = [];
+                    if (loras.length > 0) connectedItems.push(loras.length + ' LoRA' + (loras.length > 1 ? 's' : ''));
+                    if (hasMmproj) connectedItems.push('Vision');
+                    if (hasMtp) connectedItems.push('MTP Head');
+                    if (drafterFile) connectedItems.push(drafterLabel + ' Drafter');
+                    if (hasSampling) connectedItems.push('Sampling');
+
+                    const hasConnected = connectedItems.length > 0;
+
                     let lorasHtml = '';
                     if (loras.length > 0) {
                         lorasHtml = `<div class="lora-section">
@@ -9299,16 +9356,38 @@
                         lorasHtml += '</div>';
                     }
 
+                    const badgesHtml = [
+                        hasMmproj ? `<span class="vision-adapter-badge"><i class="fa-solid fa-eye"></i> Vision Adaptor: ${escapeHtml(modelsMeta[m].mmproj)}</span>` : '',
+                        hasMtp ? '<span class="vision-adapter-badge" style="border-color: rgba(86, 211, 100, 0.4);"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> MTP Head (embedded, auto)</span>' : '',
+                        drafterFile ? `<span class="vision-adapter-badge" style="border-color: ${drafterLabel === 'DSpark' ? 'rgba(251, 146, 60, 0.4)' : 'rgba(86, 211, 100, 0.4)'};"><i class="fa-solid fa-bolt" style="color: ${drafterLabel === 'DSpark' ? '#fb923c' : '#56d364'};"></i> ${escapeHtml(drafterLabel)} Drafter: ${escapeHtml(drafterFile)}</span>` : '',
+                        hasSampling ? `<span class="vision-adapter-badge" style="border-color: color-mix(in srgb, var(--accent) 40%, transparent); color: #ffffff;"><i class="fa-solid fa-sliders" style="color: var(--accent);"></i> Custom Sampling</span>` : ''
+                    ].filter(Boolean).join('');
+
+                    const connectedSectionHtml = hasConnected ? `
+                        <div class="model-connected-section" data-model="${escapeHtml(m)}">
+                            <div class="model-connected-header" data-model="${escapeHtml(m)}" title="Click to toggle connected assets">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa-solid fa-chevron-down model-connected-chevron"></i>
+                                    <span style="font-size: 11px; font-weight: 600; color: #f1f5f9; text-transform: uppercase; letter-spacing: 0.5px;">Connected Assets</span>
+                                    <span class="stitch-badge" style="font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.06); color: #f1f5f9;">${connectedItems.length}</span>
+                                </div>
+                                <div class="model-connected-summary" style="display: none; font-size: 11px; color: var(--text-muted); align-items: center; gap: 6px;">
+                                    ${connectedItems.map(c => `<span class="stitch-badge" style="font-size: 10px; padding: 1px 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: #cbd5e1;">${escapeHtml(c)}</span>`).join('')}
+                                </div>
+                            </div>
+                            <div class="model-connected-body" style="padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255,255,255,0.05);">
+                                ${badgesHtml ? `<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">${badgesHtml}</div>` : ''}
+                                ${lorasHtml}
+                            </div>
+                        </div>
+                    ` : '';
+
                     row.innerHTML = `
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="display: flex; flex-direction: column; gap: 4px;">
-                                <span style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; min-height: 32px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 13px; font-weight: 600; color: #f1f5f9; display: flex; align-items: center; gap: 8px;">
                                     <i class="fa-solid fa-cube" style="color: var(--accent);"></i> ${escapeHtml(m)}
                                 </span>
-                                ${hasMmproj ? `<span class="vision-adapter-badge"><i class="fa-solid fa-eye"></i> Vision Adaptor: ${escapeHtml(modelsMeta[m].mmproj)}</span>` : ''}
-                                ${hasMtp ? '<span class="vision-adapter-badge" style="border-color: rgba(86, 211, 100, 0.4);"><i class="fa-solid fa-bolt" style="color: #56d364;"></i> MTP Head (embedded, auto)</span>' : ''}
-                                ${drafterFile ? `<span class="vision-adapter-badge" style="border-color: ${drafterLabel === 'DSpark' ? 'rgba(251, 146, 60, 0.4)' : 'rgba(86, 211, 100, 0.4)'};"><i class="fa-solid fa-bolt" style="color: ${drafterLabel === 'DSpark' ? '#fb923c' : '#56d364'};"></i> ${escapeHtml(drafterLabel)} Drafter: ${escapeHtml(drafterFile)}</span>` : ''}
-                                ${hasSampling ? `<span class="vision-adapter-badge" style="border-color: color-mix(in srgb, var(--accent) 40%, transparent); color: var(--accent);"><i class="fa-solid fa-sliders" style="color: var(--accent);"></i> Custom Sampling</span>` : ''}
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <button class="btn secondary btn-link-lora" data-model="${escapeHtml(m)}" style="padding: 4px 8px; font-size: 11px;" title="Link LoRA adapter (.gguf)"><i class="fa-solid fa-bolt" style="color: #c084fc;"></i> + LoRA</button>
@@ -9323,8 +9402,16 @@
                                 <button class="btn danger btn-del-model" style="padding: 4px 10px; font-size: 12px;" data-model="${escapeHtml(m)}" title="Delete model"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         </div>
-                        ${lorasHtml}
+                        ${connectedSectionHtml}
                     `;
+
+                    const connectedHeader = row.querySelector('.model-connected-header');
+                    if (connectedHeader) {
+                        connectedHeader.addEventListener('click', () => {
+                            const sec = row.querySelector('.model-connected-section');
+                            if (sec) sec.classList.toggle('collapsed');
+                        });
+                    }
 
                     const linkLoraBtn = row.querySelector('.btn-link-lora');
                     if (linkLoraBtn) {
@@ -9356,120 +9443,142 @@
                     };
 
                     row.querySelectorAll('.chk-lora-enable').forEach(chk => {
-                        chk.addEventListener('change', async (e) => {
-                            await ipcRenderer.invoke('update-lora-settings', {
-                                modelName: e.target.dataset.model,
-                                loraFile: e.target.dataset.lora,
-                                enabled: e.target.checked
-                            });
-                            // visual feedback + restart hint
-                            e.target.closest('.lora-item-box')?.classList.toggle('lora-disabled', !e.target.checked);
-                            maybeShowRestartBanner();
+                        chk.addEventListener('change', async () => {
+                            const loraName = chk.dataset.lora;
+                            const isEnabled = chk.checked;
+                            const targetLora = loras.find(l => l.file === loraName);
+                            if (targetLora) {
+                                targetLora.enabled = isEnabled;
+                                const metaEntry = modelsMeta[m] || {};
+                                metaEntry.loras = loras;
+                                await ipcRenderer.invoke('save-model-meta', m, metaEntry);
+                                const metaText = chk.closest('.lora-item-box')?.querySelector('.lora-item-meta');
+                                if (metaText) metaText.textContent = 'GGUF Adapter • ' + (isEnabled ? 'Enabled' : 'Disabled');
+                                maybeShowRestartBanner();
+                            }
                         });
                     });
 
                     row.querySelectorAll('.rng-lora-scale').forEach(rng => {
-                        rng.addEventListener('input', async (e) => {
-                            const valEl = rng.parentElement.querySelector('.lora-scale-val');
-                            if (valEl) valEl.textContent = Number(e.target.value).toFixed(2);
-                            await ipcRenderer.invoke('update-lora-settings', {
-                                modelName: e.target.dataset.model,
-                                loraFile: e.target.dataset.lora,
-                                scale: e.target.value
-                            });
-                            maybeShowRestartBanner();
+                        rng.addEventListener('input', () => {
+                            const scaleValSpan = rng.closest('.lora-scale-group')?.querySelector('.lora-scale-val');
+                            if (scaleValSpan) scaleValSpan.textContent = Number(rng.value).toFixed(2);
                         });
-                        // reflect disabled state visually
-                        const chk = row.querySelector(`.chk-lora-enable[data-lora="${rng.dataset.lora}"]`);
-                        if (chk && !chk.checked) rng.closest('.lora-item-box')?.classList.add('lora-disabled');
+                        rng.addEventListener('change', async () => {
+                            const loraName = rng.dataset.lora;
+                            const scaleVal = parseFloat(rng.value);
+                            const targetLora = loras.find(l => l.file === loraName);
+                            if (targetLora) {
+                                targetLora.scale = scaleVal;
+                                const metaEntry = modelsMeta[m] || {};
+                                metaEntry.loras = loras;
+                                await ipcRenderer.invoke('save-model-meta', m, metaEntry);
+                                maybeShowRestartBanner();
+                            }
+                        });
                     });
 
                     row.querySelectorAll('.btn-unlink-lora').forEach(btn => {
-                        btn.addEventListener('click', async (e) => {
-                            const btnTarget = e.currentTarget;
-                            if (confirm('Unlink LoRA adapter ' + btnTarget.dataset.lora + '?')) {
-                                await ipcRenderer.invoke('unlink-lora', {
-                                    modelName: btnTarget.dataset.model,
-                                    loraFile: btnTarget.dataset.lora
-                                });
-                                loadModels();
-                            }
-                        });
-                    });
-
-                    row.querySelectorAll('.btn-disable-all-loras').forEach(btn => {
                         btn.addEventListener('click', async () => {
-                            if (!confirm('Disable all LoRAs for ' + btn.dataset.model + '? (keeps files, just disables)')) return;
-                            const loras = (modelsMeta[btn.dataset.model]?.loras || []);
-                            for (const l of loras) {
-                                await ipcRenderer.invoke('update-lora-settings', { modelName: btn.dataset.model, loraFile: l.file, enabled: false });
-                            }
-                            loadModels();
-                        });
-                    });
-                    row.querySelectorAll('.btn-clear-all-loras').forEach(btn => {
-                        btn.addEventListener('click', async () => {
-                            if (!confirm('Remove all LoRAs from ' + btn.dataset.model + '? (keeps files on disk)')) return;
-                            await ipcRenderer.invoke('clear-loras', btn.dataset.model);
+                            const loraName = btn.dataset.lora;
+                            const metaEntry = modelsMeta[m] || {};
+                            metaEntry.loras = loras.filter(l => l.file !== loraName);
+                            await ipcRenderer.invoke('save-model-meta', m, metaEntry);
+                            maybeShowRestartBanner();
                             loadModels();
                         });
                     });
 
-                    const linkVisionBtn = row.querySelector('.btn-link-vision');
-                    if (linkVisionBtn) {
-                        linkVisionBtn.addEventListener('click', async () => {
-                            try {
-                                const updated = await ipcRenderer.invoke('link-mmproj-dialog', m);
-                                if (updated) loadModels();
-                            } catch (err) {
-                                alert('Error linking vision projector: ' + err.message);
-                            }
+                    const btnDisableAll = row.querySelector('.btn-disable-all-loras');
+                    if (btnDisableAll) {
+                        btnDisableAll.addEventListener('click', async () => {
+                            loras.forEach(l => l.enabled = false);
+                            const metaEntry = modelsMeta[m] || {};
+                            metaEntry.loras = loras;
+                            await ipcRenderer.invoke('save-model-meta', m, metaEntry);
+                            maybeShowRestartBanner();
+                            loadModels();
                         });
                     }
 
-                    const unlinkVisionBtn = row.querySelector('.btn-unlink-vision');
-                    if (unlinkVisionBtn) {
-                        unlinkVisionBtn.addEventListener('click', async () => {
-                            if (confirm('Unlink vision adaptor from ' + m + '?')) {
-                                await ipcRenderer.invoke('unlink-mmproj', m);
-                                loadModels();
-                            }
+                    const btnClearAll = row.querySelector('.btn-clear-all-loras');
+                    if (btnClearAll) {
+                        btnClearAll.addEventListener('click', async () => {
+                            if (!confirm('Remove all LoRAs from model "' + m + '"?')) return;
+                            const metaEntry = modelsMeta[m] || {};
+                            metaEntry.loras = [];
+                            await ipcRenderer.invoke('save-model-meta', m, metaEntry);
+                            maybeShowRestartBanner();
+                            loadModels();
                         });
                     }
 
-                    const linkDrafterBtn = row.querySelector('.btn-link-drafter') || row.querySelector('.btn-link-mtp');
-                    if (linkDrafterBtn) {
-                        linkDrafterBtn.addEventListener('click', async () => {
+                    const btnUnlinkDrafter = row.querySelector('.btn-unlink-drafter');
+                    if (btnUnlinkDrafter) {
+                        btnUnlinkDrafter.addEventListener('click', async () => {
+                            const metaEntry = modelsMeta[m] || {};
+                            delete metaEntry.mtpDrafter;
+                            delete metaEntry.drafter;
+                            delete metaEntry.drafterLabel;
+                            await ipcRenderer.invoke('save-model-meta', m, metaEntry);
+                            maybeShowRestartBanner();
+                            loadModels();
+                        });
+                    }
+
+                    const btnLinkDrafter = row.querySelector('.btn-link-drafter');
+                    if (btnLinkDrafter) {
+                        btnLinkDrafter.addEventListener('click', async () => {
                             try {
-                                const updated = await ipcRenderer.invoke('link-drafter-dialog', m);
-                                if (updated) loadModels();
+                                const linked = await ipcRenderer.invoke('link-drafter-dialog', m);
+                                if (linked) {
+                                    maybeShowRestartBanner();
+                                    loadModels();
+                                }
                             } catch (err) {
                                 alert('Error linking speculative drafter: ' + err.message);
                             }
                         });
                     }
 
-                    const unlinkDrafterBtn = row.querySelector('.btn-unlink-drafter') || row.querySelector('.btn-unlink-mtp');
-                    if (unlinkDrafterBtn) {
-                        unlinkDrafterBtn.addEventListener('click', async () => {
-                            const curLabel = (modelsMeta[m] && modelsMeta[m].drafterLabel) || 'drafter';
-                            if (confirm('Unlink ' + curLabel + ' from ' + m + '?')) {
-                                await ipcRenderer.invoke('unlink-drafter', m);
-                                loadModels();
+                    const btnUnlinkVision = row.querySelector('.btn-unlink-vision');
+                    if (btnUnlinkVision) {
+                        btnUnlinkVision.addEventListener('click', async () => {
+                            const metaEntry = modelsMeta[m] || {};
+                            delete metaEntry.mmproj;
+                            await ipcRenderer.invoke('save-model-meta', m, metaEntry);
+                            maybeShowRestartBanner();
+                            loadModels();
+                        });
+                    }
+
+                    const btnLinkVision = row.querySelector('.btn-link-vision');
+                    if (btnLinkVision) {
+                        btnLinkVision.addEventListener('click', async () => {
+                            try {
+                                const linked = await ipcRenderer.invoke('link-vision-dialog', m);
+                                if (linked) {
+                                    maybeShowRestartBanner();
+                                    loadModels();
+                                }
+                            } catch (err) {
+                                alert('Error linking vision projector: ' + err.message);
                             }
                         });
                     }
 
-                    row.querySelector('.btn-del-model').addEventListener('click', async (e) => {
-                        const modelName = e.currentTarget.dataset.model;
-                        if (!confirm(`Remove "${modelName}" from the app? The model link/file in your assigned data folder will be removed.`)) return;
-                        try {
-                            await ipcRenderer.invoke('delete-model', modelName);
-                            loadModels();
-                        } catch (err) {
-                            alert('Error removing model: ' + err.message);
-                        }
-                    });
+                    const btnDelModel = row.querySelector('.btn-del-model');
+                    if (btnDelModel) {
+                        btnDelModel.addEventListener('click', async () => {
+                            if (!confirm('Are you sure you want to remove "' + m + '" from the list?')) return;
+                            try {
+                                await ipcRenderer.invoke('delete-model', m);
+                                loadModels();
+                            } catch (err) {
+                                alert('Error removing model: ' + err.message);
+                            }
+                        });
+                    }
                     modelsListContainer.appendChild(row);
                 });
             }
@@ -9690,7 +9799,7 @@
                     groupCard.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px;">
                             <div style="display:flex; align-items:center; gap: 8px;">
-                                <span style="font-size: 13.5px; font-weight: 700; color: var(--accent);"><i class="fa-solid fa-tag" style="font-size: 11px;"></i> ${escapeHtml(rel.tag_name)}</span>
+                                <span style="font-size: 13.5px; font-weight: 700; color: #ffffff;"><i class="fa-solid fa-tag" style="font-size: 11px; color: var(--accent);"></i> ${escapeHtml(rel.tag_name)}</span>
                                 <span style="font-size: 12px; color: var(--text-muted);">${escapeHtml(rel.name || '')}</span>
                             </div>
                             <span style="font-size: 11px; color: var(--text-muted);">${escapeHtml(dateStr)}</span>
@@ -10405,6 +10514,21 @@
                 }
             }).catch(() => {});
         })();
-    </script>
+    
+            // Global Collapse All / Expand All connected models
+            const btnToggleAllModelsConnected = document.getElementById('btn-toggle-all-models-connected');
+            if (btnToggleAllModelsConnected) {
+                btnToggleAllModelsConnected.addEventListener('click', () => {
+                    const allConnected = document.querySelectorAll('.model-connected-section');
+                    const areAnyExpanded = Array.from(allConnected).some(s => !s.classList.contains('collapsed'));
+                    allConnected.forEach(s => {
+                        if (areAnyExpanded) s.classList.add('collapsed');
+                        else s.classList.remove('collapsed');
+                    });
+                    const lbl = document.getElementById('lbl-toggle-all-connected');
+                    if (lbl) lbl.textContent = areAnyExpanded ? 'Expand All' : 'Collapse All';
+                });
+            }
+</script>
 </body>
 </html>
