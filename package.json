@@ -28,6 +28,17 @@
       "output": "dist",
       "buildResources": "build"
     },
+    "files": [
+      "**/*",
+      "!dist/*",
+      "!screenshots/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets"
+      }
+    ],
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico"

@@ -2518,7 +2518,7 @@
  
     
         /* ========================================================= */
-        /* STITCH MODERN SLEEK DESIGN SYSTEM (StitchMCP UI Adapter)  */
+        /* STITCH MODERN SLEEK DESIGN SYSTEM (Stitch v2 Full Suite)  */
         /* ========================================================= */
         
         body {
@@ -2532,48 +2532,25 @@
         .stitch-app-header {
             height: 44px;
             background: #090a0e;
-            border-bottom: 1px solid #1a1c27;
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 14px;
-            flex-shrink: 0;
-            z-index: 120;
+            padding: 0 16px;
             user-select: none;
+            z-index: 100;
+            flex-shrink: 0;
         }
-
         .stitch-header-left {
             display: flex;
             align-items: center;
             gap: 12px;
         }
-
-        .stitch-window-dots {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-right: 4px;
-        }
-
-        .stitch-dot {
-            width: 10.5px;
-            height: 10.5px;
-            border-radius: 50%;
-            display: inline-block;
-            opacity: 0.85;
-            transition: opacity 0.15s;
-        }
-        .stitch-dot:hover { opacity: 1; }
-        .dot-close { background: #ff5f56; border: 1px solid #e0443e; }
-        .dot-min { background: #ffbd2e; border: 1px solid #dea123; }
-        .dot-max { background: #27c93f; border: 1px solid #1aab29; }
-
         .stitch-brand {
             display: flex;
             align-items: center;
             gap: 8px;
         }
-
         .stitch-brand-icon {
             width: 24px;
             height: 24px;
@@ -2582,209 +2559,339 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 12px rgba(225, 29, 72, 0.35);
             background: #161822;
+            border: 1px solid var(--border);
         }
-
         .stitch-brand-icon img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
         }
-
         .stitch-brand-text {
             font-size: 13px;
             font-weight: 700;
-            letter-spacing: 0.02em;
-            color: #f1f5f9;
+            letter-spacing: -0.01em;
+            color: #ffffff;
+            font-family: 'Inter', system-ui, sans-serif;
         }
-
-        .stitch-accent-pink {
-            color: #f43f5e;
+        .stitch-brand-text .stitch-brand-mode {
+            color: var(--accent);
+            font-weight: 600;
         }
-
         .stitch-version-tag {
-            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 10px;
-            padding: 2px 6px;
+            padding: 1px 5px;
             border-radius: 4px;
-            background: #12141a;
+            background: rgba(255, 255, 255, 0.06);
             color: #94a3b8;
-            border: 1px solid #232634;
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-
         .stitch-header-center {
             display: flex;
             align-items: center;
             justify-content: center;
         }
-
         .stitch-segmented-control {
-            display: inline-flex;
-            align-items: center;
-            background: #0e1017;
-            padding: 3px;
-            border-radius: 9px;
-            border: 1px solid #232634;
-            gap: 3px;
+            display: flex;
+            background: #0c0e14;
+            border: 1px solid var(--border);
+            padding: 2px;
+            border-radius: 8px;
+            gap: 2px;
         }
-
         .stitch-seg-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            padding: 5px 13px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            color: #94a3b8;
             background: transparent;
             border: 1px solid transparent;
+            color: #94a3b8;
+            padding: 4px 12px;
+            font-size: 11.5px;
+            font-weight: 500;
+            border-radius: 6px;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             transition: all 0.15s ease;
-            user-select: none;
         }
-
         .stitch-seg-btn:hover {
             color: #f1f5f9;
             background: rgba(255, 255, 255, 0.04);
         }
-
         .stitch-seg-btn.active {
-            color: #ffffff;
-            background: linear-gradient(90deg, rgba(225, 29, 72, 0.4) 0%, rgba(244, 63, 94, 0.22) 100%);
-            border: 1px solid rgba(244, 63, 94, 0.45);
-            box-shadow: 0 0 14px -2px rgba(225, 29, 72, 0.4);
+            background: color-mix(in srgb, var(--accent) 22%, transparent) !important;
+            color: #ffffff !important;
+            border-color: color-mix(in srgb, var(--accent) 45%, var(--border)) !important;
+            box-shadow: 0 0 14px -2px var(--glow-color) !important;
             font-weight: 600;
         }
-
         .stitch-kbd-shortcut {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 9.5px;
-            background: rgba(0, 0, 0, 0.45);
-            color: #94a3b8;
+            font-size: 9px;
             padding: 1px 4px;
             border-radius: 3px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.4);
+            color: #94a3b8;
+            border: 1px solid var(--border);
+            margin-left: 2px;
         }
-
         .stitch-header-right {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
-
-        .stitch-chip-backend {
+        .stitch-chip-backend, .stitch-chip-status, .stitch-chat-model-chip {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            color: #e2e8f0;
-            background: #12141a;
-            border: 1px solid #232634;
-            padding: 4px 9px;
+            padding: 3px 9px;
             border-radius: 6px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            background: #12141a;
+            border: 1px solid var(--border);
         }
-
+        .stitch-chip-backend {
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.08);
+            border-color: rgba(16, 185, 129, 0.25);
+        }
+        .stitch-chip-status.offline {
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.08);
+            border-color: rgba(239, 68, 68, 0.25);
+        }
+        .stitch-chip-status.online {
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.12);
+            border-color: rgba(16, 185, 129, 0.35);
+        }
+        .stitch-chat-model-name {
+            color: #f1f5f9;
+            font-weight: 600;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .stitch-live-dot {
-            width: 7px;
-            height: 7px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: #10b981;
             box-shadow: 0 0 8px #10b981;
+            animation: pulse-dot 2s infinite ease-in-out;
         }
-
-        .stitch-chip-status {
+        .stitch-status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+        }
+        .stitch-chip-status.online .stitch-status-dot {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+        .stitch-header-cta {
+            background: var(--btn-primary-bg, var(--accent)) !important;
+            color: #ffffff;
+            border: 1px solid transparent;
+            font-size: 11.5px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 6px;
+            cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            padding: 4px 9px;
-            border-radius: 6px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .stitch-chip-status.offline {
-            background: rgba(225, 29, 72, 0.12);
-            color: #f43f5e;
-            border: 1px solid rgba(225, 29, 72, 0.3);
-        }
-
-        .stitch-chip-status.online {
-            background: rgba(16, 185, 129, 0.12);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .stitch-status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-        }
-        .stitch-chip-status.offline .stitch-status-dot {
-            background: #f43f5e;
-        }
-        .stitch-chip-status.online .stitch-status-dot {
-            background: #34d399;
-            box-shadow: 0 0 8px #34d399;
-            animation: pulse 2s infinite;
-        }
-
-        .stitch-header-cta {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            padding: 6px 14px;
-            border-radius: 7px;
-            background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);
-            color: #ffffff;
-            font-size: 12px;
-            font-weight: 600;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            cursor: pointer;
-            box-shadow: 0 0 16px -2px rgba(225, 29, 72, 0.45);
+            box-shadow: 0 0 16px -2px var(--glow-color);
             transition: all 0.15s ease;
         }
         .stitch-header-cta:hover {
             filter: brightness(1.1);
-            transform: translateY(-1px);
-        }
-        .stitch-header-cta:active {
-            transform: translateY(0);
         }
         .stitch-header-cta.btn-stop {
-            background: linear-gradient(135deg, #be123c 0%, #991b1b 100%);
-            box-shadow: 0 0 16px -2px rgba(153, 27, 27, 0.5);
+            background: #ef4444 !important;
+            box-shadow: 0 0 16px -2px rgba(239, 68, 68, 0.45);
         }
 
+        /* App Body Wrapper */
         .stitch-app-body {
             display: flex;
             flex: 1;
-            min-height: 0;
             overflow: hidden;
             position: relative;
         }
 
-        .sidebar {
-            padding: 16px 14px !important;
-            background: #0d0e13 !important;
-            border-right: 1px solid #232634 !important;
-            width: 235px !important;
-            min-width: 235px !important;
+        /* Manager Mode vs Chat Mode Full Layout */
+        body.mode-chat #sidebar {
+            display: none !important;
+        }
+        body.mode-chat .workspace {
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: none !important;
+        }
+        body.mode-chat #view-chat {
+            padding: 0 !important;
+            height: calc(100vh - 44px) !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        body.mode-chat .chat-workspace-wrapper {
+            height: 100% !important;
+            border-radius: 0 !important;
+            border: none !important;
+            display: flex !important;
+            overflow: hidden !important;
+        }
+        body.mode-chat .chat-sessions-drawer {
+            width: 250px !important;
+            background: #0b0d13 !important;
+            border-right: 1px solid var(--border) !important;
+            border-radius: 0 !important;
+            border-top: none !important;
+            border-bottom: none !important;
+            border-left: none !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+            flex-shrink: 0 !important;
+            transition: all 0.2s ease !important;
+        }
+        body.mode-chat .chat-sessions-drawer.collapsed {
+            width: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        body.mode-chat .chat-main-area {
+            flex: 1 !important;
+            height: 100% !important;
+            background: var(--bg-base) !important;
+        }
+        body.mode-chat .chat-header-bar {
+            display: none !important; /* Replaced by top stitch-app-header */
         }
 
+        /* Stitch Chat Sidebar Styling */
+        .stitch-chat-sidebar-header {
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+            background: #0f1118;
+            flex-shrink: 0;
+        }
+        .stitch-chat-back-manager-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            color: #cbd5e1;
+            font-size: 11.5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .stitch-chat-back-manager-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--border-hover);
+        }
+        .stitch-chat-new-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 7px 10px;
+            border-radius: 7px;
+            background: color-mix(in srgb, var(--accent) 15%, transparent);
+            border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .stitch-chat-new-btn:hover {
+            background: color-mix(in srgb, var(--accent) 25%, transparent);
+            color: #ffffff;
+        }
+        .stitch-chat-search-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .stitch-chat-search-wrap i {
+            position: absolute;
+            left: 9px;
+            font-size: 11px;
+            color: #64748b;
+            pointer-events: none;
+        }
+        .stitch-chat-search-wrap input {
+            width: 100%;
+            background: #08090d;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 5px 8px 5px 28px;
+            font-size: 11.5px;
+            color: #f1f5f9;
+            outline: none;
+        }
+        .stitch-chat-search-wrap input:focus {
+            border-color: var(--accent);
+        }
+        .stitch-chat-sidebar-footer {
+            padding: 10px 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #0b0d13;
+            flex-shrink: 0;
+        }
+        .stitch-chat-settings-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            border-radius: 6px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 11.5px;
+            cursor: pointer;
+            transition: all 0.12s ease;
+        }
+        .stitch-chat-settings-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .stitch-chat-port-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: #64748b;
+            padding: 2px 8px;
+        }
+
+        /* Sidebar Stitch Details in Manager Mode */
         .stitch-sidebar-section-title {
+            padding: 12px 14px 6px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 10px;
             font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
             color: #64748b;
-            padding: 6px 10px 10px 10px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -2795,84 +2902,52 @@
             border-radius: 50%;
             background: #475569;
         }
-
-        .nav-item {
-            position: relative;
-            margin-bottom: 3px;
-            border-radius: 8px;
-            padding: 9px 12px !important;
-            font-size: 12.5px !important;
-            border: 1px solid transparent !important;
-            transition: all 0.15s ease !important;
-        }
-        .nav-item:hover {
-            background: rgba(255, 255, 255, 0.04) !important;
-            color: #f1f5f9 !important;
-        }
-        .nav-item.active {
-            background: linear-gradient(90deg, rgba(225, 29, 72, 0.2) 0%, rgba(225, 29, 72, 0.04) 100%) !important;
-            border-color: rgba(225, 29, 72, 0.3) !important;
-            color: #ffffff !important;
-            font-weight: 600 !important;
-        }
-        .nav-item.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 6px;
-            bottom: 6px;
-            width: 3px;
-            background: #f43f5e;
-            border-radius: 0 2px 2px 0;
-            box-shadow: 0 0 10px #f43f5e;
-        }
-
         .nav-badge-pill {
             margin-left: auto;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 9.5px;
+            font-size: 9px;
+            font-weight: 700;
             padding: 1px 6px;
-            border-radius: 4px;
-            background: #161822;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
             color: #94a3b8;
-            border: 1px solid #232634;
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
         .nav-badge-pill.live {
-            background: rgba(225, 29, 72, 0.18);
-            color: #f43f5e;
-            border-color: rgba(225, 29, 72, 0.35);
+            background: color-mix(in srgb, var(--accent) 18%, transparent) !important;
+            color: var(--accent) !important;
+            border-color: color-mix(in srgb, var(--accent) 35%, transparent) !important;
         }
 
+        /* Host Memory Widget */
         .stitch-host-memory-widget {
-            background: #12141a;
-            border: 1px solid #232634;
-            border-radius: 10px;
             padding: 10px 12px;
-            margin-bottom: 8px;
+            margin: 0 10px 10px 10px;
+            background: #11131a;
+            border: 1px solid var(--border);
+            border-radius: 10px;
         }
         .stitch-host-memory-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 11px;
             margin-bottom: 6px;
         }
         .stitch-host-memory-label {
             font-family: 'JetBrains Mono', monospace;
             font-size: 9.5px;
+            font-weight: 700;
             color: #64748b;
-            font-weight: 600;
             letter-spacing: 0.04em;
         }
         .stitch-host-memory-val {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            color: #e2e8f0;
+            font-size: 10px;
             font-weight: 600;
+            color: #34d399;
         }
         .stitch-host-memory-bar-track {
-            width: 100%;
-            height: 5px;
+            height: 4px;
             background: #1e2230;
             border-radius: 999px;
             overflow: hidden;
@@ -2880,7 +2955,7 @@
         }
         .stitch-host-memory-bar-fill {
             height: 100%;
-            background: linear-gradient(90deg, #10b981 0%, #f43f5e 100%);
+            background: linear-gradient(90deg, #10b981 0%, var(--accent) 100%);
             border-radius: 999px;
             transition: width 0.3s ease;
         }
@@ -2899,7 +2974,7 @@
         /* Stitch Dashboard Quick Bar */
         .stitch-command-bar {
             background: #12141a;
-            border: 1px solid #232634;
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 10px 16px;
             display: flex;
@@ -2908,6 +2983,7 @@
             gap: 14px;
             flex-wrap: wrap;
             margin-bottom: 18px;
+            flex-shrink: 0 !important;
         }
         .stitch-command-left {
             display: flex;
@@ -2928,7 +3004,7 @@
             align-items: center;
             gap: 6px;
             background: #181a24;
-            border: 1px solid #232634;
+            border: 1px solid var(--border);
             border-radius: 7px;
             padding: 4px 8px;
         }
@@ -2945,7 +3021,7 @@
             font-family: 'JetBrains Mono', monospace !important;
             font-size: 12px !important;
             font-weight: 600 !important;
-            color: #f43f5e !important;
+            color: var(--accent) !important;
             outline: none !important;
             box-shadow: none !important;
         }
@@ -2958,7 +3034,7 @@
         .stitch-hero-status {
             position: relative;
             border-radius: 14px;
-            border: 1px solid #232634;
+            border: 1px solid var(--border);
             background: linear-gradient(180deg, #181b26 0%, #11131a 100%);
             padding: 22px;
             box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
@@ -2980,14 +3056,14 @@
             width: 56px;
             height: 56px;
             border-radius: 12px;
-            background: #201319;
-            border: 1px solid rgba(225, 29, 72, 0.35);
+            background: color-mix(in srgb, var(--accent) 12%, #12141a);
+            border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #f43f5e;
+            color: var(--accent);
             font-size: 24px;
-            box-shadow: 0 0 18px -2px rgba(225, 29, 72, 0.3);
+            box-shadow: 0 0 18px -2px var(--glow-color);
             flex-shrink: 0;
             transition: all 0.2s ease;
         }
@@ -3002,9 +3078,9 @@
             font-size: 10px;
             padding: 2px 7px;
             border-radius: 4px;
-            background: rgba(225, 29, 72, 0.18);
-            color: #f43f5e;
-            border: 1px solid rgba(225, 29, 72, 0.3);
+            background: color-mix(in srgb, var(--accent) 18%, transparent);
+            color: var(--accent);
+            border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
             font-weight: 700;
         }
         .stitch-hero-tag.online {
@@ -3034,7 +3110,7 @@
             padding: 6px 12px;
             border-radius: 8px;
             background: rgba(0, 0, 0, 0.45);
-            border: 1px solid #232634;
+            border: 1px solid var(--border);
             font-family: 'JetBrains Mono', monospace;
             font-size: 11.5px;
             display: flex;
@@ -3049,98 +3125,150 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin: 20px 0 12px 0;
+            margin-bottom: 14px;
+            margin-top: 14px;
+            flex-shrink: 0 !important;
         }
         .stitch-section-title {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 11.5px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: #94a3b8;
+            color: #cbd5e1;
         }
         .stitch-section-sub {
-            font-size: 11px;
+            font-size: 11.5px;
             color: #64748b;
         }
 
-        /* Stitch Runtime Flags Grid */
+        /* Stitch Flags Grid */
         .stitch-flags-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-            gap: 13px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 14px;
             margin-bottom: 22px;
+            flex-shrink: 0 !important;
         }
         .stitch-flag-card {
-            background: #161822;
-            border: 1px solid #232634;
+            background: #12141a;
+            border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 13px 15px;
-            transition: all 0.15s ease;
+            padding: 16px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            min-height: 125px;
+            transition: all 0.15s ease;
         }
         .stitch-flag-card:hover {
-            border-color: #383f58;
-            background: #1c1f2b;
+            border-color: var(--border-hover);
+            background: #161822;
         }
         .stitch-flag-header {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
-            margin-bottom: 8px;
+            gap: 10px;
+            margin-bottom: 6px;
         }
         .stitch-flag-title-wrap {
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        .stitch-flag-icon { font-size: 14px; }
+        .stitch-flag-icon {
+            font-size: 15px;
+        }
         .stitch-flag-title {
-            font-size: 12.5px;
+            font-size: 13.5px;
             font-weight: 600;
-            color: #ffffff;
+            color: #f1f5f9;
         }
         .stitch-flag-badge {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
+            font-size: 9.5px;
             padding: 2px 6px;
             border-radius: 4px;
-            background: #12141a;
+            background: rgba(255, 255, 255, 0.05);
             color: #94a3b8;
-            border: 1px solid #1a1c27;
+            border: 1px solid var(--border);
+            font-weight: 600;
+            white-space: nowrap;
         }
         .stitch-flag-desc {
-            font-size: 11px;
+            font-size: 11.5px;
             color: #94a3b8;
             line-height: 1.45;
-            min-height: 30px;
+            margin: 0 0 12px 0;
         }
         .stitch-flag-footer {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-top: 1px solid #1a1c27;
             padding-top: 10px;
-            margin-top: 12px;
+            border-top: 1px solid var(--border-muted);
         }
         .stitch-flag-cli {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 10.5px;
+            font-size: 11px;
             color: #64748b;
+        }
+
+        /* Stitch Toggle Switches */
+        .dash-switch {
+            position: relative;
+            display: inline-block;
+            width: 38px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+        .dash-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .dash-switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #26293b;
+            transition: .2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+        }
+        .dash-switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: #94a3b8;
+            transition: .2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 50%;
+        }
+        .dash-switch input:checked + .dash-switch-slider {
+            background-color: var(--accent) !important;
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 10px var(--accent) !important;
+        }
+        .dash-switch input:checked + .dash-switch-slider:before {
+            transform: translateX(18px);
+            background-color: #ffffff;
         }
 
         /* Stitch Diagnostics Grid */
         .stitch-diagnostics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 12px;
             margin-bottom: 22px;
+            flex-shrink: 0 !important;
         }
         .stitch-diagnostic-card {
             background: #12141a;
-            border: 1px solid #232634;
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 13px 16px;
             display: flex;
@@ -3177,14 +3305,15 @@
         /* Stitch Embedded Terminal */
         .stitch-log-terminal {
             background: #07080c;
-            border: 1px solid #232634;
+            border: 1px solid var(--border);
             border-radius: 12px;
             overflow: hidden;
             margin-top: 20px;
+            flex-shrink: 0 !important;
         }
         .stitch-log-header {
             background: #12141a;
-            border-bottom: 1px solid #232634;
+            border-bottom: 1px solid var(--border);
             padding: 8px 14px;
             display: flex;
             align-items: center;
@@ -3211,7 +3340,7 @@
             border-radius: 4px;
             background: #161822;
             color: #94a3b8;
-            border: 1px solid #232634;
+            border: 1px solid var(--border);
             cursor: pointer;
             transition: all 0.12s ease;
         }
@@ -3234,24 +3363,19 @@
         #btn-universal-sidebar-toggle {
             display: none !important;
         }
-
     </style>
 </head>
 <body>
 
     <!-- Stitch Top App Header & Mode Switcher Bar -->
+    <!-- Stitch Top App Header & Mode Switcher Bar -->
     <header class="stitch-app-header" data-purpose="app-window-header">
         <div class="stitch-header-left">
-            <div class="stitch-window-dots">
-                <span class="stitch-dot dot-close" title="Close Window" onclick="window.close()"></span>
-                <span class="stitch-dot dot-min" title="Minimize Window"></span>
-                <span class="stitch-dot dot-max" title="Maximize Window"></span>
-            </div>
             <div class="stitch-brand">
                 <div class="stitch-brand-icon">
-                    <img src="build/logo.png" alt="Logo">
+                    <img src="assets/logo.png" id="app-header-logo-img" alt="Logo" onerror="this.onerror=null; this.src='build/logo.png';">
                 </div>
-                <span class="stitch-brand-text">llama.cpp <span class="stitch-accent-pink">Manager</span></span>
+                <span class="stitch-brand-text">llama.cpp <span class="stitch-brand-mode" id="header-brand-mode">Manager</span></span>
                 <span class="stitch-version-tag">v1.0.8</span>
             </div>
         </div>
@@ -3260,9 +3384,10 @@
             <div class="stitch-segmented-control" role="tablist">
                 <button type="button" class="stitch-seg-btn active" id="btn-seg-manager" title="Switch to Manager Suite">
                     <i class="fa-solid fa-table-cells-large"></i>
-                    <span>Manager Mode</span>
+                    <span>Manager</span>
                 </button>
                 <button type="button" class="stitch-seg-btn" id="btn-seg-chat" title="Switch to Dedicated Chat Mode (Ctrl+2)">
+                    <span class="stitch-live-dot" id="chat-mode-live-dot" style="display:none;"></span>
                     <i class="fa-solid fa-comments"></i>
                     <span>Chat Mode</span>
                     <span class="stitch-kbd-shortcut">Ctrl+2</span>
@@ -3271,18 +3396,34 @@
         </div>
 
         <div class="stitch-header-right">
-            <div class="stitch-chip-backend" id="header-backend-chip" title="Active Backend Engine">
-                <span class="stitch-live-dot"></span>
-                <span id="header-backend-label">CUDA 12.4</span>
+            <!-- Manager Mode Actions -->
+            <div id="header-manager-actions" style="display: flex; align-items: center; gap: 8px;">
+                <div class="stitch-chip-backend" id="header-backend-chip" title="Active Backend Engine">
+                    <span class="stitch-live-dot"></span>
+                    <span id="header-backend-label">CUDA 12.4</span>
+                </div>
+                <div class="stitch-chip-status offline" id="header-status-chip">
+                    <span class="stitch-status-dot"></span>
+                    <span id="header-status-label">Offline</span>
+                </div>
+                <button type="button" class="stitch-header-cta" id="btn-header-server-toggle" title="Start/Stop Server Engine">
+                    <i class="fa-solid fa-play" id="header-cta-icon"></i>
+                    <span id="header-cta-text">Start Engine</span>
+                </button>
             </div>
-            <div class="stitch-chip-status offline" id="header-status-chip">
-                <span class="stitch-status-dot"></span>
-                <span id="header-status-label">Offline</span>
+
+            <!-- Chat Mode Actions -->
+            <div id="header-chat-actions" style="display: none; align-items: center; gap: 8px;">
+                <div class="stitch-chat-model-chip" id="stitch-chat-model-chip" title="Active Mounted Model">
+                    <span class="stitch-status-dot" id="stitch-chat-status-dot"></span>
+                    <span class="stitch-chat-model-name" id="stitch-chat-model-name">No Model Mounted</span>
+                    <span class="stitch-flag-badge" id="stitch-chat-status-badge">Offline</span>
+                    <span class="stitch-flag-badge" id="stitch-chat-mcp-badge" style="display: none;">MCP</span>
+                </div>
+                <button type="button" class="btn primary" id="btn-header-new-chat" style="padding: 5px 12px; font-size: 11.5px;">
+                    <i class="fa-solid fa-plus"></i> <span>New Chat</span>
+                </button>
             </div>
-            <button type="button" class="stitch-header-cta" id="btn-header-server-toggle" title="Start/Stop Server Engine">
-                <i class="fa-solid fa-play" id="header-cta-icon"></i>
-                <span id="header-cta-text">Start Engine</span>
-            </button>
         </div>
     </header>
 
@@ -3296,7 +3437,7 @@
         <div>
             <div class="brand-area">
                 <div class="brand-avatar">
-                    <img src="build/logo.png" alt="Llama.cpp Manager Logo">
+                    <img src="assets/logo.png" alt="Llama.cpp Manager Logo" onerror="this.onerror=null; this.src='build/logo.png';">
                 </div>
                 <div>
                     <div class="brand-title">Llama.cpp</div>
@@ -3311,10 +3452,6 @@
                 <button class="nav-item active" data-target="view-dashboard">
                     <i class="fa-solid fa-house" style="width: 16px;"></i> Dashboard
                     <span class="nav-badge-pill live">LIVE</span>
-                </button>
-                <button class="nav-item" data-target="view-chat">
-                    <i class="fa-solid fa-comments" style="width: 16px;"></i> Chat
-                    <span class="nav-badge-pill">STUDIO</span>
                 </button>
                 <button class="nav-item" data-target="view-models">
                     <i class="fa-solid fa-cube" style="width: 16px;"></i> Models
@@ -4060,7 +4197,7 @@
         <div id="view-chat" class="view-pane">
             <div class="chat-header-bar">
                 <div class="chat-header-left">
-                    <button class="btn secondary" id="btn-chat-back-manager" title="Return to Manager Suite (Esc)" style="padding: 4px 10px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 6px;">
+                    <button class="btn secondary" id="btn-chat-back-manager-legacy" title="Return to Manager Suite (Esc)" style="padding: 4px 10px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 6px;">
                         <i class="fa-solid fa-arrow-left"></i> <span>Manager</span> <span class="stitch-kbd-shortcut">Esc</span>
                     </button>
                     <button class="btn secondary btn-icon" id="btn-toggle-sessions-drawer" title="Toggle Chat History"><i class="fa-solid fa-clock-rotate-left"></i></button>
@@ -4139,16 +4276,37 @@
 
             <div class="chat-workspace-wrapper">
                 <!-- Sessions History Drawer -->
-                <div class="chat-sessions-drawer collapsed" id="chat-sessions-drawer">
-                    <div class="chat-sessions-drawer-header">
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <span style="font-weight: 600; font-size: 13px;"><i class="fa-solid fa-comments" style="color: var(--accent);"></i> History</span>
-                            <button class="btn secondary btn-icon" id="btn-close-sessions-drawer" style="padding: 2px 6px; font-size: 11px;"><i class="fa-solid fa-xmark"></i></button>
+                <div class="chat-sessions-drawer" id="chat-sessions-drawer">
+                    <div class="stitch-chat-sidebar-header">
+                        <button type="button" class="stitch-chat-back-manager-btn" id="btn-chat-back-manager" title="Return to Manager Suite (Esc)">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-arrow-left"></i>
+                                <span>Manager Mode</span>
+                            </div>
+                            <span class="stitch-kbd-shortcut">Esc</span>
+                        </button>
+                        <button type="button" class="stitch-chat-new-btn" id="btn-drawer-new-chat">
+                            <i class="fa-solid fa-plus"></i> <span>New Chat</span>
+                        </button>
+                        <div class="stitch-chat-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="chat-search-input" placeholder="Search chats...">
+                            <button class="btn secondary btn-icon" id="btn-close-sessions-drawer" style="display:none;" title="Close Drawer"></button>
                         </div>
-                        <input type="text" id="chat-search-input" placeholder="Search chats..." style="margin-top: 8px; font-size: 12px; padding: 6px 10px; border-radius: 8px;">
-                        <button class="btn danger" id="btn-delete-all-chats-drawer" style="width: 100%; margin-top: 8px; padding: 6px; font-size: 12px; justify-content: center;"><i class="fa-solid fa-trash-can"></i> Delete All Chats</button>
                     </div>
                     <div class="chat-sessions-list" id="chat-sessions-list"></div>
+                    <div class="stitch-chat-sidebar-footer">
+                        <button type="button" class="stitch-chat-settings-btn" id="btn-chat-sidebar-settings">
+                            <i class="fa-solid fa-gear"></i> <span>Settings</span>
+                        </button>
+                        <div class="stitch-chat-port-status">
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span class="stitch-status-dot" id="chat-sidebar-status-dot"></span>
+                                <span>Port: <strong id="chat-sidebar-port-text" style="color: #f1f5f9;">8080</strong></span>
+                            </div>
+                            <span id="chat-sidebar-ready-text" style="color: #34d399;">Ready</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Chat Main Container -->
@@ -4600,6 +4758,36 @@
                         </div>
                     </div>
                     <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.4;">Bubbles & buttons: pick background + text separately. Assistant BG empty = transparent (ChatGPT-style). Changes apply instantly and persist.</div>
+                <div style="margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--border);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 0;">
+                            <i class="fa-solid fa-up-right-and-down-left-from-center" style="color: var(--accent);"></i>
+                            Interface Scaling & Zoom
+                        </label>
+                        <span class="stitch-badge" id="ui-scale-val-badge" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 2px 8px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 6px; color: var(--text);">100%</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">
+                        Adjust interface display density for compact screens, high-DPI monitors, or personal preference. Changes take effect instantly and persist across sessions.
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="btn secondary btn-scale-preset" data-scale="0.85" style="padding: 6px 14px; font-size: 12px; border-radius: 8px;">
+                            85% <span style="font-size: 10px; opacity: 0.7; margin-left: 2px;">Compact</span>
+                        </button>
+                        <button type="button" class="btn secondary btn-scale-preset" data-scale="0.90" style="padding: 6px 14px; font-size: 12px; border-radius: 8px;">
+                            90% <span style="font-size: 10px; opacity: 0.7; margin-left: 2px;">Dense</span>
+                        </button>
+                        <button type="button" class="btn primary btn-scale-preset" data-scale="1.00" style="padding: 6px 14px; font-size: 12px; border-radius: 8px;">
+                            100% <span style="font-size: 10px; opacity: 0.7; margin-left: 2px;">Default</span>
+                        </button>
+                        <button type="button" class="btn secondary btn-scale-preset" data-scale="1.10" style="padding: 6px 14px; font-size: 12px; border-radius: 8px;">
+                            110% <span style="font-size: 10px; opacity: 0.7; margin-left: 2px;">Comfortable</span>
+                        </button>
+                        <button type="button" class="btn secondary btn-scale-preset" data-scale="1.25" style="padding: 6px 14px; font-size: 12px; border-radius: 8px;">
+                            125% <span style="font-size: 10px; opacity: 0.7; margin-left: 2px;">Large</span>
+                        </button>
+                        <input type="range" id="inp-ui-scale-slider" min="0.75" max="1.50" step="0.05" value="1.00" style="flex: 1; min-width: 140px; margin-left: 10px;" title="Fine-tune UI scale">
+                    </div>
+                </div>
                 </div>
             </div>
 
@@ -4946,7 +5134,12 @@
             if (navBtn) navBtn.classList.add('active');
             const targetEl = document.getElementById(targetId);
             if (targetEl) targetEl.classList.add('active');
+            const applyMode = (typeof window !== 'undefined' && window.applyModeLayout) || (typeof applyModeLayout === 'function' ? applyModeLayout : null);
+            if (typeof applyMode === 'function') {
+                applyMode(targetId === 'view-chat' ? 'chat' : 'manager');
+            }
         }
+        window.switchView = switchView;
 
         navItems.forEach(item => {
             item.addEventListener('click', () => {
@@ -9903,7 +10096,7 @@
     
 
         // =========================================================
-        // STITCH UI EVENT HANDLERS & SYNCHRONIZATION
+        // STITCH UI EVENT HANDLERS & SYNCHRONIZATION (v2)
         // =========================================================
         (function() {
             const btnSegManager = document.getElementById('btn-seg-manager');
@@ -9924,35 +10117,70 @@
             const heroChipPort = document.getElementById('hero-chip-port');
             const stitchDaemonPortVal = document.getElementById('stitch-daemon-port-val');
             const stitchDaemonReadyText = document.getElementById('stitch-daemon-ready-text');
+            const headerBrandMode = document.getElementById('header-brand-mode');
+            const headerManagerActions = document.getElementById('header-manager-actions');
+            const headerChatActions = document.getElementById('header-chat-actions');
+            const btnHeaderNewChat = document.getElementById('btn-header-new-chat');
+            const btnDrawerNewChat = document.getElementById('btn-drawer-new-chat');
+            const btnChatSidebarSettings = document.getElementById('btn-chat-sidebar-settings');
+            const stitchChatModelName = document.getElementById('stitch-chat-model-name');
+            const stitchChatStatusBadge = document.getElementById('stitch-chat-status-badge');
+            const stitchChatStatusDot = document.getElementById('stitch-chat-status-dot');
 
-            function syncModePills(targetView) {
-                if (targetView === 'view-chat') {
+            window.applyModeLayout = applyModeLayout;
+            function applyModeLayout(mode) {
+                if (mode === 'chat') {
+                    document.body.classList.add('mode-chat');
                     if (btnSegManager) btnSegManager.classList.remove('active');
                     if (btnSegChat) btnSegChat.classList.add('active');
+                    if (headerBrandMode) headerBrandMode.textContent = 'Chat';
+                    if (headerManagerActions) headerManagerActions.style.display = 'none';
+                    if (headerChatActions) headerChatActions.style.display = 'flex';
+                    const drawer = document.getElementById('chat-sessions-drawer');
+                    if (drawer) drawer.classList.remove('collapsed');
                 } else {
+                    document.body.classList.remove('mode-chat');
                     if (btnSegManager) btnSegManager.classList.add('active');
                     if (btnSegChat) btnSegChat.classList.remove('active');
+                    if (headerBrandMode) headerBrandMode.textContent = 'Manager';
+                    if (headerManagerActions) headerManagerActions.style.display = 'flex';
+                    if (headerChatActions) headerChatActions.style.display = 'none';
                 }
             }
 
             if (btnSegManager) {
                 btnSegManager.addEventListener('click', () => {
                     switchView('view-dashboard');
-                    syncModePills('view-dashboard');
                 });
             }
 
             if (btnSegChat) {
                 btnSegChat.addEventListener('click', () => {
                     switchView('view-chat');
-                    syncModePills('view-chat');
                 });
             }
 
             if (btnChatBackManager) {
                 btnChatBackManager.addEventListener('click', () => {
                     switchView('view-dashboard');
-                    syncModePills('view-dashboard');
+                });
+            }
+
+            if (btnHeaderNewChat) {
+                btnHeaderNewChat.addEventListener('click', () => {
+                    if (typeof createNewChatSession === 'function') createNewChatSession();
+                });
+            }
+
+            if (btnDrawerNewChat) {
+                btnDrawerNewChat.addEventListener('click', () => {
+                    if (typeof createNewChatSession === 'function') createNewChatSession();
+                });
+            }
+
+            if (btnChatSidebarSettings) {
+                btnChatSidebarSettings.addEventListener('click', () => {
+                    switchView('view-settings');
                 });
             }
 
@@ -9962,14 +10190,12 @@
                 if (e.ctrlKey && e.key === '2') {
                     e.preventDefault();
                     switchView('view-chat');
-                    syncModePills('view-chat');
                 }
                 // Esc while in Chat view -> return to Manager Mode
                 if (e.key === 'Escape') {
                     const chatPane = document.getElementById('view-chat');
                     if (chatPane && chatPane.classList.contains('active')) {
                         switchView('view-dashboard');
-                        syncModePills('view-dashboard');
                     }
                 }
             });
@@ -10016,6 +10242,14 @@
                         stitchDaemonReadyText.textContent = 'Running';
                         stitchDaemonReadyText.style.color = '#34d399';
                     }
+                    if (stitchChatStatusBadge) {
+                        stitchChatStatusBadge.textContent = 'Online';
+                        stitchChatStatusBadge.style.color = '#34d399';
+                        stitchChatStatusBadge.style.borderColor = 'rgba(16,185,129,0.3)';
+                    }
+                    if (stitchChatStatusDot) {
+                        stitchChatStatusDot.style.background = '#10b981';
+                    }
                 } else {
                     if (headerStatusChip) {
                         headerStatusChip.className = 'stitch-chip-status offline';
@@ -10038,6 +10272,14 @@
                         stitchDaemonReadyText.textContent = 'Ready';
                         stitchDaemonReadyText.style.color = '#34d399';
                     }
+                    if (stitchChatStatusBadge) {
+                        stitchChatStatusBadge.textContent = 'Offline';
+                        stitchChatStatusBadge.style.color = '#f87171';
+                        stitchChatStatusBadge.style.borderColor = 'rgba(239,68,68,0.3)';
+                    }
+                    if (stitchChatStatusDot) {
+                        stitchChatStatusDot.style.background = '#ef4444';
+                    }
                 }
             });
 
@@ -10045,12 +10287,24 @@
                 observer.observe(dashStatusText, { childList: true, characterData: true, subtree: true });
             }
 
+            // Sync Active Model Name in Chat Header
+            const origSelectModel = window.dashModelSelect;
+            if (dashModelSelect) {
+                dashModelSelect.addEventListener('change', () => {
+                    const sel = dashModelSelect.value || 'No Model Mounted';
+                    if (stitchChatModelName) stitchChatModelName.textContent = sel;
+                });
+            }
+
             // Sync Port display
             const inpPort = document.getElementById('inp-port');
             if (inpPort) {
                 inpPort.addEventListener('input', () => {
-                    if (heroChipPort) heroChipPort.textContent = inpPort.value || '8080';
-                    if (stitchDaemonPortVal) stitchDaemonPortVal.textContent = inpPort.value || '8080';
+                    const p = inpPort.value || '8080';
+                    if (heroChipPort) heroChipPort.textContent = p;
+                    if (stitchDaemonPortVal) stitchDaemonPortVal.textContent = p;
+                    const chatPort = document.getElementById('chat-sidebar-port-text');
+                    if (chatPort) chatPort.textContent = p;
                 });
             }
 
@@ -10071,7 +10325,6 @@
                 });
             }
 
-            // Hook Mount Model button to focus model select
             if (btnStitchMountModel) {
                 btnStitchMountModel.addEventListener('click', () => {
                     const sel = document.getElementById('dash-model-select');
@@ -10079,25 +10332,69 @@
                 });
             }
 
-            // Hook Import GGUF button to switch to models view
             if (btnStitchBrowseModels) {
                 btnStitchBrowseModels.addEventListener('click', () => {
                     switchView('view-models');
                 });
             }
 
-            // Wrap switchView to keep top mode switcher in sync
-            const origSwitchView = window.switchView;
-            window.switchView = function(viewName) {
-                if (typeof origSwitchView === 'function') origSwitchView(viewName);
-                syncModePills(viewName);
-            };
+            // UI SCALING HANDLER
+            function applyUiScale(scale) {
+                scale = parseFloat(scale) || 1.0;
+                try {
+                    const electron = require('electron');
+                    if (electron && electron.webFrame && typeof electron.webFrame.setZoomFactor === 'function') {
+                        electron.webFrame.setZoomFactor(scale);
+                    }
+                } catch(e) {}
+                document.documentElement.style.zoom = scale;
+                localStorage.setItem('llama-manager-ui-scale', scale);
+
+                document.querySelectorAll('.btn-scale-preset').forEach(btn => {
+                    const s = parseFloat(btn.dataset.scale);
+                    if (Math.abs(s - scale) < 0.01) {
+                        btn.classList.add('primary');
+                        btn.classList.remove('secondary');
+                    } else {
+                        btn.classList.remove('primary');
+                        btn.classList.add('secondary');
+                    }
+                });
+                const badge = document.getElementById('ui-scale-val-badge');
+                if (badge) badge.textContent = Math.round(scale * 100) + '%';
+                const slider = document.getElementById('inp-ui-scale-slider');
+                if (slider && Math.abs(parseFloat(slider.value) - scale) > 0.01) {
+                    slider.value = scale;
+                }
+            }
+
+            document.querySelectorAll('.btn-scale-preset').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    applyUiScale(btn.dataset.scale);
+                });
+            });
+
+            const scaleSlider = document.getElementById('inp-ui-scale-slider');
+            if (scaleSlider) {
+                scaleSlider.addEventListener('input', (e) => {
+                    applyUiScale(e.target.value);
+                });
+            }
+
+            // Apply saved scale on startup
+            const savedScale = parseFloat(localStorage.getItem('llama-manager-ui-scale') || '1.0');
+            if (savedScale && savedScale !== 1.0) {
+                applyUiScale(savedScale);
+            }
 
             // Update model count badge when models populate
             ipcRenderer.invoke('get-models').then(models => {
                 const navCount = document.getElementById('nav-models-count');
                 if (navCount && Array.isArray(models)) {
                     navCount.textContent = models.length;
+                    if (models.length > 0 && stitchChatModelName && stitchChatModelName.textContent === 'No Model Mounted') {
+                        stitchChatModelName.textContent = models[0];
+                    }
                 }
             }).catch(() => {});
 
@@ -10108,7 +10405,6 @@
                 }
             }).catch(() => {});
         })();
-
-</script>
+    </script>
 </body>
 </html>
