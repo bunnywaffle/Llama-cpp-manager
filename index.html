@@ -13,17 +13,20 @@
     <script src="vendor/dompurify/purify.min.js"></script>
     <style>
         :root[data-theme="dark"] {
-            --bg-base: #09090b;
-            --bg-surface: #121215;
-            --bg-card: #18181c;
-            --bg-card-hover: #222228;
-            --border: rgba(255, 255, 255, 0.09);
-            --border-hover: rgba(255, 255, 255, 0.18);
-            --text-main: #f8fafc;
+            --bg-base: #090a0d;
+            --bg-surface: #12141a;
+            --bg-card: #161822;
+            --bg-card-hover: #1c1f2b;
+            --border: #232634;
+            --border-hover: #383f58;
+            --border-muted: #1a1c27;
+            --text-main: #f1f5f9;
             --text-muted: #94a3b8;
-            --accent: #e4e4e7;
-            --accent-hover: #ffffff;
-            --glow-color: rgba(228, 228, 231, 0.12);
+            --accent: #f43f5e;
+            --accent-hover: #e11d48;
+            --accent-crimson: #e11d48;
+            --glow-color: rgba(225, 29, 72, 0.25);
+            --glow-crimson: 0 0 20px -3px rgba(225, 29, 72, 0.35);
         }
 
         :root[data-theme="midnight"] {
@@ -2513,9 +2516,778 @@
         .sampling-tag.active strong { color:#fff; }
         
  
+    
+        /* ========================================================= */
+        /* STITCH MODERN SLEEK DESIGN SYSTEM (StitchMCP UI Adapter)  */
+        /* ========================================================= */
+        
+        body {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100vh !important;
+            overflow: hidden !important;
+            background-color: var(--bg-base) !important;
+        }
+
+        .stitch-app-header {
+            height: 44px;
+            background: #090a0e;
+            border-bottom: 1px solid #1a1c27;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            flex-shrink: 0;
+            z-index: 120;
+            user-select: none;
+        }
+
+        .stitch-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stitch-window-dots {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-right: 4px;
+        }
+
+        .stitch-dot {
+            width: 10.5px;
+            height: 10.5px;
+            border-radius: 50%;
+            display: inline-block;
+            opacity: 0.85;
+            transition: opacity 0.15s;
+        }
+        .stitch-dot:hover { opacity: 1; }
+        .dot-close { background: #ff5f56; border: 1px solid #e0443e; }
+        .dot-min { background: #ffbd2e; border: 1px solid #dea123; }
+        .dot-max { background: #27c93f; border: 1px solid #1aab29; }
+
+        .stitch-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stitch-brand-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 12px rgba(225, 29, 72, 0.35);
+            background: #161822;
+        }
+
+        .stitch-brand-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .stitch-brand-text {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #f1f5f9;
+        }
+
+        .stitch-accent-pink {
+            color: #f43f5e;
+        }
+
+        .stitch-version-tag {
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #12141a;
+            color: #94a3b8;
+            border: 1px solid #232634;
+        }
+
+        .stitch-header-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stitch-segmented-control {
+            display: inline-flex;
+            align-items: center;
+            background: #0e1017;
+            padding: 3px;
+            border-radius: 9px;
+            border: 1px solid #232634;
+            gap: 3px;
+        }
+
+        .stitch-seg-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 13px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #94a3b8;
+            background: transparent;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+
+        .stitch-seg-btn:hover {
+            color: #f1f5f9;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .stitch-seg-btn.active {
+            color: #ffffff;
+            background: linear-gradient(90deg, rgba(225, 29, 72, 0.4) 0%, rgba(244, 63, 94, 0.22) 100%);
+            border: 1px solid rgba(244, 63, 94, 0.45);
+            box-shadow: 0 0 14px -2px rgba(225, 29, 72, 0.4);
+            font-weight: 600;
+        }
+
+        .stitch-kbd-shortcut {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            background: rgba(0, 0, 0, 0.45);
+            color: #94a3b8;
+            padding: 1px 4px;
+            border-radius: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .stitch-header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stitch-chip-backend {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            background: #12141a;
+            border: 1px solid #232634;
+            padding: 4px 9px;
+            border-radius: 6px;
+        }
+
+        .stitch-live-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .stitch-chip-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 4px 9px;
+            border-radius: 6px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .stitch-chip-status.offline {
+            background: rgba(225, 29, 72, 0.12);
+            color: #f43f5e;
+            border: 1px solid rgba(225, 29, 72, 0.3);
+        }
+
+        .stitch-chip-status.online {
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .stitch-status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+        }
+        .stitch-chip-status.offline .stitch-status-dot {
+            background: #f43f5e;
+        }
+        .stitch-chip-status.online .stitch-status-dot {
+            background: #34d399;
+            box-shadow: 0 0 8px #34d399;
+            animation: pulse 2s infinite;
+        }
+
+        .stitch-header-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 14px;
+            border-radius: 7px;
+            background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            box-shadow: 0 0 16px -2px rgba(225, 29, 72, 0.45);
+            transition: all 0.15s ease;
+        }
+        .stitch-header-cta:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        .stitch-header-cta:active {
+            transform: translateY(0);
+        }
+        .stitch-header-cta.btn-stop {
+            background: linear-gradient(135deg, #be123c 0%, #991b1b 100%);
+            box-shadow: 0 0 16px -2px rgba(153, 27, 27, 0.5);
+        }
+
+        .stitch-app-body {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .sidebar {
+            padding: 16px 14px !important;
+            background: #0d0e13 !important;
+            border-right: 1px solid #232634 !important;
+            width: 235px !important;
+            min-width: 235px !important;
+        }
+
+        .stitch-sidebar-section-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            padding: 6px 10px 10px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .stitch-sidebar-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #475569;
+        }
+
+        .nav-item {
+            position: relative;
+            margin-bottom: 3px;
+            border-radius: 8px;
+            padding: 9px 12px !important;
+            font-size: 12.5px !important;
+            border: 1px solid transparent !important;
+            transition: all 0.15s ease !important;
+        }
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.04) !important;
+            color: #f1f5f9 !important;
+        }
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(225, 29, 72, 0.2) 0%, rgba(225, 29, 72, 0.04) 100%) !important;
+            border-color: rgba(225, 29, 72, 0.3) !important;
+            color: #ffffff !important;
+            font-weight: 600 !important;
+        }
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 6px;
+            bottom: 6px;
+            width: 3px;
+            background: #f43f5e;
+            border-radius: 0 2px 2px 0;
+            box-shadow: 0 0 10px #f43f5e;
+        }
+
+        .nav-badge-pill {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: #161822;
+            color: #94a3b8;
+            border: 1px solid #232634;
+        }
+        .nav-badge-pill.live {
+            background: rgba(225, 29, 72, 0.18);
+            color: #f43f5e;
+            border-color: rgba(225, 29, 72, 0.35);
+        }
+
+        .stitch-host-memory-widget {
+            background: #12141a;
+            border: 1px solid #232634;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+        }
+        .stitch-host-memory-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            margin-bottom: 6px;
+        }
+        .stitch-host-memory-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            color: #64748b;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+        .stitch-host-memory-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            font-weight: 600;
+        }
+        .stitch-host-memory-bar-track {
+            width: 100%;
+            height: 5px;
+            background: #1e2230;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        .stitch-host-memory-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #f43f5e 100%);
+            border-radius: 999px;
+            transition: width 0.3s ease;
+        }
+        .stitch-host-memory-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #64748b;
+        }
+        .stitch-daemon-status-ready {
+            color: #34d399;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Stitch Dashboard Quick Bar */
+        .stitch-command-bar {
+            background: #12141a;
+            border: 1px solid #232634;
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+        .stitch-command-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .stitch-command-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 0.04em;
+        }
+        .stitch-input-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #181a24;
+            border: 1px solid #232634;
+            border-radius: 7px;
+            padding: 4px 8px;
+        }
+        .stitch-input-pill span {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10.5px;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+        .stitch-input-pill input {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            color: #f43f5e !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        #view-dashboard > * {
+            flex-shrink: 0 !important;
+        }
+
+        /* Stitch Dashboard Hero Status */
+        .stitch-hero-status {
+            position: relative;
+            border-radius: 14px;
+            border: 1px solid #232634;
+            background: linear-gradient(180deg, #181b26 0%, #11131a 100%);
+            padding: 22px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+            min-height: 100px;
+        }
+        .stitch-hero-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+        .stitch-hero-icon-box {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            background: #201319;
+            border: 1px solid rgba(225, 29, 72, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f43f5e;
+            font-size: 24px;
+            box-shadow: 0 0 18px -2px rgba(225, 29, 72, 0.3);
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+        .stitch-hero-icon-box.online {
+            background: #0d1f19 !important;
+            border-color: rgba(16, 185, 129, 0.35) !important;
+            color: #34d399 !important;
+            box-shadow: 0 0 18px -2px rgba(16, 185, 129, 0.3) !important;
+        }
+        .stitch-hero-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: rgba(225, 29, 72, 0.18);
+            color: #f43f5e;
+            border: 1px solid rgba(225, 29, 72, 0.3);
+            font-weight: 700;
+        }
+        .stitch-hero-tag.online {
+            background: rgba(16, 185, 129, 0.18) !important;
+            color: #34d399 !important;
+            border-color: rgba(16, 185, 129, 0.3) !important;
+        }
+        .stitch-hero-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-top: 4px;
+            letter-spacing: -0.01em;
+        }
+        .stitch-hero-sub {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+        .stitch-hero-chips {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .stitch-hero-chip {
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid #232634;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stitch-hero-chip-lbl { color: #94a3b8; }
+        .stitch-hero-chip-val { color: #f1f5f9; font-weight: 600; }
+
+        /* Stitch Section Headers */
+        .stitch-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 20px 0 12px 0;
+        }
+        .stitch-section-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+        }
+        .stitch-section-sub {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        /* Stitch Runtime Flags Grid */
+        .stitch-flags-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 13px;
+            margin-bottom: 22px;
+        }
+        .stitch-flag-card {
+            background: #161822;
+            border: 1px solid #232634;
+            border-radius: 12px;
+            padding: 13px 15px;
+            transition: all 0.15s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .stitch-flag-card:hover {
+            border-color: #383f58;
+            background: #1c1f2b;
+        }
+        .stitch-flag-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .stitch-flag-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stitch-flag-icon { font-size: 14px; }
+        .stitch-flag-title {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        .stitch-flag-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #12141a;
+            color: #94a3b8;
+            border: 1px solid #1a1c27;
+        }
+        .stitch-flag-desc {
+            font-size: 11px;
+            color: #94a3b8;
+            line-height: 1.45;
+            min-height: 30px;
+        }
+        .stitch-flag-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid #1a1c27;
+            padding-top: 10px;
+            margin-top: 12px;
+        }
+        .stitch-flag-cli {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10.5px;
+            color: #64748b;
+        }
+
+        /* Stitch Diagnostics Grid */
+        .stitch-diagnostics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+        .stitch-diagnostic-card {
+            background: #12141a;
+            border: 1px solid #232634;
+            border-radius: 12px;
+            padding: 13px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.15s ease;
+        }
+        .stitch-diag-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .stitch-diag-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+        }
+        .stitch-diag-val {
+            font-size: 13px;
+            font-weight: 600;
+            color: #f1f5f9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .stitch-diag-val.mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+        }
+
+        /* Stitch Embedded Terminal */
+        .stitch-log-terminal {
+            background: #07080c;
+            border: 1px solid #232634;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        .stitch-log-header {
+            background: #12141a;
+            border-bottom: 1px solid #232634;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .stitch-log-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        .stitch-log-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stitch-log-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: #161822;
+            color: #94a3b8;
+            border: 1px solid #232634;
+            cursor: pointer;
+            transition: all 0.12s ease;
+        }
+        .stitch-log-btn:hover {
+            color: #ffffff;
+            background: #1c1f2b;
+        }
+        .stitch-log-body {
+            padding: 12px 14px;
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 11px;
+            color: #94a3b8;
+            max-height: 140px;
+            overflow-y: auto;
+            line-height: 1.6;
+            background: #08090d;
+        }
+
+        /* Hide the old top-left fixed sidebar button */
+        #btn-universal-sidebar-toggle {
+            display: none !important;
+        }
+
     </style>
 </head>
 <body>
+
+    <!-- Stitch Top App Header & Mode Switcher Bar -->
+    <header class="stitch-app-header" data-purpose="app-window-header">
+        <div class="stitch-header-left">
+            <div class="stitch-window-dots">
+                <span class="stitch-dot dot-close" title="Close Window" onclick="window.close()"></span>
+                <span class="stitch-dot dot-min" title="Minimize Window"></span>
+                <span class="stitch-dot dot-max" title="Maximize Window"></span>
+            </div>
+            <div class="stitch-brand">
+                <div class="stitch-brand-icon">
+                    <img src="build/logo.png" alt="Logo">
+                </div>
+                <span class="stitch-brand-text">llama.cpp <span class="stitch-accent-pink">Manager</span></span>
+                <span class="stitch-version-tag">v1.0.8</span>
+            </div>
+        </div>
+
+        <div class="stitch-header-center">
+            <div class="stitch-segmented-control" role="tablist">
+                <button type="button" class="stitch-seg-btn active" id="btn-seg-manager" title="Switch to Manager Suite">
+                    <i class="fa-solid fa-table-cells-large"></i>
+                    <span>Manager Mode</span>
+                </button>
+                <button type="button" class="stitch-seg-btn" id="btn-seg-chat" title="Switch to Dedicated Chat Mode (Ctrl+2)">
+                    <i class="fa-solid fa-comments"></i>
+                    <span>Chat Mode</span>
+                    <span class="stitch-kbd-shortcut">Ctrl+2</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="stitch-header-right">
+            <div class="stitch-chip-backend" id="header-backend-chip" title="Active Backend Engine">
+                <span class="stitch-live-dot"></span>
+                <span id="header-backend-label">CUDA 12.4</span>
+            </div>
+            <div class="stitch-chip-status offline" id="header-status-chip">
+                <span class="stitch-status-dot"></span>
+                <span id="header-status-label">Offline</span>
+            </div>
+            <button type="button" class="stitch-header-cta" id="btn-header-server-toggle" title="Start/Stop Server Engine">
+                <i class="fa-solid fa-play" id="header-cta-icon"></i>
+                <span id="header-cta-text">Start Engine</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="stitch-app-body">
+
     <!-- Universal Clean Minimal Sidebar Toggle Button -->
     <button type="button" id="btn-universal-sidebar-toggle" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
 
@@ -2531,29 +3303,53 @@
                     <div class="brand-subtitle">Manager</div>
                 </div>
             </div>
+            <div class="stitch-sidebar-section-title">
+                <span>Inference Console</span>
+                <span class="stitch-sidebar-dot"></span>
+            </div>
             <div class="nav-menu">
                 <button class="nav-item active" data-target="view-dashboard">
                     <i class="fa-solid fa-house" style="width: 16px;"></i> Dashboard
+                    <span class="nav-badge-pill live">LIVE</span>
                 </button>
                 <button class="nav-item" data-target="view-chat">
                     <i class="fa-solid fa-comments" style="width: 16px;"></i> Chat
+                    <span class="nav-badge-pill">STUDIO</span>
                 </button>
                 <button class="nav-item" data-target="view-models">
                     <i class="fa-solid fa-cube" style="width: 16px;"></i> Models
+                    <span class="nav-badge-pill" id="nav-models-count">--</span>
                 </button>
                 <button class="nav-item" data-target="view-server">
                     <i class="fa-solid fa-play" style="width: 16px;"></i> Server
+                    <span class="nav-badge-pill">ENGINE</span>
                 </button>
                 <button class="nav-item" data-target="view-backends">
                     <i class="fa-solid fa-microchip" style="width: 16px;"></i> Backends
+                    <span class="nav-badge-pill" id="nav-backend-pill" style="color:#34d399; background:rgba(16,185,129,0.12); border-color:rgba(16,185,129,0.25);">CUDA</span>
                 </button>
             </div>
         </div>
         <div class="sidebar-bottom">
+            <!-- Stitch Host Memory Widget -->
+            <div class="stitch-host-memory-widget">
+                <div class="stitch-host-memory-header">
+                    <span class="stitch-host-memory-label">HOST MEMORY</span>
+                    <span class="stitch-host-memory-val" id="stitch-host-memory-text">Optimal</span>
+                </div>
+                <div class="stitch-host-memory-bar-track">
+                    <div class="stitch-host-memory-bar-fill" id="stitch-host-memory-bar" style="width: 38%;"></div>
+                </div>
+                <div class="stitch-host-memory-footer">
+                    <span>Daemon Port: <strong id="stitch-daemon-port-val" style="color:#f1f5f9; font-family:'JetBrains Mono',monospace;">8080</strong></span>
+                    <span class="stitch-daemon-status-ready" id="stitch-daemon-ready-text">Ready</span>
+                </div>
+            </div>
             <button class="nav-item" data-target="view-settings">
                 <i class="fa-solid fa-gear" style="width: 16px;"></i> Settings
+                <span class="nav-badge-pill" style="font-size: 8.5px;">CFG</span>
             </button>
-            <div class="version-area">
+            <div class="version-area" style="padding: 4px 10px;">
                 <div class="version-dot"></div>
                 <span>v1.0.8</span>
             </div>
@@ -2567,222 +3363,314 @@
 
         <!-- DASHBOARD VIEW -->
         <div id="view-dashboard" class="view-pane active">
-            <div class="header-row">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    
-                    <div>
-                        <h2>Dashboard</h2>
-                        <p class="subtitle">Active llama.cpp server</p>
-                    </div>
+            <!-- Stitch Dashboard Header -->
+            <div class="stitch-section-header" style="margin-top: 0;">
+                <div>
+                    <h2 style="font-size: 20px; font-weight: 700; color: #fff; margin: 0; display: flex; align-items: center; gap: 8px;">
+                        Dashboard
+                        <span class="stitch-version-tag">Local Host Instance</span>
+                    </h2>
+                    <p class="stitch-section-sub" style="margin: 3px 0 0 0;">Control runtime parameters, offload settings, and inference server states.</p>
                 </div>
-                <div id="dashboard-action-btn-container" style="display: flex; gap: 12px; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label for="dash-ctx" style="margin: 0; white-space: nowrap; font-size: 12px;">Context</label>
-                        <input type="number" id="dash-ctx" value="8192" min="1" step="1" title="Auto-detected from the model. Falls back to 8192 when unknown." style="width: 92px; padding: 10px 8px;">
-                        <label for="dash-threads" style="margin: 0; white-space: nowrap; font-size: 12px;">Threads</label>
-                        <input type="number" id="dash-threads" value="-1" min="-1" step="1" title="CPU threads (-t). Set to physical cores (e.g. 4 or 6) to avoid oversaturation. -1 = Auto" style="width: 75px; padding: 10px 8px;">
-                    </div>
-                    <div style="width: 220px;">
-                        <select id="dash-model-select" style="padding: 10px 14px; font-size: 13px;"></select>
-                    </div>
-                    <button class="btn primary" id="btn-quick-run"><i class="fa-solid fa-play"></i> Run Server</button>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn secondary" id="btn-stitch-browse-models" title="Import / Link GGUF Models Folder" style="padding: 6px 12px; font-size: 11.5px;">
+                        <i class="fa-solid fa-folder-open"></i> Import GGUF
+                    </button>
+                    <button type="button" class="btn primary" id="btn-quick-run" style="padding: 6px 14px; font-size: 12px; font-weight: 600;">
+                        <i class="fa-solid fa-play"></i> Run Server
+                    </button>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="status-banner">
-                    <div class="status-left">
-                        <div class="status-icon-box">
-                            <i class="fa-solid fa-server"></i>
+            <!-- Stitch Quick Server Command Bar -->
+            <div class="stitch-command-bar" id="dashboard-action-btn-container">
+                <div class="stitch-command-left">
+                    <span class="stitch-command-label">Daemon Model:</span>
+                    <div style="width: 250px;">
+                        <select id="dash-model-select" style="width: 100%; padding: 6px 10px; font-size: 12px; border-radius: 7px;"></select>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="stitch-input-pill">
+                        <span>Context</span>
+                        <input type="number" id="dash-ctx" value="8192" min="1" step="1" title="Context size (-c)" style="width: 60px; text-align: right;">
+                        <span>tokens</span>
+                    </div>
+                    <div class="stitch-input-pill">
+                        <span>Threads</span>
+                        <input type="number" id="dash-threads" value="-1" min="-1" step="1" title="CPU threads (-t). -1 = Auto" style="width: 40px; text-align: center;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stitch Hero Server Status Card -->
+            <div class="stitch-hero-status" id="dash-hero-status-card">
+                <div class="stitch-hero-left">
+                    <div class="stitch-hero-icon-box" id="dash-server-icon-box">
+                        <i class="fa-solid fa-server"></i>
+                    </div>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#94a3b8; font-weight:700; letter-spacing:0.04em; text-transform:uppercase;">SERVER STATUS</span>
+                            <span class="stitch-hero-tag" id="dash-status-tag">INACTIVE</span>
                         </div>
-                        <div>
-                            <div class="status-label">Server Status</div>
-                            <div class="status-heading" id="dash-status-text" style="color: #ef4444; text-shadow: 0 0 20px rgba(239, 68, 68, 0.3);">Offline</div>
-                            <div class="status-subtext" id="dash-subtext">Server is offline</div>
+                        <div class="stitch-hero-title" id="dash-status-text" style="color: #ef4444; text-shadow: 0 0 20px rgba(239, 68, 68, 0.3);">Offline</div>
+                        <div class="stitch-hero-sub" id="dash-subtext">Server daemon is offline. Start the engine to enable API endpoints and completions.</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+                    <div class="stitch-hero-chips">
+                        <div class="stitch-hero-chip">
+                            <span class="stitch-hero-chip-lbl">Host:</span>
+                            <span class="stitch-hero-chip-val">127.0.0.1</span>
+                        </div>
+                        <div class="stitch-hero-chip">
+                            <span class="stitch-hero-chip-lbl">Port:</span>
+                            <span class="stitch-hero-chip-val" style="color:#f43f5e;" id="hero-chip-port">8080</span>
+                        </div>
+                        <div class="stitch-hero-chip">
+                            <span class="stitch-hero-chip-lbl">API:</span>
+                            <span class="stitch-hero-chip-val" style="color:#34d399;">OpenAI /v1</span>
                         </div>
                     </div>
+
+                    <!-- Active Server Stop & Endpoints Controls -->
                     <div id="dash-stop-container" style="display: none;">
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button class="btn secondary" id="btn-copy-server-url" title="Copy base server URL (e.g. http://127.0.0.1:8080)"><i class="fa-regular fa-copy"></i> Copy Base URL</button>
-                            <button class="btn secondary" id="btn-copy-api-url" title="Copy OpenAI-compatible API endpoint (e.g. http://127.0.0.1:8080/v1)"><i class="fa-solid fa-code"></i> Copy /v1 API</button>
-                            <button class="btn danger" id="btn-quick-stop"><i class="fa-solid fa-square"></i> Stop Server</button>
+                            <button class="btn secondary" id="btn-copy-server-url" style="padding: 5px 10px; font-size: 11px;" title="Copy base server URL (http://127.0.0.1:8080)"><i class="fa-regular fa-copy"></i> Base URL</button>
+                            <button class="btn secondary" id="btn-copy-api-url" style="padding: 5px 10px; font-size: 11px;" title="Copy OpenAI-compatible API endpoint (/v1)"><i class="fa-solid fa-code"></i> /v1 API</button>
+                            <button class="btn danger" id="btn-quick-stop" style="padding: 5px 12px; font-size: 11.5px;"><i class="fa-solid fa-square"></i> Stop Engine</button>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- DASHBOARD QUICK TOGGLES (Router Mode & Parallel Slots) -->
-                <div class="dash-quick-toggles-bar">
-                    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-                        <!-- Quick Router Mode Toggle -->
-                        <div class="dash-toggle-group">
-                            <label class="dash-switch" title="Toggle Router Mode (serve all imported models with live switching)">
-                                <input type="checkbox" id="dash-toggle-router-mode">
-                                <span class="dash-switch-slider"></span>
-                            </label>
-                            <div style="display: flex; flex-direction: column;">
-                                <span class="dash-switch-label" id="lbl-dash-router-mode">
-                                    <i class="fa-solid fa-route" style="color: var(--accent); font-size: 12px;"></i> Router Mode
-                                    <span id="dash-badge-router-mode" class="dash-mode-badge inactive">OFF</span>
-                                </span>
-                                <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Serve all models in folder</span>
+            <!-- Stitch Runtime Server Flags & Features Grid -->
+            <div class="stitch-section-header">
+                <span class="stitch-section-title">Runtime Server Flags & Features</span>
+                <span class="stitch-section-sub">Configure llama-server execution parameters</span>
+            </div>
+
+            <div class="stitch-flags-grid">
+                <!-- Flag Card 1: Router Mode -->
+                <div class="stitch-flag-card">
+                    <div>
+                        <div class="stitch-flag-header">
+                            <div class="stitch-flag-title-wrap">
+                                <span class="stitch-flag-icon">🔀</span>
+                                <span class="stitch-flag-title" id="lbl-dash-router-mode">Router Mode</span>
                             </div>
+                            <span class="stitch-flag-badge" id="dash-badge-router-mode">Gateway</span>
                         </div>
-
-                        <div style="width: 1px; height: 28px; background: var(--border);"></div>
-
-                        <!-- Quick Parallel Slots Toggle & Counter -->
-                        <div class="dash-toggle-group">
-                            <label class="dash-switch" title="Toggle Parallel Slots (-np / --parallel)">
-                                <input type="checkbox" id="dash-toggle-parallel-enabled">
-                                <span class="dash-switch-slider"></span>
-                            </label>
-                            <div style="display: flex; flex-direction: column;">
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span class="dash-switch-label" id="lbl-dash-parallel-enabled">
-                                        <i class="fa-solid fa-network-wired" style="color: #60a5fa; font-size: 12px;"></i> Parallel Slots
-                                        <span id="dash-badge-parallel-enabled" class="dash-mode-badge inactive">OFF</span>
-                                    </span>
-                                    <!-- Compact Slots Input -->
-                                    <div id="dash-parallel-slots-box" style="display: flex; align-items: center; gap: 4px; margin-left: 2px; opacity: 0.4;">
-                                        <span style="font-size: 11px; font-family: 'JetBrains Mono', Consolas, monospace; color: var(--text-muted);">-np</span>
-                                        <input type="number" id="dash-parallel-slots" min="1" max="512" step="1" value="1" style="width: 52px; padding: 3px 5px; font-size: 12px; text-align: center; height: 24px; border-radius: 6px;" disabled title="Number of parallel sequences (--parallel / -np)">
-                                    </div>
-                                </div>
-                                <span style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Concurrent sequences processing</span>
-                            </div>
-                        </div>
-
-                        <div style="width: 1px; height: 28px; background: var(--border);"></div>
-
-                        <!-- Quick Hardware / GPU Acceleration Toggle -->
-                        <div class="dash-toggle-group">
-                            <label class="dash-switch" title="Toggle GPU Acceleration vs Pure CPU Mode">
-                                <input type="checkbox" id="dash-toggle-gpu-enabled" checked>
-                                <span class="dash-switch-slider"></span>
-                            </label>
-                            <div style="display: flex; flex-direction: column;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span class="dash-switch-label" id="lbl-dash-gpu-enabled" style="cursor: pointer;" title="Click to toggle between GPU Acceleration and CPU Only">
-                                        <i class="fa-solid fa-microchip" style="color: #10b981; font-size: 12px;"></i> Hardware
-                                        <span id="dash-badge-gpu-mode" class="dash-mode-badge active-gpu">⚡ GPU (99 L)</span>
-                                    </span>
-                                </div>
-                                <span id="dash-subtext-gpu-mode" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">GPU acceleration active (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-ngl 99</code>)</span>
-                            </div>
-                        </div>
-
-                        <div style="width: 1px; height: 28px; background: var(--border);"></div>
-
-                        <!-- Quick Flash Attention Toggle -->
-                        <div class="dash-toggle-group">
-                            <label class="dash-switch" title="Toggle Flash Attention (-fa) for faster inference and reduced VRAM/RAM memory">
-                                <input type="checkbox" id="dash-toggle-flash-attn" checked>
-                                <span class="dash-switch-slider"></span>
-                            </label>
-                            <div style="display: flex; flex-direction: column;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span class="dash-switch-label" id="lbl-dash-flash-attn" style="cursor: pointer;" title="Click to toggle Flash Attention">
-                                        <i class="fa-solid fa-bolt-lightning" style="color: #38bdf8; font-size: 12px;"></i> Flash Attention
-                                        <span id="dash-badge-flash-attn" class="dash-mode-badge active-gpu">⚡ ON</span>
-                                    </span>
-                                </div>
-                                <span id="dash-subtext-flash-attn" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Accelerated attention (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">-fa auto</code>)</span>
-                            </div>
-                        </div>
-
-                        <div style="width: 1px; height: 28px; background: var(--border);"></div>
-
-                        <!-- Quick RAM Lock (--mlock) Toggle -->
-                        <div class="dash-toggle-group">
-                            <label class="dash-switch" title="Toggle Lock Model in RAM (--mlock) to prevent OS pagefile disk swapping">
-                                <input type="checkbox" id="dash-toggle-mlock">
-                                <span class="dash-switch-slider"></span>
-                            </label>
-                            <div style="display: flex; flex-direction: column;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span class="dash-switch-label" id="lbl-dash-mlock" style="cursor: pointer;" title="Click to toggle Lock Model in RAM (--mlock)">
-                                        <i class="fa-solid fa-lock" style="color: #a78bfa; font-size: 12px;"></i> RAM Lock
-                                        <span id="dash-badge-mlock" class="dash-mode-badge inactive">OFF</span>
-                                    </span>
-                                </div>
-                                <span id="dash-subtext-mlock" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Prevent disk swapping (<code style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px;">--mlock</code>)</span>
-                            </div>
-                        </div>
+                        <p class="stitch-flag-desc">Serve all models in folder via dynamic unified route lookup.</p>
                     </div>
-
-                    <!-- Live Server Restart Hint (if changed while server is running) -->
-                    <div id="dash-restart-required-pill" style="display: none; align-items: center; gap: 8px; font-size: 11.5px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 5px 12px; border-radius: 8px;">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>Restart required to apply changes</span>
-                        <button class="btn secondary" id="btn-dash-quick-restart" style="padding: 2px 8px; font-size: 10.5px; margin-left: 4px;"><i class="fa-solid fa-rotate"></i> Restart Now</button>
+                    <div class="stitch-flag-footer">
+                        <span class="stitch-flag-cli">--router-mode</span>
+                        <label class="dash-switch" title="Toggle Router Mode">
+                            <input type="checkbox" id="dash-toggle-router-mode">
+                            <span class="dash-switch-slider"></span>
+                        </label>
                     </div>
                 </div>
 
-                <div class="metrics-grid-4">
-                    <div class="metric-card">
-                        <i class="fa-solid fa-desktop"></i>
-                        <div>
-                            <div class="metric-label">Address</div>
-                            <div class="metric-val" id="metric-addr" style="cursor: pointer;" title="Click to copy server URL">127.0.0.1:8080 <i class="fa-regular fa-copy" style="font-size: 11px; margin-left: 4px; opacity: 0.7;"></i></div>
+                <!-- Flag Card 2: Parallel Slots -->
+                <div class="stitch-flag-card">
+                    <div>
+                        <div class="stitch-flag-header">
+                            <div class="stitch-flag-title-wrap">
+                                <span class="stitch-flag-icon">🗂️</span>
+                                <span class="stitch-flag-title" id="lbl-dash-parallel-enabled">Parallel Slots</span>
+                            </div>
+                            <span class="stitch-flag-badge" id="dash-badge-parallel-enabled">slots: 1</span>
                         </div>
+                        <p class="stitch-flag-desc">Process concurrent continuous requests simultaneously.</p>
                     </div>
-                    <div class="metric-card">
-                        <i class="fa-solid fa-link"></i>
-                        <div>
-                            <div class="metric-label">API Endpoints</div>
-                            <div class="metric-val">/v1</div>
+                    <div class="stitch-flag-footer">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="stitch-flag-cli">-np</span>
+                            <div id="dash-parallel-slots-box" style="opacity: 0.4;">
+                                <input type="number" id="dash-parallel-slots" min="1" max="512" step="1" value="1" style="width: 50px; padding: 2px 4px; font-size: 11px; text-align: center; height: 22px; border-radius: 5px;" disabled title="Parallel sequences count">
+                            </div>
                         </div>
-                    </div>
-                    <div class="metric-card">
-                        <i class="fa-solid fa-cube"></i>
-                        <div>
-                            <div class="metric-label">Model Loaded</div>
-                            <div class="metric-val" id="metric-model">None</div>
-                        </div>
-                    </div>
-                    <div class="metric-card">
-                        <i class="fa-solid fa-layer-group"></i>
-                        <div>
-                            <div class="metric-label">Context Size</div>
-                            <div class="metric-val" id="metric-ctx">4096</div>
-                        </div>
-                    </div>
-                    <div class="metric-card">
-                        <i class="fa-solid fa-microchip"></i>
-                        <div>
-                            <div class="metric-label">CPU Threads</div>
-                            <div class="metric-val" id="metric-threads">Auto</div>
-                        </div>
-                    </div>
-                    <div class="metric-card">
-                        <i class="fa-solid fa-microchip"></i>
-                        <div>
-                            <div class="metric-label">Backend</div>
-                            <div class="metric-val" id="metric-backend"><span style="color:#34d399;"><i class="fa-solid fa-bolt"></i> GPU (99 L)</span></div>
-                        </div>
-                    </div>
-                    <div class="metric-card">
-                        <i class="fa-solid fa-clock"></i>
-                        <div>
-                            <div class="metric-label">Uptime</div>
-                            <div class="metric-val" id="metric-uptime">00:00:00</div>
-                        </div>
-                    </div>
-                    <div class="metric-card">
-                        <i class="fa-solid fa-gauge-high"></i>
-                        <div>
-                            <div class="metric-label">Tokens / sec</div>
-                            <div class="metric-val">--</div>
-                        </div>
+                        <label class="dash-switch" title="Toggle Parallel Slots">
+                            <input type="checkbox" id="dash-toggle-parallel-enabled">
+                            <span class="dash-switch-slider"></span>
+                        </label>
                     </div>
                 </div>
 
-                <div class="btn secondary" id="btn-open-logs-modal" style="justify-content: space-between; width: 100%;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <i class="fa-solid fa-file-lines"></i>
-                        <span>View Logs</span>
+                <!-- Flag Card 3: Hardware Offloading -->
+                <div class="stitch-flag-card">
+                    <div>
+                        <div class="stitch-flag-header">
+                            <div class="stitch-flag-title-wrap">
+                                <span class="stitch-flag-icon">⚡</span>
+                                <span class="stitch-flag-title" id="lbl-dash-gpu-enabled">Hardware Offload</span>
+                            </div>
+                            <span class="stitch-flag-badge" id="dash-badge-gpu-mode" style="color:#34d399; border-color:rgba(16,185,129,0.35);">CUDA / GPU</span>
+                        </div>
+                        <p class="stitch-flag-desc">Offload model tensor layers to GPU VRAM for fast generation.</p>
                     </div>
-                    <i class="fa-solid fa-chevron-right" style="color: var(--text-muted);"></i>
+                    <div class="stitch-flag-footer">
+                        <span class="stitch-flag-cli" id="dash-subtext-gpu-mode">-ngl 99</span>
+                        <label class="dash-switch" title="Toggle GPU Acceleration vs CPU">
+                            <input type="checkbox" id="dash-toggle-gpu-enabled" checked>
+                            <span class="dash-switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Flag Card 4: Flash Attention -->
+                <div class="stitch-flag-card">
+                    <div>
+                        <div class="stitch-flag-header">
+                            <div class="stitch-flag-title-wrap">
+                                <span class="stitch-flag-icon">✨</span>
+                                <span class="stitch-flag-title" id="lbl-dash-flash-attn">Flash Attention</span>
+                            </div>
+                            <span class="stitch-flag-badge" id="dash-badge-flash-attn" style="color:#38bdf8; border-color:rgba(56,189,248,0.35);">VRAM Opt</span>
+                        </div>
+                        <p class="stitch-flag-desc">Accelerate attention computation and reduce KV cache VRAM.</p>
+                    </div>
+                    <div class="stitch-flag-footer">
+                        <span class="stitch-flag-cli" id="dash-subtext-flash-attn">-fa auto</span>
+                        <label class="dash-switch" title="Toggle Flash Attention">
+                            <input type="checkbox" id="dash-toggle-flash-attn" checked>
+                            <span class="dash-switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Flag Card 5: RAM Lock (mlock) -->
+                <div class="stitch-flag-card">
+                    <div>
+                        <div class="stitch-flag-header">
+                            <div class="stitch-flag-title-wrap">
+                                <span class="stitch-flag-icon">🔒</span>
+                                <span class="stitch-flag-title" id="lbl-dash-mlock">RAM Lock (mlock)</span>
+                            </div>
+                            <span class="stitch-flag-badge" id="dash-badge-mlock">System</span>
+                        </div>
+                        <p class="stitch-flag-desc">Lock weights in physical memory to prevent OS pagefile disk swapping.</p>
+                    </div>
+                    <div class="stitch-flag-footer">
+                        <span class="stitch-flag-cli" id="dash-subtext-mlock">--mlock</span>
+                        <label class="dash-switch" title="Toggle RAM Lock (--mlock)">
+                            <input type="checkbox" id="dash-toggle-mlock">
+                            <span class="dash-switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Flag Card 6: Continuous Batching -->
+                <div class="stitch-flag-card">
+                    <div>
+                        <div class="stitch-flag-header">
+                            <div class="stitch-flag-title-wrap">
+                                <span class="stitch-flag-icon">🔄</span>
+                                <span class="stitch-flag-title">Continuous Batching</span>
+                            </div>
+                            <span class="stitch-flag-badge" id="dash-badge-cont-batching">Batching</span>
+                        </div>
+                        <p class="stitch-flag-desc">Batch new incoming prompt evaluations into current sequences.</p>
+                    </div>
+                    <div class="stitch-flag-footer">
+                        <span class="stitch-flag-cli">--cont-batching</span>
+                        <label class="dash-switch" title="Toggle Continuous Batching">
+                            <input type="checkbox" id="dash-toggle-cont-batching" checked>
+                            <span class="dash-switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Server Restart Required Notification -->
+            <div id="dash-restart-required-pill" style="display: none; align-items: center; gap: 8px; font-size: 11.5px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 7px 14px; border-radius: 8px; margin-bottom: 18px;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Configuration changed. Restart required to apply changes to active server.</span>
+                <button class="btn secondary" id="btn-dash-quick-restart" style="padding: 2px 8px; font-size: 10.5px; margin-left: 6px;"><i class="fa-solid fa-rotate"></i> Restart Now</button>
+            </div>
+
+            <!-- Stitch Instance Diagnostics & API Endpoints Grid -->
+            <div class="stitch-section-header">
+                <span class="stitch-section-title">Instance Diagnostics & API Endpoints</span>
+                <span class="stitch-section-sub">Hardware allocation & runtime metrics</span>
+            </div>
+
+            <div class="stitch-diagnostics-grid">
+                <!-- Diagnostic 1: Daemon Address -->
+                <div class="stitch-diagnostic-card">
+                    <div class="stitch-diag-left">
+                        <span class="stitch-diag-label">Daemon Address</span>
+                        <div class="stitch-diag-val mono" id="metric-addr" style="cursor: pointer;" title="Click to copy">
+                            127.0.0.1:8080 <i class="fa-regular fa-copy" style="font-size: 11px; opacity: 0.6; margin-left: 4px;"></i>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-network-wired" style="color: #64748b; font-size: 16px;"></i>
+                </div>
+
+                <!-- Diagnostic 2: Model Mounted -->
+                <div class="stitch-diagnostic-card">
+                    <div class="stitch-diag-left">
+                        <span class="stitch-diag-label">Model Mounted</span>
+                        <div class="stitch-diag-val" id="metric-model" style="color:#f43f5e;">Standby (None)</div>
+                    </div>
+                    <button type="button" class="btn secondary" id="btn-stitch-mount-model" style="padding: 3px 8px; font-size: 10.5px; border-radius: 5px;">Load</button>
+                </div>
+
+                <!-- Diagnostic 3: Context Size -->
+                <div class="stitch-diagnostic-card">
+                    <div class="stitch-diag-left">
+                        <span class="stitch-diag-label">Context Size</span>
+                        <div class="stitch-diag-val mono" id="metric-ctx">4096 <span style="font-size: 11px; font-weight: normal; color: #64748b;">Tokens</span></div>
+                    </div>
+                    <span class="stitch-flag-badge" style="color:#34d399; border-color:rgba(16,185,129,0.35);">KV Cache OK</span>
+                </div>
+
+                <!-- Diagnostic 4: Compute Engine -->
+                <div class="stitch-diagnostic-card">
+                    <div class="stitch-diag-left">
+                        <span class="stitch-diag-label">Compute Engine</span>
+                        <div class="stitch-diag-val" id="metric-backend"><span style="color:#34d399;"><i class="fa-solid fa-bolt"></i> GPU (99 L)</span></div>
+                    </div>
+                    <i class="fa-solid fa-microchip" style="color: #64748b; font-size: 16px;"></i>
+                </div>
+
+                <!-- Diagnostic 5: Generation Rate -->
+                <div class="stitch-diagnostic-card">
+                    <div class="stitch-diag-left">
+                        <span class="stitch-diag-label">Generation Rate</span>
+                        <div class="stitch-diag-val mono" id="metric-tps">-- <span style="font-size: 11px; font-weight: normal; color: #64748b;">tokens / sec</span></div>
+                    </div>
+                    <i class="fa-solid fa-gauge-high" style="color: #64748b; font-size: 16px;"></i>
+                </div>
+
+                <!-- Diagnostic 6: Uptime & CPU Threads -->
+                <div class="stitch-diagnostic-card">
+                    <div class="stitch-diag-left">
+                        <span class="stitch-diag-label">Uptime & Threads</span>
+                        <div class="stitch-diag-val mono"><span id="metric-uptime">00:00:00</span> <span style="font-size: 11px; font-weight: normal; color: #64748b;">• <span id="metric-threads">Auto</span> th</span></div>
+                    </div>
+                    <i class="fa-solid fa-clock" style="color: #64748b; font-size: 16px;"></i>
+                </div>
+            </div>
+
+            <!-- Stitch Embedded Daemon Log Stream -->
+            <div class="stitch-log-terminal">
+                <div class="stitch-log-header">
+                    <div class="stitch-log-title">
+                        <i class="fa-solid fa-terminal" style="color: #f43f5e;"></i>
+                        <span>Daemon Log Stream</span>
+                        <span style="font-size: 9.5px; color: #64748b; font-weight: normal;">stdout/stderr</span>
+                    </div>
+                    <div class="stitch-log-actions">
+                        <button type="button" class="stitch-log-btn" id="btn-clear-embedded-logs">Clear</button>
+                        <button type="button" class="stitch-log-btn" id="btn-open-logs-modal"><i class="fa-solid fa-up-right-from-square"></i> Pop-out</button>
+                    </div>
+                </div>
+                <div class="stitch-log-body" id="dash-embedded-log-box">
+                    <p style="color: #64748b; margin: 0;"><span style="color: #475569;">[00:00:00]</span> <span style="color: #f43f5e;">[daemon-idle]</span> Server standby. Awaiting launch command on port 8080...</p>
                 </div>
             </div>
         </div>
@@ -3172,7 +4060,9 @@
         <div id="view-chat" class="view-pane">
             <div class="chat-header-bar">
                 <div class="chat-header-left">
-                    
+                    <button class="btn secondary" id="btn-chat-back-manager" title="Return to Manager Suite (Esc)" style="padding: 4px 10px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-arrow-left"></i> <span>Manager</span> <span class="stitch-kbd-shortcut">Esc</span>
+                    </button>
                     <button class="btn secondary btn-icon" id="btn-toggle-sessions-drawer" title="Toggle Chat History"><i class="fa-solid fa-clock-rotate-left"></i></button>
                     <button class="btn secondary btn-icon" id="btn-toggle-persona-drawer" title="Toggle Persona Studio (Edit / Create Personas)"><i class="fa-solid fa-user-pen"></i></button>
                     <h2 class="chat-view-title">Chat</h2>
@@ -3854,6 +4744,8 @@
             <pre class="console" id="log-console">No logs yet.</pre>
         </div>
     </div>
+
+        </div><!-- /.stitch-app-body -->
 
     <script>
         // ============ Global Application State ============
@@ -9008,6 +9900,215 @@
         });
 
         init();
-    </script>
+    
+
+        // =========================================================
+        // STITCH UI EVENT HANDLERS & SYNCHRONIZATION
+        // =========================================================
+        (function() {
+            const btnSegManager = document.getElementById('btn-seg-manager');
+            const btnSegChat = document.getElementById('btn-seg-chat');
+            const btnHeaderServerToggle = document.getElementById('btn-header-server-toggle');
+            const headerCtaIcon = document.getElementById('header-cta-icon');
+            const headerCtaText = document.getElementById('header-cta-text');
+            const headerStatusChip = document.getElementById('header-status-chip');
+            const headerStatusLabel = document.getElementById('header-status-label');
+            const headerBackendLabel = document.getElementById('header-backend-label');
+            const dashEmbeddedLogBox = document.getElementById('dash-embedded-log-box');
+            const btnClearEmbeddedLogs = document.getElementById('btn-clear-embedded-logs');
+            const btnChatBackManager = document.getElementById('btn-chat-back-manager');
+            const btnStitchMountModel = document.getElementById('btn-stitch-mount-model');
+            const btnStitchBrowseModels = document.getElementById('btn-stitch-browse-models');
+            const dashServerIconBox = document.getElementById('dash-server-icon-box');
+            const dashStatusTag = document.getElementById('dash-status-tag');
+            const heroChipPort = document.getElementById('hero-chip-port');
+            const stitchDaemonPortVal = document.getElementById('stitch-daemon-port-val');
+            const stitchDaemonReadyText = document.getElementById('stitch-daemon-ready-text');
+
+            function syncModePills(targetView) {
+                if (targetView === 'view-chat') {
+                    if (btnSegManager) btnSegManager.classList.remove('active');
+                    if (btnSegChat) btnSegChat.classList.add('active');
+                } else {
+                    if (btnSegManager) btnSegManager.classList.add('active');
+                    if (btnSegChat) btnSegChat.classList.remove('active');
+                }
+            }
+
+            if (btnSegManager) {
+                btnSegManager.addEventListener('click', () => {
+                    switchView('view-dashboard');
+                    syncModePills('view-dashboard');
+                });
+            }
+
+            if (btnSegChat) {
+                btnSegChat.addEventListener('click', () => {
+                    switchView('view-chat');
+                    syncModePills('view-chat');
+                });
+            }
+
+            if (btnChatBackManager) {
+                btnChatBackManager.addEventListener('click', () => {
+                    switchView('view-dashboard');
+                    syncModePills('view-dashboard');
+                });
+            }
+
+            // Keyboard Shortcuts
+            window.addEventListener('keydown', (e) => {
+                // Ctrl+2 -> Chat Mode
+                if (e.ctrlKey && e.key === '2') {
+                    e.preventDefault();
+                    switchView('view-chat');
+                    syncModePills('view-chat');
+                }
+                // Esc while in Chat view -> return to Manager Mode
+                if (e.key === 'Escape') {
+                    const chatPane = document.getElementById('view-chat');
+                    if (chatPane && chatPane.classList.contains('active')) {
+                        switchView('view-dashboard');
+                        syncModePills('view-dashboard');
+                    }
+                }
+            });
+
+            // Global Header Run/Stop Server CTA Button
+            if (btnHeaderServerToggle) {
+                btnHeaderServerToggle.addEventListener('click', () => {
+                    const isRunning = dashStatusText && dashStatusText.textContent.toLowerCase().includes('running');
+                    if (isRunning) {
+                        const btnQuickStop = document.getElementById('btn-quick-stop');
+                        if (btnQuickStop) btnQuickStop.click();
+                    } else {
+                        const btnQuickRun = document.getElementById('btn-quick-run');
+                        if (btnQuickRun) btnQuickRun.click();
+                    }
+                });
+            }
+
+            // Sync Header Status and Global CTA with server state
+            const observer = new MutationObserver(() => {
+                if (!dashStatusText) return;
+                const isOnline = dashStatusText.textContent.toLowerCase().includes('running') || 
+                                 dashStatusText.textContent.toLowerCase().includes('online');
+                
+                if (isOnline) {
+                    if (headerStatusChip) {
+                        headerStatusChip.className = 'stitch-chip-status online';
+                        if (headerStatusLabel) headerStatusLabel.textContent = 'Online';
+                    }
+                    if (dashStatusTag) {
+                        dashStatusTag.className = 'stitch-hero-tag online';
+                        dashStatusTag.textContent = 'ONLINE';
+                    }
+                    if (dashServerIconBox) {
+                        dashServerIconBox.classList.add('online');
+                    }
+                    if (headerCtaText) headerCtaText.textContent = 'Stop Engine';
+                    if (headerCtaIcon) headerCtaIcon.className = 'fa-solid fa-square';
+                    if (btnHeaderServerToggle) {
+                        btnHeaderServerToggle.classList.add('btn-stop');
+                        btnHeaderServerToggle.title = 'Stop Server Engine';
+                    }
+                    if (stitchDaemonReadyText) {
+                        stitchDaemonReadyText.textContent = 'Running';
+                        stitchDaemonReadyText.style.color = '#34d399';
+                    }
+                } else {
+                    if (headerStatusChip) {
+                        headerStatusChip.className = 'stitch-chip-status offline';
+                        if (headerStatusLabel) headerStatusLabel.textContent = 'Offline';
+                    }
+                    if (dashStatusTag) {
+                        dashStatusTag.className = 'stitch-hero-tag';
+                        dashStatusTag.textContent = 'INACTIVE';
+                    }
+                    if (dashServerIconBox) {
+                        dashServerIconBox.classList.remove('online');
+                    }
+                    if (headerCtaText) headerCtaText.textContent = 'Start Engine';
+                    if (headerCtaIcon) headerCtaIcon.className = 'fa-solid fa-play';
+                    if (btnHeaderServerToggle) {
+                        btnHeaderServerToggle.classList.remove('btn-stop');
+                        btnHeaderServerToggle.title = 'Start Server Engine';
+                    }
+                    if (stitchDaemonReadyText) {
+                        stitchDaemonReadyText.textContent = 'Ready';
+                        stitchDaemonReadyText.style.color = '#34d399';
+                    }
+                }
+            });
+
+            if (dashStatusText) {
+                observer.observe(dashStatusText, { childList: true, characterData: true, subtree: true });
+            }
+
+            // Sync Port display
+            const inpPort = document.getElementById('inp-port');
+            if (inpPort) {
+                inpPort.addEventListener('input', () => {
+                    if (heroChipPort) heroChipPort.textContent = inpPort.value || '8080';
+                    if (stitchDaemonPortVal) stitchDaemonPortVal.textContent = inpPort.value || '8080';
+                });
+            }
+
+            // Stream server logs to embedded terminal box
+            ipcRenderer.on('server-log', (event, data) => {
+                if (dashEmbeddedLogBox) {
+                    const p = document.createElement('p');
+                    p.style.margin = '0 0 2px 0';
+                    p.textContent = data.trim();
+                    dashEmbeddedLogBox.appendChild(p);
+                    dashEmbeddedLogBox.scrollTop = dashEmbeddedLogBox.scrollHeight;
+                }
+            });
+
+            if (btnClearEmbeddedLogs && dashEmbeddedLogBox) {
+                btnClearEmbeddedLogs.addEventListener('click', () => {
+                    dashEmbeddedLogBox.innerHTML = '<p style="color: #64748b; margin: 0;">Logs cleared.</p>';
+                });
+            }
+
+            // Hook Mount Model button to focus model select
+            if (btnStitchMountModel) {
+                btnStitchMountModel.addEventListener('click', () => {
+                    const sel = document.getElementById('dash-model-select');
+                    if (sel) sel.focus();
+                });
+            }
+
+            // Hook Import GGUF button to switch to models view
+            if (btnStitchBrowseModels) {
+                btnStitchBrowseModels.addEventListener('click', () => {
+                    switchView('view-models');
+                });
+            }
+
+            // Wrap switchView to keep top mode switcher in sync
+            const origSwitchView = window.switchView;
+            window.switchView = function(viewName) {
+                if (typeof origSwitchView === 'function') origSwitchView(viewName);
+                syncModePills(viewName);
+            };
+
+            // Update model count badge when models populate
+            ipcRenderer.invoke('get-models').then(models => {
+                const navCount = document.getElementById('nav-models-count');
+                if (navCount && Array.isArray(models)) {
+                    navCount.textContent = models.length;
+                }
+            }).catch(() => {});
+
+            // Update active backend badge in titlebar
+            ipcRenderer.invoke('get-backend-info').then(info => {
+                if (info && info.installed && headerBackendLabel) {
+                    headerBackendLabel.textContent = info.version ? ('Build ' + info.version) : (info.exeName || 'Installed');
+                }
+            }).catch(() => {});
+        })();
+
+</script>
 </body>
 </html>
